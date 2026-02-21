@@ -69,7 +69,7 @@ const Button = ({ children, onClick, variant = 'primary', className = "", disabl
         accent: "bg-orange-600 text-white hover:bg-orange-700",
         danger: "bg-red-50 text-red-600 hover:bg-red-100"
     };
-    return <button disabled={disabled} onClick={onClick} className={`px-4 py-2 rounded-lg font-bold uppercase text-[11px] transition-all flex items-center justify-center gap-2 ${styles[variant]} ${className}`}>{children}</button>;
+    return <button disabled={disabled} type="button" onClick={onClick} className={`px-4 py-2 rounded-lg font-bold uppercase text-[11px] transition-all flex items-center justify-center gap-2 ${styles[variant]} ${className}`}>{children}</button>;
 };
 
 const Input = ({ label, type = "text", value, onChange, placeholder, required = false }) => (
@@ -446,34 +446,100 @@ function EngineeringView({ recipes, ingredients, setRecipes, setIngredients }) {
 
     return (
         <div className="space-y-8 animate-in fade-in">
-            <div className="bg-white p-6 rounded-2xl border shadow-sm flex justify-between items-center"><div><h3 className="text-xl font-black uppercase italic text-slate-800">Maestro MultiBOM</h3></div><Button onClick={() => { setShowAdd(!showAdd); if (!showAdd) setForm({ id: null, nombre: '', familia: 'F', ver: 1, wip: false, merma: 15, formato_venta: 'Unidad', peso_unidad: 100, details: [] }); }} variant={showAdd ? "secondary" : "accent"}>{showAdd ? "Cancelar" : <><Plus size={16} /> Nueva Ficha</>}</Button></div>
+            <div className="bg-white p-6 rounded-2xl border shadow-sm flex justify-between items-center">
+                <div><h3 className="text-xl font-black uppercase italic text-slate-800">Maestro MultiBOM</h3></div>
+                <Button onClick={() => { setShowAdd(!showAdd); if (!showAdd) setForm({ id: null, nombre: '', familia: 'F', ver: 1, wip: false, merma: 15, formato_venta: 'Unidad', peso_unidad: 100, details: [] }); }} variant={showAdd ? "secondary" : "accent"}>{showAdd ? "Cancelar" : <><Plus size={16} /> Nueva Ficha</>}</Button>
+            </div>
+
             {showAdd && (
                 <Card className="p-10 border-[6px] border-slate-900 bg-white shadow-2xl animate-in slide-in-from-top-4">
-                    <div className="grid grid-cols-1 md:grid-cols-6 gap-6 mb-8 border-b pb-8"><div className="col-span-2"><Input label="Nombre del Producto" value={form.nombre} onChange={v => setForm({ ...form, nombre: v })} required /></div><div className="flex flex-col gap-1"><label className="text-[10px] font-black text-slate-400 uppercase ml-1">Familia</label><select className="border border-slate-200 rounded-lg p-2 font-bold text-xs bg-slate-50 outline-none" value={form.familia} onChange={e => setForm({ ...form, familia: e.target.value })}>{Object.values(FAMILIAS).map(f => <option key={f.id} value={f.id}>{f.id} - {f.nombre}</option>)}</select></div><div className="flex flex-col gap-1"><label className="text-[10px] font-black text-slate-400 uppercase ml-1">Formato Venta</label><select className="border border-slate-200 rounded-lg p-2 font-bold text-xs bg-slate-50 outline-none" value={form.formato_venta} onChange={e => setForm({ ...form, formato_venta: e.target.value })}><option value="Unidad">Por Unidad (U)</option><option value="Kg">Por Kilo (Kg)</option></select></div>{form.formato_venta === 'Unidad' && (<div><Input label="Peso Unidad (g)" type="number" value={form.peso_unidad} onChange={v => setForm({ ...form, peso_unidad: v })} required /></div>)}<div className="flex items-center gap-3 p-3 bg-orange-50 rounded-lg border border-orange-200"><input type="checkbox" checked={form.wip} onChange={e => setForm({ ...form, wip: e.target.checked })} className="w-5 h-5 accent-orange-600" /><label className="text-[10px] font-black uppercase">Es WIP?</label></div></div>
-                    <div className="space-y-3 mb-8"><div className="flex justify-between items-end mb-4"><p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Ingredientes del Amasijo</p><div className="w-32"><Input label="% Merma Horno" type="number" value={form.merma} onChange={v => setForm({ ...form, merma: v })} /></div></div>
-                        {form.details.map((l, i) => (
-                            <div key={i} className="flex gap-4 items-end bg-slate-50 p-4 rounded-xl border"><div className="flex-1"><select className="border border-slate-200 rounded-lg p-2 font-bold w-full text-xs outline-none" value={l.ingredientId} onChange={e => { const nd = [...form.details]; nd[i].ingredientId = e.target.value; setForm({ ...form, details: nd }) }}><option value="">Componente...</option>{ingredients.map(ing => (<option key={ing.id} value={ing.id}>{ing.name}</option>))}</select></div><div className="w-32"><Input label="% Panadero" type="number" value={l.porcentaje} onChange={v => { const nd = [...form.details]; nd[i].porcentaje = v; nd[i].gramos = Number(v) * 10; setForm({ ...form, details: nd }) }} /></div><div className="w-32"><Input label="Gramos Teór." type="number" value={l.gramos} /></div><Button variant="ghost" onClick={() => { const nd = [...form.details]; nd.splice(i, 1); setForm({ ...form, details: nd }) }}><Trash2 size={16} className="text-red-400" /></Button></div>
-                        ))}
-                        <Button variant="secondary" className="w-full py-4 border-dashed font-black uppercase text-xs mt-2" onClick={() => setForm({ ...form, details: [...form.details, { ingredientId: '', porcentaje: 0, gramos: 0 }] })}>+ Agregar Componente</Button>
+                    <div className="grid grid-cols-1 md:grid-cols-6 gap-6 mb-8 border-b pb-8">
+                        <div className="col-span-2"><Input label="Nombre del Producto" value={form.nombre} onChange={v => setForm({ ...form, nombre: v })} required /></div>
+                        <div className="flex flex-col gap-1"><label className="text-[10px] font-black text-slate-400 uppercase ml-1">Familia</label><select className="border border-slate-200 rounded-lg p-2 font-bold text-xs bg-slate-50 outline-none focus:border-blue-500" value={form.familia} onChange={e => setForm({ ...form, familia: e.target.value })}>{Object.values(FAMILIAS).map(f => <option key={f.id} value={f.id}>{f.id} - {f.nombre}</option>)}</select></div>
+                        <div className="flex flex-col gap-1"><label className="text-[10px] font-black text-slate-400 uppercase ml-1">Formato Venta</label><select className="border border-slate-200 rounded-lg p-2 font-bold text-xs bg-slate-50 outline-none focus:border-blue-500" value={form.formato_venta} onChange={e => setForm({ ...form, formato_venta: e.target.value })}><option value="Unidad">Por Unidad (U)</option><option value="Kg">Por Kilo (Kg)</option></select></div>
+                        {form.formato_venta === 'Unidad' && (<div><Input label="Peso Unidad (g)" type="number" value={form.peso_unidad} onChange={v => setForm({ ...form, peso_unidad: v })} required /></div>)}
+                        <div className="flex items-center gap-3 p-3 bg-orange-50 rounded-lg border border-orange-200"><input type="checkbox" checked={form.wip} onChange={e => setForm({ ...form, wip: e.target.checked })} className="w-5 h-5 accent-orange-600" /><label className="text-[10px] font-black uppercase">Es WIP?</label></div>
                     </div>
-                    <div className="p-6 bg-slate-900 text-white rounded-2xl flex justify-between items-center"><div><p className="text-[10px] uppercase opacity-50 font-black tracking-widest mb-1">Rendimiento Estimado ({form.formato_venta})</p><div className="flex items-end gap-3"><p className="text-3xl font-black font-mono">{pesoFinal.toFixed(0)} <span className="text-lg text-slate-400">g</span></p>{form.formato_venta === 'Unidad' && form.peso_unidad > 0 && (<p className="text-lg font-black text-emerald-400 italic mb-1">≈ {Math.floor(pesoFinal / form.peso_unidad)} Unid.</p>)}</div></div><div className="flex gap-4"><Button onClick={save} variant="success" className="py-4 px-8" disabled={!hasFlourBase || !form.nombre}>{form.id ? "Actualizar Ficha" : "Guardar Ficha"}</Button></div></div>
+
+                    <div className="mb-8">
+                        <div className="flex justify-between items-end mb-4">
+                            <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Ingredientes del Amasijo (Escandallo)</p>
+                            <div className="w-32"><Input label="% Merma Horno" type="number" value={form.merma} onChange={v => setForm({ ...form, merma: v })} /></div>
+                        </div>
+
+                        <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-sm">
+                            <table className="w-full text-left">
+                                <thead className="bg-slate-900 text-white text-[9px] uppercase tracking-widest">
+                                    <tr>
+                                        <th className="p-3">Componente</th>
+                                        <th className="p-3 w-32 text-center">% Panadero</th>
+                                        <th className="p-3 w-32 text-center">Gramos Teór.</th>
+                                        <th className="p-3 w-16 text-center">Acción</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y bg-slate-50">
+                                    {form.details.map((l, i) => (
+                                        <tr key={i} className="hover:bg-slate-100 transition-colors">
+                                            <td className="p-2">
+                                                <select className="border border-slate-200 rounded-lg p-2 font-bold w-full text-xs outline-none bg-white focus:border-orange-500" value={l.ingredientId} onChange={e => { const nd = [...form.details]; nd[i].ingredientId = e.target.value; setForm({ ...form, details: nd }) }}>
+                                                    <option value="">Seleccionar Componente...</option>
+                                                    {ingredients.map(ing => (<option key={ing.id} value={ing.id}>{ing.name}</option>))}
+                                                </select>
+                                            </td>
+                                            <td className="p-2">
+                                                <input type="number" className="border border-slate-200 rounded-lg p-2 font-bold w-full text-xs outline-none text-center bg-white focus:border-orange-500" value={l.porcentaje} onChange={e => { const v = e.target.value; const nd = [...form.details]; nd[i].porcentaje = v; nd[i].gramos = Number(v) * 10; setForm({ ...form, details: nd }) }} placeholder="%" />
+                                            </td>
+                                            <td className="p-2">
+                                                <input type="number" className="border border-slate-200 rounded-lg p-2 font-bold w-full text-xs outline-none text-center bg-white focus:border-orange-500" value={l.gramos} onChange={e => { const v = e.target.value; const nd = [...form.details]; nd[i].gramos = v; setForm({ ...form, details: nd }) }} placeholder="g" />
+                                            </td>
+                                            <td className="p-2 text-center">
+                                                <button type="button" onClick={() => { const nd = [...form.details]; nd.splice(i, 1); setForm({ ...form, details: nd }) }} className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                                                    <Trash2 size={16} className="mx-auto" />
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    {form.details.length === 0 && (
+                                        <tr>
+                                            <td colSpan="4" className="p-6 text-center text-slate-400 text-xs italic">No hay ingredientes agregados. Usa el botón de abajo.</td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                            <div className="p-2 bg-white border-t border-slate-200">
+                                <Button variant="secondary" className="w-full py-2.5 border-dashed font-black uppercase text-[10px] text-slate-500 hover:text-slate-800" onClick={() => setForm({ ...form, details: [...form.details, { ingredientId: '', porcentaje: 0, gramos: 0 }] })}>
+                                    <Plus size={14} /> Agregar Componente
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+
+                    {!hasFlourBase && form.details.length > 0 && <div className="bg-red-50 text-red-600 p-4 rounded-xl mb-6 text-xs font-black uppercase flex items-center gap-2 border border-red-200"><AlertTriangle size={16} /> Falla BOM: Se requiere un ingrediente base al 100%</div>}
+
+                    <div className="p-6 bg-slate-900 text-white rounded-2xl flex justify-between items-center">
+                        <div><p className="text-[10px] uppercase opacity-50 font-black tracking-widest mb-1">Rendimiento Estimado ({form.formato_venta})</p><div className="flex items-end gap-3"><p className="text-3xl font-black font-mono">{pesoFinal.toFixed(0)} <span className="text-lg text-slate-400">g</span></p>{form.formato_venta === 'Unidad' && form.peso_unidad > 0 && (<p className="text-lg font-black text-emerald-400 italic mb-1">≈ {Math.floor(pesoFinal / form.peso_unidad)} Unid.</p>)}</div></div>
+                        <div className="flex gap-4"><Button onClick={save} variant="success" className="py-4 px-8" disabled={!hasFlourBase || !form.nombre}>{form.id ? "Actualizar Ficha" : "Guardar Ficha"}</Button></div>
+                    </div>
                 </Card>
             )}
+
             <Card className="overflow-x-auto border-2">
                 <table className="w-full text-left font-bold text-xs uppercase text-slate-700">
-                    <thead className="bg-slate-900 text-white text-[9px] tracking-widest"><tr><th className="p-4">Ficha ID</th><th className="p-4">Producto</th><th className="p-4 text-center">Familia</th><th className="p-4 text-center">Formato</th><th className="p-4 text-center">Peso Unid.</th><th className="p-4 text-right">Rinde Final</th><th className="p-4 text-center">Acciones</th></tr></thead>
+                    <thead className="bg-slate-900 text-white text-[9px] tracking-widest">
+                        <tr><th className="p-4">Ficha ID</th><th className="p-4">Producto</th><th className="p-4 text-center">Familia</th><th className="p-4 text-center">Formato</th><th className="p-4 text-center">Peso Unid.</th><th className="p-4 text-right">Rinde Final</th><th className="p-4 text-center">Acciones</th></tr>
+                    </thead>
                     <tbody className="divide-y bg-white">
                         {recipes.map(r => {
                             const familiaData = FAMILIAS[r.familia] || FAMILIAS.F;
                             return (
-                                <tr key={r.id} className="hover:bg-slate-50">
+                                <tr key={r.id} className="hover:bg-slate-50 transition-colors">
                                     <td className="p-4 text-[10px] font-mono text-slate-400">{r.id}</td>
                                     <td className="p-4 font-black italic text-sm text-slate-800">{r.nombre_producto}</td>
                                     <td className="p-4 text-center"><span className={`px-2 py-1 rounded text-[9px] text-white ${familiaData.color}`}>{familiaData.id}</span></td>
                                     <td className="p-4 text-center"><span className="bg-blue-50 text-blue-700 border border-blue-100 px-2 py-1 rounded text-[9px]">{r.formato_venta || 'Unidad'}</span></td>
                                     <td className="p-4 text-center font-mono text-orange-600">{r.formato_venta === 'Unidad' ? `${r.peso_unidad || 100}g` : '-'}</td>
                                     <td className="p-4 text-right font-mono">{Number(r.peso_final || 0).toFixed(0)} g</td>
-                                    <td className="p-4 text-center"><div className="flex justify-center gap-2"><button onClick={() => handleEdit(r)} className="p-1.5 bg-slate-100 text-slate-600 rounded"><Wrench size={14} /></button><button onClick={() => handleDelete(r.id)} className="p-1.5 bg-red-50 text-red-500 rounded"><Trash2 size={14} /></button></div></td>
+                                    <td className="p-4 text-center"><div className="flex justify-center gap-2"><button onClick={() => handleEdit(r)} className="p-1.5 bg-slate-100 text-slate-600 rounded hover:bg-slate-200"><Wrench size={14} /></button><button onClick={() => handleDelete(r.id)} className="p-1.5 bg-red-50 text-red-500 rounded hover:bg-red-100"><Trash2 size={14} /></button></div></td>
                                 </tr>
                             );
                         })}
