@@ -23,6 +23,10 @@ const FAMILIAS = {
     E: { id: 'E', nombre: 'Secos y Galletería', color: 'bg-slate-600', border: 'border-slate-600' }
 };
 
+function ScaleIcon() {
+    return <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z" /><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z" /><path d="M7 21h10" /><path d="M12 3v18" /><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2" /></svg>;
+}
+
 const ETAPAS_KANBAN = [
     { id: 'PESAJE', nombre: 'Pesada', icon: <ClipboardList size={16} /> },
     { id: 'AMASADO', nombre: 'Amasijo (WIP)', icon: <Factory size={16} /> },
@@ -47,7 +51,6 @@ const INITIAL_PROVIDERS = [
     { id: 'p9', codigo: 'PRV-009', nombre: 'Huevos San Juan', cuit: '30-99988877-5', rubro: 'Huevos' }
 ];
 
-// Costo Estándar = Precio por Gramo o por Unidad de la receta
 const INITIAL_INGREDIENTS = [
     { id: 'i1', codigo: 'RAW-HAR-001', name: 'Harina 000 (Fuerza)', unidad_compra: 'Bolsa 25kg', familia: 'Harinas y Polvos', almacen: 'Harinera', alergeno: 'TACC', costo_estandar: 0.8 },
     { id: 'i2', codigo: 'RAW-HAR-002', name: 'Harina 0000 (Pastelera)', unidad_compra: 'Bolsa 25kg', familia: 'Harinas y Polvos', almacen: 'Harinera', alergeno: 'TACC', costo_estandar: 1.2 },
@@ -138,9 +141,9 @@ const INITIAL_CONFIG = {
     appName: 'MES PRO V12 (FINANZAS)',
     branches: ['Morón Centro', 'Castelar'],
     finanzas: {
-        costoHoraHombre: 4500,  // Valor de 1 hora de mano de obra en $
-        margenGanancia: 120,    // Markup esperado %
-        costosIndirectosPct: 20 // Porcentaje sobre la Materia Prima para cubrir CIF (luz, gas)
+        costoHoraHombre: 4500,
+        margenGanancia: 120,
+        costosIndirectosPct: 20
     }
 };
 
@@ -155,21 +158,21 @@ const Card = ({ children, className = "" }) => (
 
 const Button = ({ children, onClick, variant = 'primary', className = "", disabled = false, type = "button" }) => {
     const styles = {
-        primary: "bg-slate-900 text-white hover:bg-black shadow-md",
+        primary: "bg-slate-900 text-white hover:bg-black shadow-sm",
         secondary: "bg-white text-slate-700 hover:bg-slate-50 border border-slate-300",
         success: "bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm",
         accent: "bg-orange-600 text-white hover:bg-orange-700 shadow-sm",
         danger: "bg-red-50 text-red-600 hover:bg-red-100",
         ghost: "bg-transparent text-slate-500 hover:text-slate-900"
     };
-    return <button disabled={disabled} type={type} onClick={onClick} className={`px-4 py-2 rounded-lg font-bold uppercase tracking-wider text-[11px] transition-all flex items-center justify-center gap-2 disabled:opacity-40 active:scale-95 ${styles[variant]} ${className}`}>{children}</button>;
+    return <button disabled={disabled} type={type} onClick={onClick} className={`px-3 py-1.5 rounded-md font-bold uppercase tracking-wider text-[10px] transition-all flex items-center justify-center gap-1.5 disabled:opacity-40 active:scale-95 ${styles[variant]} ${className}`}>{children}</button>;
 };
 
 const Input = ({ label, type = "text", value, onChange, placeholder, required = false, disabled = false, suffix = null }) => (
     <div className="flex flex-col gap-1 w-full text-left">
         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{label} {required && "*"}</label>
         <div className="relative">
-            <input type={type} value={value} required={required} disabled={disabled} onChange={(e) => onChange ? onChange(e.target.value) : null} placeholder={placeholder} className={`w-full border border-slate-200 bg-white rounded-lg px-3 py-2.5 outline-none focus:ring-2 focus:ring-slate-900/5 focus:border-slate-400 text-sm font-semibold text-slate-800 transition-all shadow-sm ${disabled ? 'opacity-60 bg-slate-100 cursor-not-allowed text-slate-500' : ''}`} />
+            <input type={type} value={value} required={required} disabled={disabled} onChange={(e) => onChange ? onChange(e.target.value) : null} placeholder={placeholder} className={`w-full border border-slate-200 bg-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-slate-900/5 focus:border-slate-400 text-sm font-semibold text-slate-800 transition-all shadow-sm ${disabled ? 'opacity-60 bg-slate-100 cursor-not-allowed text-slate-500' : ''}`} />
             {suffix && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">{suffix}</span>}
         </div>
     </div>
@@ -178,7 +181,7 @@ const Input = ({ label, type = "text", value, onChange, placeholder, required = 
 const Select = ({ label, value, onChange, required = false, children, disabled = false }) => (
     <div className="flex flex-col gap-1 w-full text-left">
         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{label} {required && "*"}</label>
-        <select value={value} required={required} disabled={disabled} onChange={(e) => onChange ? onChange(e.target.value) : null} className={`border border-slate-200 bg-white rounded-lg px-3 py-2.5 outline-none focus:ring-2 focus:ring-slate-900/5 focus:border-slate-400 text-sm font-semibold text-slate-800 transition-all shadow-sm cursor-pointer ${disabled ? 'opacity-60 bg-slate-100 cursor-not-allowed text-slate-500' : ''}`}>
+        <select value={value} required={required} disabled={disabled} onChange={(e) => onChange ? onChange(e.target.value) : null} className={`border border-slate-200 bg-white rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-slate-900/5 focus:border-slate-400 text-sm font-semibold text-slate-800 transition-all shadow-sm cursor-pointer ${disabled ? 'opacity-60 bg-slate-100 cursor-not-allowed text-slate-500' : ''}`}>
             {children}
         </select>
     </div>
@@ -202,7 +205,7 @@ const Toast = ({ message, type = 'success', onClose }) => {
 // ============================================================================
 export default function App() {
     const [currentRole, setCurrentRole] = useState(ROLES.ADMIN);
-    const [view, setView] = useState('engineering'); // Directo a Ingeniería para ver los Costos
+    const [view, setView] = useState('dashboard');
 
     const [ingredients, setIngredients] = useState(INITIAL_INGREDIENTS);
     const [recipes, setRecipes] = useState(INITIAL_RECIPES);
@@ -246,22 +249,25 @@ export default function App() {
                 </div>
                 <nav className="flex-1 p-4 flex flex-col gap-1 overflow-y-auto">
                     {menuItems.map(item => (
-                        <button key={item.id} onClick={() => setView(item.id)} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-black text-[10px] uppercase tracking-wider ${view === item.id ? 'bg-orange-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-900 hover:text-white'}`}>
+                        <button key={item.id} onClick={() => setView(item.id)} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-black text-[10px] uppercase tracking-wider ${view === item.id ? 'bg-orange-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-900 hover:text-slate-200'}`}>
                             {item.icon} {item.label}
                         </button>
                     ))}
                 </nav>
+                <div className="p-4 border-t border-slate-900 text-center opacity-40">
+                    <p className="text-[8px] font-mono tracking-widest uppercase">Modo: Local Memory</p>
+                </div>
             </aside>
 
             <main className="flex-1 overflow-y-auto p-10 relative bg-slate-50 print:p-0 print:bg-white">
-                <header className="flex justify-between items-center mb-8 border-b border-slate-200 pb-6 print:hidden">
+                <header className="flex justify-between items-center mb-6 border-b border-slate-200 pb-4 print:hidden">
                     <div>
-                        <h2 className="text-3xl font-black text-slate-900 uppercase tracking-tighter italic leading-none">{menuItems.find(m => m.id === view)?.label}</h2>
-                        <p className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.2em] mt-2 leading-none italic">Sistema Integral de Manufactura Panadera</p>
+                        <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tighter italic leading-none">{menuItems.find(m => m.id === view)?.label}</h2>
+                        <p className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.2em] mt-1.5 leading-none italic">Sistema Integral de Manufactura Panadera</p>
                     </div>
                 </header>
 
-                {view === 'dashboard' && <DashboardView recipes={recipes} ingredients={ingredients} lots={lots} orders={orders} logistics={logistics} quality={qualityLogs} config={config} />}
+                {view === 'dashboard' && <DashboardView recipes={recipes} ingredients={ingredients} lots={lots} orders={orders} logistics={logistics} quality={qualityLogs} config={config} purchases={purchases} />}
                 {view === 'inventory' && <InventoryView ingredients={ingredients} lots={lots} providers={providers} setLots={setLots} showToast={showToast} />}
                 {view === 'purchases' && <PurchasesView providers={providers} ingredients={ingredients} purchases={purchases} setPurchases={setPurchases} lots={lots} setLots={setLots} showToast={showToast} />}
                 {view === 'orders' && <ProductionOrdersView recipes={recipes} ingredients={ingredients} lots={lots} orders={orders} setOrders={setOrders} showToast={showToast} />}
@@ -279,7 +285,7 @@ export default function App() {
 // VISTAS 
 // ============================================================================
 
-function DashboardView({ recipes, ingredients, lots, orders, logistics, quality, config }) {
+function DashboardView({ recipes, ingredients, lots, orders, logistics, quality, config, purchases }) {
     const stockMetrics = ingredients.map(ing => {
         const totalGrams = lots.filter(l => l.ingredientId === ing.id).reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
         return { ...ing, stock: totalGrams };
@@ -287,87 +293,104 @@ function DashboardView({ recipes, ingredients, lots, orders, logistics, quality,
 
     const totalValue = stockMetrics.reduce((acc, curr) => acc + (curr.stock * (curr.costo_estandar || 0)), 0);
 
+    // Cálculos para nuevos KPIs
+    const totalPurchases = purchases && purchases.length > 0 ? purchases.reduce((acc, p) => acc + Number(p.costTotal || 0), 0) : 1580000;
+    const pendientePago = totalPurchases * 0.45; // Simulación de 45% de facturas pendientes
+    const pendientes = orders.filter(o => o.status !== 'TERMINADO').length;
+    const despachados = logistics.reduce((acc, l) => acc + (l.items?.length || 0), 0) || 0;
+
+    // Exactamente 4 items para que con el encabezado sean 5 filas en total
+    const mockAuditData = [
+        { name: 'Harina 000 (Fuerza)', theoretical: 4500, real: 4680, unit: 'Kg', costPerUnit: 800 },
+        { name: 'Manteca Extrafina', theoretical: 320, real: 345, unit: 'Kg', costPerUnit: 8500 },
+        { name: 'Chocolate Cobertura', theoretical: 150, real: 162, unit: 'Kg', costPerUnit: 15000 },
+        { name: 'Levadura Fresca', theoretical: 45, real: 45.5, unit: 'Kg', costPerUnit: 3000 }
+    ];
+
+    const totalPérdida = mockAuditData.reduce((acc, item) => acc + ((item.real - item.theoretical) * item.costPerUnit), 0);
+
     return (
-        <div className="space-y-8 animate-in fade-in duration-500">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <Card className="bg-slate-900 text-white p-6 relative overflow-hidden">
-                    <div className="absolute -right-2 -top-2 opacity-10"><ClipboardList size={64} /></div>
-                    <p className="text-[10px] font-black uppercase opacity-60 tracking-widest mb-1">Batchs Activos</p>
-                    <h3 className="text-3xl font-black italic">{orders.filter(o => o.status !== 'TERMINADO').length}</h3>
+        <div className="space-y-6 animate-in fade-in duration-500">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <Card className="bg-slate-900 text-white p-3.5 relative overflow-hidden flex flex-col justify-center shadow-sm min-h-[64px]">
+                    <div className="absolute -right-2 -top-1 opacity-10"><ClipboardList size={48} /></div>
+                    <p className="text-[8px] font-black uppercase opacity-60 tracking-widest mb-0.5">Pedidos Recibidos</p>
+                    <h3 className="text-2xl font-black italic leading-none">{orders.length}</h3>
                 </Card>
-                <Card className="bg-emerald-700 text-white p-6 relative overflow-hidden">
-                    <div className="absolute -right-2 -top-2 opacity-10"><Coins size={64} /></div>
-                    <p className="text-[10px] font-black uppercase opacity-60 tracking-widest mb-1">Valorización Stock</p>
-                    <h3 className="text-2xl font-black italic mt-1">${totalValue.toLocaleString('es-AR')}</h3>
+                <Card className="bg-emerald-700 text-white p-3.5 relative overflow-hidden flex flex-col justify-center shadow-sm min-h-[64px]">
+                    <div className="absolute -right-2 -top-1 opacity-10"><Coins size={48} /></div>
+                    <p className="text-[8px] font-black uppercase opacity-60 tracking-widest mb-0.5">Valorización Stock</p>
+                    <h3 className="text-2xl font-black italic leading-none">${totalValue.toLocaleString('es-AR', { maximumFractionDigits: 0 })}</h3>
                 </Card>
-                <Card className="bg-blue-700 text-white p-6 relative overflow-hidden">
-                    <div className="absolute -right-2 -top-2 opacity-10"><Truck size={64} /></div>
-                    <p className="text-[10px] font-black uppercase opacity-60 tracking-widest mb-1">Envíos a Locales</p>
-                    <h3 className="text-3xl font-black italic">{logistics.length}</h3>
+                <Card className="bg-rose-700 text-white p-3.5 relative overflow-hidden flex flex-col justify-center shadow-sm min-h-[64px]">
+                    <div className="absolute -right-2 -top-1 opacity-10"><AlertTriangle size={48} /></div>
+                    <p className="text-[8px] font-black uppercase opacity-60 tracking-widest mb-0.5">Pendiente Pago MP</p>
+                    <h3 className="text-2xl font-black italic leading-none">${pendientePago.toLocaleString('es-AR', { maximumFractionDigits: 0 })}</h3>
                 </Card>
-                <Card className="bg-red-600 text-white p-6 relative overflow-hidden">
-                    <div className="absolute -right-2 -top-2 opacity-10"><AlertTriangle size={64} /></div>
-                    <p className="text-[10px] font-black uppercase opacity-60 tracking-widest mb-1">Fallas Calidad</p>
-                    <h3 className="text-3xl font-black italic">{quality.filter(q => q.status === 'RECHAZADO').length}</h3>
+                <Card className="bg-blue-700 text-white p-3.5 relative overflow-hidden flex flex-col justify-center shadow-sm min-h-[64px]">
+                    <div className="absolute -right-2 -top-1 opacity-10"><Truck size={48} /></div>
+                    <p className="text-[8px] font-black uppercase opacity-60 tracking-widest mb-0.5">Pendientes / Despachados</p>
+                    <h3 className="text-2xl font-black italic leading-none">{pendientes} <span className="text-sm opacity-70">/ {despachados}</span></h3>
                 </Card>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <Card className="lg:col-span-2 p-8 border-t-4 border-slate-800">
-                    <div className="flex justify-between items-end border-b-2 pb-2 mb-6">
-                        <h4 className="text-lg font-black uppercase italic text-slate-800">Resumen de Inventario (Agrupado)</h4>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Para detalle de Lotes, ver pestaña Inventario</p>
+            {/* Tabla Analítica Full Width - 5 Filas Exactas */}
+            <Card className="w-full border-t-4 border-orange-500 flex flex-col overflow-hidden bg-white shadow-sm">
+                <div className="p-3 border-b border-slate-100 flex justify-between items-center bg-white">
+                    <div>
+                        <h4 className="text-base font-black uppercase italic text-slate-800 leading-none">Auditoría de Mermas</h4>
+                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1 leading-none">Consumo MP Teórico vs. Consumo MP Real</p>
                     </div>
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left">
-                            <thead className="bg-slate-50 text-[10px] font-black uppercase text-slate-400">
-                                <tr>
-                                    <th className="p-4 rounded-l-lg">Insumo Central</th>
-                                    <th className="p-4 text-center">Tipo</th>
-                                    <th className="p-4 text-right rounded-r-lg">Stock Total</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y text-xs font-bold">
-                                {stockMetrics.sort((a, b) => b.stock - a.stock).slice(0, 8).map(s => (
-                                    <tr key={s.id} className="hover:bg-slate-50 transition-colors">
-                                        <td className="p-4 flex items-center gap-2">
-                                            {s.es_subensamble && <Layers size={14} className="text-orange-500" />}
-                                            {s.name}
+                    <div className="flex items-center gap-4">
+                        <div className="text-right bg-red-50 px-3 py-1.5 rounded-lg border border-red-100">
+                            <p className="text-[8px] font-black uppercase tracking-widest text-red-500 mb-0.5 leading-none">Pérdida Total</p>
+                            <p className="text-sm font-black font-mono text-red-600 leading-none">-${totalPérdida.toLocaleString('es-AR')}</p>
+                        </div>
+                        <select className="border border-slate-200 rounded-md p-1.5 text-[10px] font-bold text-slate-600 outline-none focus:border-orange-500 cursor-pointer bg-slate-50 h-[34px]">
+                            <option value="mes">Este Mes</option>
+                            <option value="semana">Esta Semana</option>
+                            <option value="hoy">Hoy</option>
+                        </select>
+                    </div>
+                </div>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                        <thead className="bg-slate-50 text-slate-500 text-[9px] uppercase tracking-widest border-b border-slate-200">
+                            <tr>
+                                <th className="px-4 py-2 font-black">Insumo Auditado</th>
+                                <th className="px-4 py-2 text-center font-black border-l border-slate-200">Meta Teórica</th>
+                                <th className="px-4 py-2 text-center font-black">Consumo Real</th>
+                                <th className="px-4 py-2 text-center font-black">Desvío Detectado</th>
+                                <th className="px-4 py-2 text-right font-black border-l border-slate-200">Impacto ($)</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 text-xs bg-white">
+                            {mockAuditData.map((item, idx) => {
+                                const diff = item.real - item.theoretical;
+                                const pct = (diff / item.theoretical) * 100;
+                                const impact = diff * item.costPerUnit;
+                                const isDanger = pct > 5;
+
+                                return (
+                                    <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                                        <td className="px-4 py-1.5 font-black text-slate-800 uppercase">{item.name}</td>
+                                        <td className="px-4 py-1.5 text-center font-mono font-bold text-slate-400 border-l border-slate-100">{item.theoretical} {item.unit}</td>
+                                        <td className="px-4 py-1.5 text-center font-mono font-black text-slate-800">{item.real} {item.unit}</td>
+                                        <td className="px-4 py-1.5 text-center">
+                                            <span className={`inline-block px-2 py-0.5 rounded-md text-[9px] font-black ${isDanger ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-amber-50 text-amber-600 border border-amber-100'}`}>
+                                                +{pct.toFixed(1)}%
+                                            </span>
                                         </td>
-                                        <td className="p-4 text-center opacity-40 text-[10px] uppercase">{s.es_subensamble ? 'WIP' : 'RAW'}</td>
-                                        <td className="p-4 text-right font-mono text-blue-700 text-sm">
-                                            {s.stock >= 1000 ? `${(s.stock / 1000).toLocaleString('es-AR')} Kg` : `${s.stock.toLocaleString('es-AR')} g`}
+                                        <td className="px-4 py-1.5 text-right font-mono font-black text-red-600 border-l border-slate-100">
+                                            -${impact.toLocaleString('es-AR')}
                                         </td>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </Card>
-
-                <Card className="p-8 bg-slate-900 text-white">
-                    <h4 className="text-xs font-black uppercase text-orange-500 mb-6 tracking-widest border-b border-slate-800 pb-2">Top Fichas (Costo Real)</h4>
-                    <div className="space-y-4">
-                        {recipes.slice(0, 5).map(r => {
-                            const costo_mp = r.details?.reduce((acc, d) => acc + (Number(d.gramos) * (ingredients.find(i => i.id === d.ingredientId)?.costo_estandar || 0)), 0) || 0;
-                            const costo_mo = (Number(r.horas_hombre) || 0) * config.finanzas.costoHoraHombre;
-                            const costo_cif = costo_mp * (config.finanzas.costosIndirectosPct / 100);
-                            const costo_empaque = Number(r.costo_empaque) || 0;
-                            const costo_total_batch = costo_mp + costo_mo + costo_cif + costo_empaque;
-
-                            return (
-                                <div key={r.id} className="p-3 bg-slate-800 rounded-lg border border-slate-700 flex justify-between items-center">
-                                    <div>
-                                        <p className="text-[11px] font-black uppercase text-slate-200">{r.nombre_producto}</p>
-                                        <p className="text-[9px] font-bold text-slate-400 mt-1 uppercase">Batch: ${costo_total_batch.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</p>
-                                    </div>
-                                    <span className={`text-[9px] font-black text-white px-2 py-1 rounded uppercase ${FAMILIAS[r.familia]?.color}`}>{FAMILIAS[r.familia]?.id}</span>
-                                </div>
-                            );
-                        })}
-                    </div>
-                </Card>
-            </div>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>
+            </Card>
         </div>
     );
 }
@@ -381,7 +404,6 @@ function EngineeringView({ recipes, ingredients, setRecipes, setIngredients, sho
         horas_hombre: 1, costo_empaque: 0, details: []
     });
 
-    // Motor de Auto-Generación de Código SKU para Fichas
     useEffect(() => {
         if (!form.id && showAdd) {
             const prefix = form.wip ? `WIP-${form.familia}` : `FG-${form.familia}`;
@@ -463,91 +485,78 @@ function EngineeringView({ recipes, ingredients, setRecipes, setIngredients, sho
             </div>
 
             {showAdd && (
-                <Card className="p-10 border-[6px] border-slate-900 bg-white shadow-2xl animate-in slide-in-from-top-4">
-
-                    {/* SECCIÓN 1: IDENTIFICACIÓN */}
-                    <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 mb-6 space-y-6">
-                        <div className="flex items-center gap-2 border-b border-slate-200 pb-3 mb-2">
-                            <Hash size={18} className="text-slate-400" />
-                            <h4 className="text-xs font-black uppercase tracking-widest text-slate-600">Datos de Identificación</h4>
+                <Card className="p-8 border-[4px] border-slate-900 bg-white shadow-2xl animate-in slide-in-from-top-4">
+                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 mb-6 space-y-4">
+                        <div className="flex items-center gap-2 border-b border-slate-200 pb-2 mb-2">
+                            <Hash size={16} className="text-slate-400" />
+                            <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-600">Datos de Identificación</h4>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+                        <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
                             <div className="md:col-span-4 lg:col-span-3">
-                                <Input label="Código SKU (Auto)" value={form.codigo} disabled required />
+                                <Input label="Código SKU" value={form.codigo} disabled required />
                             </div>
                             <div className="md:col-span-8 lg:col-span-9">
-                                <Input label="Nombre del Producto o WIP" value={form.nombre} onChange={v => setForm({ ...form, nombre: v })} placeholder="Ej. Baguette Clásica" required />
+                                <Input label="Nombre del Producto" value={form.nombre} onChange={v => setForm({ ...form, nombre: v })} placeholder="Ej. Baguette Clásica" required />
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-end">
+                        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
                             <div className="md:col-span-5 lg:col-span-4"><Select label="Familia" value={form.familia} onChange={e => setForm({ ...form, familia: e })}>{Object.values(FAMILIAS).map(f => <option key={f.id} value={f.id}>{f.id} - {f.nombre}</option>)}</Select></div>
                             <div className="md:col-span-3 lg:col-span-3"><Select label="Formato Venta" value={form.formato_venta} onChange={e => setForm({ ...form, formato_venta: e })}><option value="Unidad">Por Unidad (U)</option><option value="Kg">Por Kilo (Kg)</option></Select></div>
                             <div className="md:col-span-2 lg:col-span-2">
-                                {form.formato_venta === 'Unidad' ? (<Input label="Peso Unidad (g)" type="number" value={form.peso_unidad} onChange={v => setForm({ ...form, peso_unidad: v })} required />) : (<div className="text-[10px] font-bold text-slate-400 uppercase h-[42px] flex items-center justify-center border border-dashed border-slate-200 rounded-lg bg-slate-100/50">Granel</div>)}
+                                {form.formato_venta === 'Unidad' ? (<Input label="Peso (g)" type="number" value={form.peso_unidad} onChange={v => setForm({ ...form, peso_unidad: v })} required />) : (<div className="text-[10px] font-bold text-slate-400 uppercase h-[38px] flex items-center justify-center border border-dashed border-slate-200 rounded-lg bg-slate-100/50">Granel</div>)}
                             </div>
                             <div className="md:col-span-2 lg:col-span-3">
-                                <label className="flex items-center justify-center gap-3 p-2 bg-white rounded-lg border border-slate-200 shadow-sm cursor-pointer hover:border-orange-400 transition-colors h-[42px]"><input type="checkbox" checked={form.wip} onChange={e => setForm({ ...form, wip: e.target.checked })} className="w-5 h-5 accent-orange-600" /><span className="text-[10px] font-black uppercase text-slate-700 leading-tight">Es Sub-ensamble?<br /><span className="text-[8px] text-slate-400 tracking-widest">(Genera WIP)</span></span></label>
+                                <label className="flex items-center justify-center gap-2 p-2 bg-white rounded-lg border border-slate-200 shadow-sm cursor-pointer hover:border-orange-400 transition-colors h-[38px]"><input type="checkbox" checked={form.wip} onChange={e => setForm({ ...form, wip: e.target.checked })} className="w-4 h-4 accent-orange-600" /><span className="text-[9px] font-black uppercase text-slate-700 leading-tight">WIP?</span></label>
                             </div>
                         </div>
                     </div>
 
-                    {/* SECCIÓN 2: COSTOS FINANCIEROS Y OPERATIVOS */}
-                    <div className="bg-emerald-50/50 p-6 rounded-xl border border-emerald-100 mb-6 space-y-6">
-                        <div className="flex items-center justify-between border-b border-emerald-200 pb-3 mb-2">
-                            <div className="flex items-center gap-2">
-                                <Calculator size={18} className="text-emerald-500" />
-                                <h4 className="text-xs font-black uppercase tracking-widest text-emerald-800">Costos Operativos del Lote</h4>
-                            </div>
-                            <span className="text-[9px] font-bold uppercase text-emerald-600">Basado en Configuración Global</span>
+                    <div className="bg-emerald-50/50 p-4 rounded-xl border border-emerald-100 mb-6 space-y-4">
+                        <div className="flex items-center justify-between border-b border-emerald-200 pb-2 mb-2">
+                            <div className="flex items-center gap-2"><Calculator size={16} className="text-emerald-500" /><h4 className="text-[10px] font-black uppercase tracking-widest text-emerald-800">Costos Operativos</h4></div>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <Input label="Tiempo de Mano de Obra" type="number" placeholder="Ej. 1.5" value={form.horas_hombre} onChange={v => setForm({ ...form, horas_hombre: v })} suffix="Horas/Lote" required />
-                            <Input label="Costo de Empaque" type="number" placeholder="Ej. 150" value={form.costo_empaque} onChange={v => setForm({ ...form, costo_empaque: v })} suffix="$/Lote" />
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <Input label="Mano de Obra" type="number" placeholder="Ej. 1.5" value={form.horas_hombre} onChange={v => setForm({ ...form, horas_hombre: v })} suffix="Horas/Lote" required />
+                            <Input label="Empaque" type="number" placeholder="Ej. 150" value={form.costo_empaque} onChange={v => setForm({ ...form, costo_empaque: v })} suffix="$/Lote" />
                         </div>
                     </div>
 
-                    {/* SECCIÓN 3: INGREDIENTES */}
-                    <div className="mb-8">
-                        <div className="flex justify-between items-end mb-4">
-                            <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest bg-slate-100 px-3 py-1 rounded-lg">Ingredientes del Amasijo (Escandallo)</p>
-                            <div className="flex items-center gap-2">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">% Merma Horno</label>
-                                <input type="number" value={form.merma} onChange={e => setForm({ ...form, merma: e.target.value })} className="border border-slate-300 rounded-lg px-2 py-1.5 text-xs font-bold w-20 outline-none text-center focus:border-orange-500" />
-                            </div>
+                    <div className="mb-6">
+                        <div className="flex justify-between items-end mb-3">
+                            <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest bg-slate-100 px-3 py-1 rounded-lg">Escandallo</p>
+                            <div className="flex items-center gap-2"><label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">% Merma Horno</label><input type="number" value={form.merma} onChange={e => setForm({ ...form, merma: e.target.value })} className="border border-slate-300 rounded-md px-2 py-1 text-xs font-bold w-16 outline-none text-center focus:border-orange-500" /></div>
                         </div>
 
-                        <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-sm">
+                        <div className="border border-slate-200 rounded-lg overflow-hidden bg-white shadow-sm">
                             <table className="w-full text-left">
                                 <thead className="bg-slate-900 text-white text-[9px] uppercase tracking-widest">
-                                    <tr><th className="p-3">Componente</th><th className="p-3 w-32 text-center">% Panadero</th><th className="p-3 w-32 text-center">Gramos Teór.</th><th className="p-3 w-12 text-center"></th></tr>
+                                    <tr><th className="px-3 py-1.5">Componente</th><th className="px-3 py-1.5 w-24 text-center">% Panadero</th><th className="px-3 py-1.5 w-24 text-center">Gramos</th><th className="px-3 py-1.5 w-10 text-center"></th></tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100 bg-white">
                                     {form.details.map((l, i) => (
                                         <tr key={i} className="hover:bg-slate-50 transition-colors group">
-                                            <td className="p-2 border-r border-slate-100">
-                                                <select className="w-full bg-transparent text-xs font-bold text-slate-700 outline-none cursor-pointer p-2" value={l.ingredientId} onChange={e => { const nd = [...form.details]; nd[i].ingredientId = e.target.value; setForm({ ...form, details: nd }) }}>
+                                            <td className="px-2 py-1 border-r border-slate-100">
+                                                <select className="w-full bg-transparent text-xs font-bold text-slate-700 outline-none cursor-pointer py-1" value={l.ingredientId} onChange={e => { const nd = [...form.details]; nd[i].ingredientId = e.target.value; setForm({ ...form, details: nd }) }}>
                                                     <option value="" disabled>Seleccionar Componente...</option>{ingredients.map(ing => (<option key={ing.id} value={ing.id}>[{ing.codigo}] {ing.name}</option>))}
                                                 </select>
                                             </td>
-                                            <td className="p-2 border-r border-slate-100"><div className="flex items-center justify-center bg-slate-100 rounded-md border border-slate-200 px-2 py-1 focus-within:border-orange-500 focus-within:bg-white transition-all"><input type="number" className="w-full bg-transparent text-xs font-black text-center outline-none text-slate-800" value={l.porcentaje} onChange={e => { const v = e.target.value; const nd = [...form.details]; nd[i].porcentaje = v; nd[i].gramos = Number(v) * 10; setForm({ ...form, details: nd }) }} placeholder="0" /><span className="text-[10px] text-slate-400 font-bold ml-1">%</span></div></td>
-                                            <td className="p-2 border-r border-slate-100"><div className="flex items-center justify-center bg-slate-100 rounded-md border border-slate-200 px-2 py-1 focus-within:border-orange-500 focus-within:bg-white transition-all"><input type="number" className="w-full bg-transparent text-xs font-black text-center outline-none text-slate-800" value={l.gramos} onChange={e => { const v = e.target.value; const nd = [...form.details]; nd[i].gramos = v; setForm({ ...form, details: nd }) }} placeholder="0" /><span className="text-[10px] text-slate-400 font-bold ml-1">g</span></div></td>
-                                            <td className="p-2 text-center"><button type="button" onClick={() => { const nd = [...form.details]; nd.splice(i, 1); setForm({ ...form, details: nd }) }} className="text-slate-300 hover:text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition-all opacity-0 group-hover:opacity-100"><Trash2 size={14} /></button></td>
+                                            <td className="px-2 py-1 border-r border-slate-100"><div className="flex items-center justify-center bg-slate-100 rounded border border-slate-200 px-1 py-0.5"><input type="number" className="w-full bg-transparent text-xs font-black text-center outline-none text-slate-800" value={l.porcentaje} onChange={e => { const v = e.target.value; const nd = [...form.details]; nd[i].porcentaje = v; nd[i].gramos = Number(v) * 10; setForm({ ...form, details: nd }) }} placeholder="0" /><span className="text-[9px] text-slate-400 font-bold ml-1">%</span></div></td>
+                                            <td className="px-2 py-1 border-r border-slate-100"><div className="flex items-center justify-center bg-slate-100 rounded border border-slate-200 px-1 py-0.5"><input type="number" className="w-full bg-transparent text-xs font-black text-center outline-none text-slate-800" value={l.gramos} onChange={e => { const v = e.target.value; const nd = [...form.details]; nd[i].gramos = v; setForm({ ...form, details: nd }) }} placeholder="0" /><span className="text-[9px] text-slate-400 font-bold ml-1">g</span></div></td>
+                                            <td className="px-2 py-1 text-center"><button type="button" onClick={() => { const nd = [...form.details]; nd.splice(i, 1); setForm({ ...form, details: nd }) }} className="text-slate-300 hover:text-red-500 hover:bg-red-50 p-1 rounded transition-all opacity-0 group-hover:opacity-100"><Trash2 size={12} /></button></td>
                                         </tr>
                                     ))}
                                     {form.details.length === 0 && (<tr><td colSpan="4" className="p-8 text-center text-slate-400 text-xs italic bg-slate-50/50">No hay ingredientes en esta receta. Haz clic en "Agregar Componente" para empezar.</td></tr>)}
                                 </tbody>
                             </table>
-                            <div className="p-2 bg-slate-50 border-t border-slate-200"><button type="button" onClick={() => setForm({ ...form, details: [...form.details, { ingredientId: '', porcentaje: '', gramos: '' }] })} className="w-full py-2 border border-dashed border-slate-300 rounded-lg text-[10px] font-black uppercase text-slate-500 hover:bg-slate-200 hover:text-slate-800 hover:border-slate-400 transition-all flex items-center justify-center gap-2"><Plus size={14} /> Agregar Componente</button></div>
+                            <div className="p-1 bg-slate-50 border-t border-slate-200"><button type="button" onClick={() => setForm({ ...form, details: [...form.details, { ingredientId: '', porcentaje: '', gramos: '' }] })} className="w-full py-1.5 border border-dashed border-slate-300 rounded-md text-[9px] font-black uppercase text-slate-500 hover:bg-slate-200 hover:text-slate-800 hover:border-slate-400 transition-all flex items-center justify-center gap-1"><Plus size={12} /> Añadir Insumo</button></div>
                         </div>
                     </div>
 
-                    {!hasFlourBase && form.details.length > 0 && <div className="bg-red-50 text-red-600 p-4 rounded-xl mb-6 text-xs font-black uppercase flex items-center gap-2 border border-red-200"><AlertTriangle size={16} /> Falla BOM: Se requiere un ingrediente base al 100% (Ej. Harina)</div>}
-
-                    <div className="p-6 bg-slate-900 text-white rounded-2xl flex justify-between items-center shadow-inner">
-                        <div><p className="text-[10px] uppercase opacity-50 font-black tracking-widest mb-1">Rendimiento Estimado ({form.formato_venta})</p><div className="flex items-end gap-3"><p className="text-3xl font-black font-mono text-emerald-400">{pesoFinal.toFixed(0)} <span className="text-lg text-emerald-600">g</span></p>{form.formato_venta === 'Unidad' && form.peso_unidad > 0 && (<p className="text-lg font-black text-slate-300 italic mb-1">≈ {Math.floor(pesoFinal / form.peso_unidad)} Unid.</p>)}</div></div>
-                        <div className="flex gap-4"><Button onClick={save} variant="success" className="py-4 px-8 shadow-lg shadow-emerald-900/50" disabled={!hasFlourBase || !form.nombre || !form.codigo}>{form.id ? "Actualizar Ficha" : "Guardar Ficha"}</Button></div>
+                    <div className="p-4 bg-slate-900 text-white rounded-xl flex justify-between items-center shadow-inner">
+                        <div><p className="text-[9px] uppercase opacity-50 font-black tracking-widest mb-0.5">Rendimiento Estimado ({form.formato_venta})</p><div className="flex items-end gap-2"><p className="text-2xl font-black font-mono text-emerald-400">{pesoFinal.toFixed(0)} <span className="text-sm text-emerald-600">g</span></p>{form.formato_venta === 'Unidad' && form.peso_unidad > 0 && (<p className="text-xs font-black text-slate-300 italic mb-0.5">≈ {Math.floor(pesoFinal / form.peso_unidad)} Unid.</p>)}</div></div>
+                        <div className="flex gap-3"><Button onClick={save} variant="success" className="py-2.5 px-6 shadow-lg shadow-emerald-900/50" disabled={!hasFlourBase || !form.nombre || !form.codigo}>{form.id ? "Actualizar Ficha" : "Guardar Ficha"}</Button></div>
                     </div>
                 </Card>
             )}
@@ -661,25 +670,25 @@ function InventoryView({ ingredients, lots, providers, setLots, showToast }) {
 
     return (
         <div className="space-y-6 animate-in fade-in">
-            <div className="flex justify-between items-end bg-white p-6 rounded-xl border shadow-sm print:hidden">
+            <div className="flex justify-between items-end bg-white p-4 rounded-xl border shadow-sm print:hidden">
                 <div><h3 className="text-xl font-black uppercase italic text-slate-800">Libro Mayor de Lotes</h3><p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Trazabilidad FEFO por Insumo y Proveedor</p></div>
-                <div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} /><input type="text" placeholder="Buscar insumo, lote o prov..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-10 pr-4 py-2 border border-slate-200 rounded-lg text-xs font-bold w-64 outline-none focus:border-blue-500 bg-slate-50 focus:bg-white transition-all" /></div>
+                <div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} /><input type="text" placeholder="Buscar insumo, lote o prov..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-9 pr-4 py-1.5 border border-slate-200 rounded-lg text-xs font-bold w-64 outline-none focus:border-blue-500 bg-slate-50 focus:bg-white transition-all" /></div>
             </div>
 
             <Card className="overflow-hidden border-2 print:border-none print:shadow-none">
                 <table className="w-full text-left">
                     <thead className="bg-slate-900 text-white text-[9px] uppercase tracking-widest">
-                        <tr><th className="p-4">ID Lote</th><th className="p-4">SKU / Componente</th><th className="p-4">Proveedor Origen</th><th className="p-4 text-center">Vencimiento</th><th className="p-4 text-right">Existencia Fís.</th><th className="p-4 text-center print:hidden">Acciones</th></tr>
+                        <tr><th className="px-4 py-2">ID Lote</th><th className="px-4 py-2">SKU / Componente</th><th className="px-4 py-2">Proveedor Origen</th><th className="px-4 py-2 text-center">Vencimiento</th><th className="px-4 py-2 text-right">Existencia Fís.</th><th className="px-4 py-2 text-center print:hidden">Acciones</th></tr>
                     </thead>
-                    <tbody className="divide-y text-xs font-bold text-slate-700">
+                    <tbody className="divide-y divide-slate-100 text-xs font-bold text-slate-700 bg-white">
                         {filteredLots.map(lot => (
                             <tr key={lot.id} className="hover:bg-slate-50 transition-colors group">
-                                <td className="p-4"><span className="font-mono text-blue-600 bg-blue-50 px-2 py-1 rounded border border-blue-100">{lot.id}</span></td>
-                                <td className="p-4 flex items-center gap-2 uppercase">{lot.es_subensamble && <Layers size={14} className="text-orange-500" />}{lot.ingredientName}</td>
-                                <td className="p-4 text-[10px] text-slate-500 uppercase">{lot.providerName}</td>
-                                <td className="p-4 text-center"><span className={`px-2 py-1 rounded border text-[10px] flex items-center justify-center gap-1 w-max mx-auto ${getStatusColor(lot.expiry)}`}><Calendar size={12} /> {new Date(lot.expiry).toLocaleDateString('es-AR')}</span></td>
-                                <td className="p-4 text-right font-mono text-slate-900 text-sm">{lot.amount >= 1000 ? `${(lot.amount / 1000).toLocaleString('es-AR')} Kg` : `${lot.amount.toLocaleString('es-AR')} g`}</td>
-                                <td className="p-4 text-center print:hidden"><button onClick={() => setAdjustModal(lot)} className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded text-[9px] uppercase tracking-widest transition-colors opacity-0 group-hover:opacity-100">Ajustar</button></td>
+                                <td className="px-4 py-1.5"><span className="font-mono text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100 text-[10px]">{lot.id}</span></td>
+                                <td className="px-4 py-1.5 flex items-center gap-2 uppercase text-[11px]">{lot.es_subensamble && <Layers size={12} className="text-orange-500" />}{lot.ingredientName}</td>
+                                <td className="px-4 py-1.5 text-[9px] text-slate-500 uppercase">{lot.providerName}</td>
+                                <td className="px-4 py-1.5 text-center"><span className={`px-2 py-0.5 rounded border text-[9px] flex items-center justify-center gap-1 w-max mx-auto ${getStatusColor(lot.expiry)}`}><Calendar size={10} /> {new Date(lot.expiry).toLocaleDateString('es-AR')}</span></td>
+                                <td className="px-4 py-1.5 text-right font-mono text-slate-900 text-[11px]">{lot.amount >= 1000 ? `${(lot.amount / 1000).toLocaleString('es-AR')} Kg` : `${lot.amount.toLocaleString('es-AR')} g`}</td>
+                                <td className="px-4 py-1.5 text-center print:hidden"><button onClick={() => setAdjustModal(lot)} className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded text-[8px] uppercase tracking-widest transition-colors opacity-0 group-hover:opacity-100">Ajustar</button></td>
                             </tr>
                         ))}
                     </tbody>
@@ -734,24 +743,24 @@ function PurchasesView({ providers, ingredients, purchases, setPurchases, lots, 
 
     return (
         <div className="space-y-8 animate-in fade-in">
-            <Card className="p-8 border-t-8 border-blue-600">
-                <h4 className="text-xl font-black uppercase italic mb-6 border-b pb-4 text-slate-800">Entrada de Insumos (Remitos)</h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6 bg-slate-50 p-6 rounded-xl border">
+            <Card className="p-6 border-t-8 border-blue-600">
+                <h4 className="text-xl font-black uppercase italic mb-4 border-b pb-3 text-slate-800">Entrada de Insumos (Remitos)</h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 bg-slate-50 p-4 rounded-xl border">
                     <Select label="Proveedor Principal" value={form.providerId} onChange={e => setForm({ ...form, providerId: e })} required><option value="">Seleccionar...</option>{providers.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}</Select>
                     <Input label="Costo Total Factura ($)" type="number" value={form.costTotal} onChange={v => setForm({ ...form, costTotal: v })} />
                     <Input label="N° Remito" value={form.remito} onChange={v => setForm({ ...form, remito: v })} />
                 </div>
-                <h5 className="font-black text-xs text-slate-500 uppercase mb-3 ml-1">Agregar Insumos al Lote</h5>
-                <form onSubmit={addToCart} className="flex gap-4 items-end bg-white p-5 rounded-xl border mb-6 shadow-sm">
+                <h5 className="font-black text-xs text-slate-500 uppercase mb-2 ml-1">Agregar Insumos al Lote</h5>
+                <form onSubmit={addToCart} className="flex gap-3 items-end bg-white p-4 rounded-xl border mb-6 shadow-sm">
                     <div className="flex-1"><Select label="Insumo" value={currentItem.ingredientId} onChange={e => setCurrentItem({ ...currentItem, ingredientId: e })} required><option value="">Seleccionar...</option>{ingredients.filter(i => !i.es_subensamble).map(i => <option key={i.id} value={i.id}>{i.name} ({i.unidad_compra})</option>)}</Select></div>
                     <div className="w-32"><Input label="Cant. Unidades" type="number" value={currentItem.amount} onChange={v => setCurrentItem({ ...currentItem, amount: v })} required /></div>
-                    <div className="w-40"><Input label="Vencimiento" type="date" value={currentItem.expiry} onChange={v => setCurrentItem({ ...currentItem, expiry: v })} required /></div>
-                    <Button type="submit" variant="primary" className="py-2.5 h-[42px]">Agregar</Button>
+                    <div className="w-36"><Input label="Vencimiento" type="date" value={currentItem.expiry} onChange={v => setCurrentItem({ ...currentItem, expiry: v })} required /></div>
+                    <Button type="submit" variant="primary" className="py-2 h-[38px]">Agregar</Button>
                 </form>
                 {cart.length > 0 && (
                     <div className="space-y-4 animate-in slide-in-from-bottom-4">
-                        <table className="w-full text-left border rounded-xl overflow-hidden"><thead className="bg-slate-900 text-white text-[9px] uppercase tracking-widest"><tr><th className="p-3">Insumo</th><th className="p-3 text-center">Vencimiento</th><th className="p-3 text-right">Cantidad</th><th className="p-3 text-center">Acción</th></tr></thead><tbody className="divide-y bg-white font-bold text-xs">{cart.map((item, idx) => (<tr key={idx}><td className="p-3 uppercase text-slate-800">{item.name}</td><td className="p-3 text-center font-mono text-orange-600">{new Date(item.expiry).toLocaleDateString('es-AR')}</td><td className="p-3 text-right text-blue-600 font-mono">{item.amount} {item.unit}</td><td className="p-3 text-center"><button onClick={() => removeFromCart(idx)} className="text-red-400 hover:text-red-600"><Trash2 size={14} className="mx-auto" /></button></td></tr>))}</tbody></table>
-                        <Button variant="success" className="w-full py-4" onClick={savePurchase} disabled={!form.providerId}>{form.providerId ? "Confirmar Ingreso a Almacén" : "Falta seleccionar Proveedor arriba"}</Button>
+                        <table className="w-full text-left border rounded-xl overflow-hidden"><thead className="bg-slate-900 text-white text-[9px] uppercase tracking-widest"><tr><th className="px-3 py-1.5">Insumo</th><th className="px-3 py-1.5 text-center">Vencimiento</th><th className="px-3 py-1.5 text-right">Cantidad</th><th className="px-3 py-1.5 text-center">Acción</th></tr></thead><tbody className="divide-y divide-slate-100 bg-white font-bold text-xs">{cart.map((item, idx) => (<tr key={idx}><td className="px-3 py-1.5 uppercase text-slate-800">{item.name}</td><td className="px-3 py-1.5 text-center font-mono text-orange-600">{new Date(item.expiry).toLocaleDateString('es-AR')}</td><td className="px-3 py-1.5 text-right text-blue-600 font-mono">{item.amount} {item.unit}</td><td className="px-3 py-1.5 text-center"><button onClick={() => removeFromCart(idx)} className="text-red-400 hover:text-red-600 p-1"><Trash2 size={12} className="mx-auto" /></button></td></tr>))}</tbody></table>
+                        <Button variant="success" className="w-full py-3" onClick={savePurchase} disabled={!form.providerId}>{form.providerId ? "Confirmar Ingreso a Almacén" : "Falta seleccionar Proveedor arriba"}</Button>
                     </div>
                 )}
             </Card>
@@ -787,28 +796,28 @@ function ProductionOrdersView({ recipes, ingredients, lots, orders, setOrders, s
         <div className="space-y-6 animate-in fade-in">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="space-y-6 print:hidden">
-                    <Card className="p-6">
-                        <h4 className="text-sm font-black uppercase mb-4 italic text-slate-800">1. Crear Orden</h4>
-                        <form onSubmit={createOrder} className="space-y-4">
+                    <Card className="p-5">
+                        <h4 className="text-sm font-black uppercase mb-3 italic text-slate-800">1. Crear Orden</h4>
+                        <form onSubmit={createOrder} className="space-y-3">
                             <Select label="Ficha Técnica" value={form.recipeId} onChange={e => setForm({ ...form, recipeId: e })} required>
                                 <option value="">Seleccionar Producto...</option>
                                 {recipes.map(r => <option key={r.id} value={r.id}>{r.nombre_producto}</option>)}
                             </Select>
                             <Input label={labelMeta} type="number" value={form.amount} onChange={v => setForm({ ...form, amount: v })} required />
-                            <Button type="submit" variant="primary" className="w-full py-3">Generar Orden</Button>
+                            <Button type="submit" variant="primary" className="w-full py-2">Generar Orden</Button>
                         </form>
                     </Card>
                     <Card className="p-4">
-                        <h4 className="text-xs font-black uppercase mb-4 italic border-b pb-2 text-slate-800">2. Pendientes</h4>
-                        <div className="space-y-2 max-h-96 overflow-y-auto pr-2">
+                        <h4 className="text-xs font-black uppercase mb-3 italic border-b pb-2 text-slate-800">2. Pendientes</h4>
+                        <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
                             {orders.filter(o => o.status === 'PLANIFICADA').map(o => {
                                 const rec = recipes.find(r => r.id === o.recipeId);
                                 const unitLabel = rec?.formato_venta === 'Kg' ? 'Kg' : 'U';
                                 return (
-                                    <div key={o.id} onClick={() => setSelectedOrder(o)} className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${selectedOrder?.id === o.id ? 'bg-orange-50 border-orange-400 shadow-md' : 'hover:bg-slate-50 border-slate-100'}`}>
-                                        <p className="text-[10px] font-mono font-bold text-slate-400">{o.id}</p>
-                                        <p className="text-xs font-black uppercase italic mt-1 text-slate-800 truncate">{rec?.nombre_producto}</p>
-                                        <p className="text-[10px] font-black text-blue-600 mt-2 bg-blue-50 inline-block px-2 py-1 rounded">{o.targetAmount} {unitLabel}</p>
+                                    <div key={o.id} onClick={() => setSelectedOrder(o)} className={`p-3 rounded-lg border cursor-pointer transition-all ${selectedOrder?.id === o.id ? 'bg-orange-50 border-orange-400 shadow-sm' : 'hover:bg-slate-50 border-slate-200'}`}>
+                                        <p className="text-[9px] font-mono font-bold text-slate-400">{o.id}</p>
+                                        <p className="text-[11px] font-black uppercase italic mt-0.5 text-slate-800 truncate">{rec?.nombre_producto}</p>
+                                        <p className="text-[9px] font-black text-blue-600 mt-1.5 bg-blue-50 inline-block px-1.5 py-0.5 rounded">{o.targetAmount} {unitLabel}</p>
                                     </div>
                                 );
                             })}
@@ -816,28 +825,28 @@ function ProductionOrdersView({ recipes, ingredients, lots, orders, setOrders, s
                     </Card>
                 </div>
 
-                <Card className="lg:col-span-2 p-10 bg-white border-2 border-slate-200 shadow-xl print:shadow-none print:border-none min-h-[600px] flex flex-col">
-                    {!selectedOrder ? (<div className="flex-1 flex flex-col items-center justify-center text-slate-300 print:hidden"><ClipboardList size={64} className="mb-4 opacity-50" /><p className="text-xl font-black uppercase tracking-widest italic">Seleccioná una orden</p></div>) : (
+                <Card className="lg:col-span-2 p-8 bg-white border-2 border-slate-200 shadow-xl print:shadow-none print:border-none min-h-[600px] flex flex-col">
+                    {!selectedOrder ? (<div className="flex-1 flex flex-col items-center justify-center text-slate-300 print:hidden"><ClipboardList size={64} className="mb-4 opacity-50" /><p className="text-lg font-black uppercase tracking-widest italic">Seleccioná una orden</p></div>) : (
                         <div className="flex-1 flex flex-col animate-in fade-in">
-                            <div className="flex justify-between items-start border-b-4 border-slate-900 pb-6 mb-8">
+                            <div className="flex justify-between items-start border-b-4 border-slate-900 pb-4 mb-6">
                                 <div>
-                                    <h1 className="text-4xl font-black uppercase italic tracking-tighter leading-none">Hoja de Producción</h1>
-                                    <p className="text-sm font-bold uppercase text-slate-500 mt-2 tracking-[0.2em]">{selectedOrder.id}</p>
-                                    <h2 className="text-2xl font-black uppercase mt-4 text-orange-600">{recipes.find(r => r.id === selectedOrder.recipeId)?.nombre_producto}</h2>
-                                    <p className="text-lg font-black font-mono mt-1">Meta: {selectedOrder.targetAmount} {recipes.find(r => r.id === selectedOrder.recipeId)?.formato_venta === 'Kg' ? 'Kilos' : 'Unidades'}</p>
+                                    <h1 className="text-3xl font-black uppercase italic tracking-tighter leading-none">Hoja de Producción</h1>
+                                    <p className="text-xs font-bold uppercase text-slate-500 mt-1.5 tracking-[0.2em]">{selectedOrder.id}</p>
+                                    <h2 className="text-xl font-black uppercase mt-3 text-orange-600">{recipes.find(r => r.id === selectedOrder.recipeId)?.nombre_producto}</h2>
+                                    <p className="text-sm font-black font-mono mt-1">Meta: {selectedOrder.targetAmount} {recipes.find(r => r.id === selectedOrder.recipeId)?.formato_venta === 'Kg' ? 'Kilos' : 'Unidades'}</p>
                                 </div>
                                 <div className="text-center">
-                                    <div className="border-4 border-slate-900 p-2 rounded-xl"><QrCode size={80} /></div>
-                                    <p className="text-[8px] font-mono font-black mt-2">QR KANBAN</p>
+                                    <div className="border-4 border-slate-900 p-2 rounded-lg"><QrCode size={64} /></div>
+                                    <p className="text-[8px] font-mono font-black mt-1">QR KANBAN</p>
                                 </div>
                             </div>
 
-                            <div className="flex-1 mb-8">
+                            <div className="flex-1 mb-6">
                                 <table className="w-full text-left border-2 border-slate-200">
-                                    <thead className="bg-slate-100 text-[10px] uppercase font-black text-slate-600">
-                                        <tr><th className="p-3 w-10 text-center">OK</th><th className="p-3">Insumo / WIP</th><th className="p-3 text-right">Cant. Físico</th><th className="p-3 text-center">Ubicación</th><th className="p-3 text-center">Lote Sugerido</th></tr>
+                                    <thead className="bg-slate-100 text-[9px] uppercase font-black text-slate-600">
+                                        <tr><th className="px-3 py-1.5 w-10 text-center">OK</th><th className="px-3 py-1.5">Insumo / WIP</th><th className="px-3 py-1.5 text-right">Cant. Físico</th><th className="px-3 py-1.5 text-center">Ubicación</th><th className="px-3 py-1.5 text-center">Lote Sugerido</th></tr>
                                     </thead>
-                                    <tbody className="divide-y border-t-2 border-slate-200 text-xs font-bold text-slate-800">
+                                    <tbody className="divide-y divide-slate-200 border-t-2 border-slate-200 text-[11px] font-bold text-slate-800">
                                         {recipes.find(r => r.id === selectedOrder.recipeId)?.details?.map((d, i) => {
                                             const recipe = recipes.find(r => r.id === selectedOrder.recipeId);
                                             const ing = ingredients.find(ing => ing.id === d.ingredientId);
@@ -849,11 +858,11 @@ function ProductionOrdersView({ recipes, ingredients, lots, orders, setOrders, s
                                             const displayGramos = gramosReales >= 1000 ? `${(gramosReales / 1000).toFixed(2)} Kg` : `${gramosReales.toFixed(0)} g`;
                                             return (
                                                 <tr key={i}>
-                                                    <td className="p-3 text-center"><Square size={16} className="text-slate-300 mx-auto" /></td>
-                                                    <td className="p-3 uppercase">{ing?.name}</td>
-                                                    <td className="p-3 text-right font-mono text-blue-700 text-sm bg-blue-50/50">{displayGramos}</td>
-                                                    <td className="p-3 text-center"><span className="px-2 py-1 rounded text-[9px] uppercase bg-slate-50 border flex items-center justify-center gap-1"><MapPin size={10} /> {getLocation(ing)}</span></td>
-                                                    <td className="p-3 text-center font-mono text-[10px] text-orange-600">{getFefoLot(ing?.id)}</td>
+                                                    <td className="px-3 py-1.5 text-center"><Square size={14} className="text-slate-300 mx-auto" /></td>
+                                                    <td className="px-3 py-1.5 uppercase">{ing?.name}</td>
+                                                    <td className="px-3 py-1.5 text-right font-mono text-blue-700 bg-blue-50/50">{displayGramos}</td>
+                                                    <td className="px-3 py-1.5 text-center"><span className="px-1.5 py-0.5 rounded text-[8px] uppercase bg-slate-50 border flex items-center justify-center gap-1"><MapPin size={8} /> {getLocation(ing)}</span></td>
+                                                    <td className="px-3 py-1.5 text-center font-mono text-[9px] text-orange-600">{getFefoLot(ing?.id)}</td>
                                                 </tr>
                                             );
                                         })}
@@ -861,14 +870,14 @@ function ProductionOrdersView({ recipes, ingredients, lots, orders, setOrders, s
                                 </table>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-8 border-t-2 border-dashed pt-8 mb-8 opacity-50">
-                                <div className="border-b-2 border-slate-900 pb-1 text-center"><p className="text-[10px] font-black uppercase">Firma Pañolero</p></div>
-                                <div className="border-b-2 border-slate-900 pb-1 text-center"><p className="text-[10px] font-black uppercase">Firma Supervisor</p></div>
+                            <div className="grid grid-cols-2 gap-8 border-t-2 border-dashed pt-6 mb-6 opacity-50">
+                                <div className="border-b border-slate-900 pb-1 text-center"><p className="text-[9px] font-black uppercase">Firma Pañolero</p></div>
+                                <div className="border-b border-slate-900 pb-1 text-center"><p className="text-[9px] font-black uppercase">Firma Supervisor</p></div>
                             </div>
 
-                            <div className="flex justify-end gap-4 print:hidden mt-auto border-t pt-6">
-                                <Button variant="secondary" onClick={() => window.print()}><Printer size={16} /> Imprimir Hoja</Button>
-                                <Button variant="success" onClick={() => activateOrder(selectedOrder.id)}>Activar Kanban</Button>
+                            <div className="flex justify-end gap-3 print:hidden mt-auto border-t pt-4">
+                                <Button variant="secondary" onClick={() => window.print()} className="py-2"><Printer size={14} /> Imprimir Hoja</Button>
+                                <Button variant="success" onClick={() => activateOrder(selectedOrder.id)} className="py-2">Activar Kanban</Button>
                             </div>
                         </div>
                     )}
@@ -895,21 +904,21 @@ function KanbanView({ orders, recipes, setOrders, qualityLogs, setQualityLogs, s
     return (
         <div className="flex gap-4 h-[calc(100vh-220px)] overflow-x-auto pb-4">
             {ETAPAS_KANBAN.map(etapa => (
-                <div key={etapa.id} className="w-72 flex-shrink-0 flex flex-col bg-slate-100 rounded-2xl border border-slate-200 shadow-inner">
-                    <div className="p-4 bg-white border-b-4 border-slate-200 flex justify-between items-center rounded-t-2xl">
-                        <div className="flex items-center gap-2 font-black text-[10px] uppercase text-slate-800">{etapa.icon} {etapa.nombre}</div>
-                        <span className="text-[10px] font-black text-white bg-slate-900 px-2 py-0.5 rounded-full">{orders.filter(o => o.status === etapa.id).length}</span>
+                <div key={etapa.id} className="w-64 flex-shrink-0 flex flex-col bg-slate-100 rounded-xl border border-slate-200 shadow-inner">
+                    <div className="p-3 bg-white border-b-2 border-slate-200 flex justify-between items-center rounded-t-xl">
+                        <div className="flex items-center gap-1.5 font-black text-[9px] uppercase text-slate-800">{etapa.icon} {etapa.nombre}</div>
+                        <span className="text-[9px] font-black text-white bg-slate-900 px-1.5 py-0.5 rounded-full">{orders.filter(o => o.status === etapa.id).length}</span>
                     </div>
-                    <div className="flex-1 p-3 overflow-y-auto space-y-3">
+                    <div className="flex-1 p-2.5 overflow-y-auto space-y-2.5">
                         {orders.filter(o => o.status === etapa.id).map(o => {
                             const rec = recipes.find(r => r.id === o.recipeId);
                             return (
-                                <Card key={o.id} className="p-5 hover:border-orange-500 transition-all border-2 border-transparent group shadow-md bg-white">
-                                    <div className="flex justify-between items-center mb-3"><span className="text-[9px] font-mono font-bold text-slate-400">{o.id}</span></div>
-                                    <h5 className="font-black text-sm uppercase text-slate-800 leading-tight mb-4 italic truncate" title={rec?.nombre_producto}>{rec?.nombre_producto || 'Cargando...'}</h5>
-                                    <div className="flex justify-between items-end border-t pt-3 mt-2">
-                                        <div><p className="text-[8px] font-black uppercase text-slate-400">Meta Lote</p><p className="text-sm font-black text-blue-700 font-mono leading-none mt-1">{o.targetAmount}</p></div>
-                                        {etapa.id !== 'TERMINADO' && (<button onClick={() => etapa.id === 'CALIDAD' ? setSelected(o) : moveOrder(o.id, ETAPAS_KANBAN[ETAPAS_KANBAN.findIndex(e => e.id === etapa.id) + 1].id)} className="opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900 text-white p-2 rounded-lg hover:bg-orange-500 shadow-md"><ArrowRight size={14} /></button>)}
+                                <Card key={o.id} className="p-4 hover:border-orange-500 transition-all border-2 border-transparent group shadow-sm bg-white">
+                                    <div className="flex justify-between items-center mb-2"><span className="text-[8px] font-mono font-bold text-slate-400">{o.id}</span></div>
+                                    <h5 className="font-black text-xs uppercase text-slate-800 leading-tight mb-3 italic truncate" title={rec?.nombre_producto}>{rec?.nombre_producto || 'Cargando...'}</h5>
+                                    <div className="flex justify-between items-end border-t border-slate-100 pt-2 mt-1">
+                                        <div><p className="text-[7px] font-black uppercase text-slate-400">Meta Lote</p><p className="text-xs font-black text-blue-700 font-mono leading-none mt-0.5">{o.targetAmount}</p></div>
+                                        {etapa.id !== 'TERMINADO' && (<button onClick={() => etapa.id === 'CALIDAD' ? setSelected(o) : moveOrder(o.id, ETAPAS_KANBAN[ETAPAS_KANBAN.findIndex(e => e.id === etapa.id) + 1].id)} className="opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900 text-white p-1.5 rounded-md hover:bg-orange-500 shadow-sm"><ArrowRight size={12} /></button>)}
                                     </div>
                                 </Card>
                             );
@@ -919,23 +928,23 @@ function KanbanView({ orders, recipes, setOrders, qualityLogs, setQualityLogs, s
             ))}
             {selected && (
                 <div className="fixed inset-0 bg-slate-950/80 flex items-center justify-center p-8 z-50 animate-in fade-in">
-                    <Card className="max-w-xl w-full p-10 border-[8px] border-slate-900 shadow-2xl">
-                        <h3 className="text-2xl font-black uppercase italic mb-8 border-b pb-4">Auditoría HACCP y Cierre</h3>
-                        <div className="space-y-6">
-                            <div className="grid grid-cols-2 gap-6">
+                    <Card className="max-w-xl w-full p-8 border-[6px] border-slate-900 shadow-2xl">
+                        <h3 className="text-xl font-black uppercase italic mb-6 border-b pb-3">Auditoría HACCP y Cierre</h3>
+                        <div className="space-y-5">
+                            <div className="grid grid-cols-2 gap-5">
                                 <Input label="Temp. Salida Horno (°C)" type="number" value={form.temp} onChange={v => setForm({ ...form, temp: v })} required />
                                 <Input label="Unidades Reales" type="number" value={form.units} onChange={v => setForm({ ...form, units: v })} required />
                             </div>
                             {Number(form.temp) > 0 && Number(form.temp) < 85 && (
-                                <div className="bg-red-50 p-4 rounded-xl border-2 border-red-200 text-red-700 flex items-center gap-4"><ShieldCheck size={24} /><p className="text-[10px] font-black uppercase">Bloqueo Sanitario Activo.</p></div>
+                                <div className="bg-red-50 p-3 rounded-lg border border-red-200 text-red-700 flex items-center gap-3"><ShieldCheck size={20} /><p className="text-[9px] font-black uppercase">Bloqueo Sanitario Activo.</p></div>
                             )}
-                            <div className="bg-slate-50 p-5 rounded-xl border">
-                                <p className="text-[10px] font-black uppercase text-slate-400 mb-3">Clasificar Merma</p>
+                            <div className="bg-slate-50 p-4 rounded-lg border">
+                                <p className="text-[9px] font-black uppercase text-slate-400 mb-2">Clasificar Merma</p>
                                 <div className="grid grid-cols-2 gap-2">
-                                    {['Scrap Amasado', 'Quemado', 'Falla Estética', 'Consumo'].map(r => (<button key={r} onClick={() => setForm({ ...form, reason: r })} className={`p-3 text-left rounded-lg border-2 font-black uppercase text-[9px] transition-all ${form.reason === r ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-400'}`}>{r}</button>))}
+                                    {['Scrap Amasado', 'Quemado', 'Falla Estética', 'Consumo'].map(r => (<button key={r} onClick={() => setForm({ ...form, reason: r })} className={`p-2 text-left rounded-md border-2 font-black uppercase text-[8px] transition-all ${form.reason === r ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-400'}`}>{r}</button>))}
                                 </div>
                             </div>
-                            <div className="flex gap-4 pt-4"><Button onClick={handleFinalize} variant="success" className="flex-1 py-4" disabled={Number(form.temp) < 85 || !form.units || !form.reason}>Finalizar Producción</Button><Button onClick={() => setSelected(null)} variant="secondary" className="px-8">Cancelar</Button></div>
+                            <div className="flex gap-3 pt-3"><Button onClick={handleFinalize} variant="success" className="flex-1 py-3" disabled={Number(form.temp) < 85 || !form.units || !form.reason}>Finalizar Producción</Button><Button onClick={() => setSelected(null)} variant="secondary" className="px-6">Cancelar</Button></div>
                         </div>
                     </Card>
                 </div>
@@ -1071,53 +1080,52 @@ function MasterDataView({ ingredients, setIngredients, providers, setProviders, 
     };
 
     return (
-        <div className="space-y-8 animate-in fade-in">
-            <div className="flex gap-4 border-b border-slate-200 pb-4">
+        <div className="space-y-6 animate-in fade-in">
+            <div className="flex gap-3 border-b border-slate-200 pb-3">
                 {[
-                    { id: 'prov', l: 'Catálogo de Proveedores' },
+                    { id: 'prov', l: 'Catálogo Proveedores' },
                     { id: 'ing', l: 'Insumos y WIP' },
                 ].map(t => (
-                    <button key={t.id} onClick={() => setTab(t.id)} className={`px-6 py-2 rounded-lg font-black uppercase text-[10px] transition-all ${tab === t.id ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-100'}`}>
+                    <button key={t.id} onClick={() => setTab(t.id)} className={`px-5 py-1.5 rounded-md font-black uppercase text-[9px] transition-all ${tab === t.id ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-100'}`}>
                         {t.l}
                     </button>
                 ))}
             </div>
 
             {tab === 'prov' && (
-                <Card className="p-8 bg-slate-50">
-                    <div className="flex justify-between items-center mb-6">
-                        <h4 className="text-lg font-black uppercase italic text-slate-800">Directorio de Proveedores</h4>
-                        <Button onClick={() => { setShowAdd(!showAdd); setForm({ id: null, codigo: '', nombre: '', cuit: '', rubro: '' }); }} variant={showAdd ? "secondary" : "accent"}>{showAdd ? "Cancelar" : <><Plus size={16} /> Nuevo Proveedor</>}</Button>
+                <Card className="p-6 bg-slate-50">
+                    <div className="flex justify-between items-center mb-5">
+                        <h4 className="text-base font-black uppercase italic text-slate-800">Directorio de Proveedores</h4>
+                        <Button onClick={() => { setShowAdd(!showAdd); setForm({ id: null, codigo: '', nombre: '', cuit: '', rubro: '' }); }} variant={showAdd ? "secondary" : "accent"}>{showAdd ? "Cancelar" : <><Plus size={14} /> Nuevo Proveedor</>}</Button>
                     </div>
 
                     {showAdd && (
-                        <Card className="p-8 border-4 border-slate-900 bg-white mb-8">
-                            <h4 className="text-sm font-black uppercase mb-6 italic">{form.id ? 'Editar Proveedor' : 'Alta Proveedor'}</h4>
-                            <div className="grid grid-cols-1 md:grid-cols-5 gap-6 items-end">
+                        <Card className="p-6 border-4 border-slate-900 bg-white mb-6">
+                            <h4 className="text-xs font-black uppercase mb-4 italic">{form.id ? 'Editar Proveedor' : 'Alta Proveedor'}</h4>
+                            <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
                                 <div className="md:col-span-1"><Input label="Cod. Prov. (Auto)" value={form.codigo} disabled required /></div>
                                 <div className="md:col-span-2"><Input label="Razón Social" value={form.nombre} onChange={v => setForm({ ...form, nombre: v })} required /></div>
                                 <Input label="CUIT" value={form.cuit} onChange={v => setForm({ ...form, cuit: v })} required />
                                 <Input label="Rubro" value={form.rubro} onChange={v => setForm({ ...form, rubro: v })} />
                             </div>
-                            <div className="flex justify-end mt-6"><Button onClick={saveProvider} variant="success" className="py-2.5 h-[42px] px-8">Guardar Cambios</Button></div>
+                            <div className="flex justify-end mt-4"><Button onClick={saveProvider} variant="success" className="py-2 px-6">Guardar</Button></div>
                         </Card>
                     )}
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         {providers.map(p => (
-                            <Card key={p.id} className="p-5 bg-white shadow-sm flex items-center justify-between border group">
-                                <div className="flex items-center gap-4">
-                                    <div className="bg-slate-100 p-3 rounded-lg text-slate-500"><Briefcase size={24} /></div>
+                            <Card key={p.id} className="p-4 bg-white shadow-sm flex items-center justify-between border group">
+                                <div className="flex items-center gap-3">
+                                    <div className="bg-slate-100 p-2 rounded-md text-slate-500"><Briefcase size={18} /></div>
                                     <div>
-                                        <h5 className="font-black uppercase italic text-slate-800 text-sm">{p.nombre}</h5>
-                                        <div className="flex gap-2 items-center mt-1">
-                                            <span className="text-[9px] font-mono text-blue-500 bg-blue-50 px-1 rounded">{p.codigo}</span>
-                                            <p className="text-[10px] font-bold text-slate-400 uppercase">CUIT: {p.cuit}</p>
+                                        <h5 className="font-black uppercase italic text-slate-800 text-xs">{p.nombre}</h5>
+                                        <div className="flex gap-2 items-center mt-0.5">
+                                            <span className="text-[8px] font-mono text-blue-500 bg-blue-50 px-1 rounded">{p.codigo}</span>
+                                            <p className="text-[9px] font-bold text-slate-400 uppercase">CUIT: {p.cuit}</p>
                                         </div>
-                                        <p className="text-[9px] font-black text-orange-500 uppercase mt-1 tracking-widest bg-orange-50 inline-block px-2 py-0.5 rounded">{p.rubro}</p>
                                     </div>
                                 </div>
-                                <button onClick={() => { setForm(p); setShowAdd(true); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="p-2 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors opacity-0 group-hover:opacity-100"><Wrench size={16} /></button>
+                                <button onClick={() => { setForm(p); setShowAdd(true); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="p-1.5 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-md transition-colors opacity-0 group-hover:opacity-100"><Wrench size={14} /></button>
                             </Card>
                         ))}
                     </div>
@@ -1125,31 +1133,31 @@ function MasterDataView({ ingredients, setIngredients, providers, setProviders, 
             )}
 
             {tab === 'ing' && (
-                <Card className="p-8 bg-slate-50">
-                    <div className="flex justify-between items-center mb-6">
-                        <h4 className="text-lg font-black uppercase italic text-slate-800">Catálogo de Insumos</h4>
-                        <Button onClick={() => { setShowAddIng(!showAddIng); setIngForm({ id: null, codigo: '', name: '', unidad_compra: 'Bolsa 25kg', familia: 'Harinas y Polvos', almacen: 'Almacén Secos Principal', alergeno: '', costo_estandar: '' }); }} variant={showAddIng ? "secondary" : "accent"}>{showAddIng ? "Cancelar" : <><Plus size={16} /> Nuevo Insumo</>}</Button>
+                <Card className="p-6 bg-slate-50">
+                    <div className="flex justify-between items-center mb-5">
+                        <h4 className="text-base font-black uppercase italic text-slate-800">Catálogo de Insumos</h4>
+                        <Button onClick={() => { setShowAddIng(!showAddIng); setIngForm({ id: null, codigo: '', name: '', unidad_compra: 'Bolsa 25kg', familia: 'Harinas y Polvos', almacen: 'Almacén Secos Principal', alergeno: '', costo_estandar: '' }); }} variant={showAddIng ? "secondary" : "accent"}>{showAddIng ? "Cancelar" : <><Plus size={14} /> Nuevo Insumo</>}</Button>
                     </div>
 
                     {showAddIng && (
-                        <Card className="p-8 border-4 border-slate-900 bg-white mb-8">
-                            <h4 className="text-sm font-black uppercase mb-6 italic">{ingForm.id ? 'Editar Insumo' : 'Alta de Insumo (RAW)'}</h4>
-                            <div className="grid grid-cols-1 md:grid-cols-5 gap-6 items-end">
+                        <Card className="p-6 border-4 border-slate-900 bg-white mb-6">
+                            <h4 className="text-xs font-black uppercase mb-4 italic">{ingForm.id ? 'Editar Insumo' : 'Alta de Insumo (RAW)'}</h4>
+                            <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
                                 <div className="md:col-span-1"><Input label="SKU (Auto)" value={ingForm.codigo} disabled required /></div>
                                 <div className="md:col-span-2"><Input label="Nombre del Insumo" value={ingForm.name} onChange={v => setIngForm({ ...ingForm, name: v })} required /></div>
-                                <Select label="Familia / Categoría" value={ingForm.familia} onChange={e => setIngForm({ ...ingForm, familia: e })}>
+                                <Select label="Familia" value={ingForm.familia} onChange={e => setIngForm({ ...ingForm, familia: e })}>
                                     {CATEGORIAS_INSUMO.map(c => <option key={c} value={c}>{c}</option>)}
                                 </Select>
-                                <Input label="Unidad Compra/Stock" placeholder="Ej. Bolsa 25kg, L..." value={ingForm.unidad_compra} onChange={v => setIngForm({ ...ingForm, unidad_compra: v })} required />
+                                <Input label="Unidad Compra" placeholder="Ej. Bolsa 25kg..." value={ingForm.unidad_compra} onChange={v => setIngForm({ ...ingForm, unidad_compra: v })} required />
 
                                 <div className="md:col-span-2"><Select label="Ubicación (Almacén)" value={ingForm.almacen} onChange={e => setIngForm({ ...ingForm, almacen: e })}>
                                     {UBICACIONES_ALMACEN.map(u => <option key={u} value={u}>{u}</option>)}
                                 </Select></div>
-                                <div className="md:col-span-2"><Input label="Alérgenos (Opcional)" placeholder="Ej. TACC, Lácteo" value={ingForm.alergeno} onChange={v => setIngForm({ ...ingForm, alergeno: v })} /></div>
+                                <div className="md:col-span-2"><Input label="Alérgenos" placeholder="Ej. TACC, Lácteo" value={ingForm.alergeno} onChange={v => setIngForm({ ...ingForm, alergeno: v })} /></div>
                                 <Input label="Costo Est. ($)" type="number" value={ingForm.costo_estandar} onChange={v => setIngForm({ ...ingForm, costo_estandar: v })} required />
                             </div>
-                            <div className="flex items-center justify-end mt-6 pt-6 border-t border-slate-100">
-                                <Button onClick={saveIngredient} variant="success" className="py-3 px-8 h-[42px]">Guardar Insumo</Button>
+                            <div className="flex justify-end mt-4 pt-4 border-t border-slate-100">
+                                <Button onClick={saveIngredient} variant="success" className="py-2 px-6">Guardar Insumo</Button>
                             </div>
                         </Card>
                     )}
@@ -1158,38 +1166,38 @@ function MasterDataView({ ingredients, setIngredients, providers, setProviders, 
                         <table className="w-full text-left font-bold text-xs uppercase text-slate-700">
                             <thead className="bg-slate-900 text-white text-[9px] tracking-widest">
                                 <tr>
-                                    <th className="p-4">SKU / Nombre</th>
-                                    <th className="p-4 text-center">Familia</th>
-                                    <th className="p-4 text-center">Ubicación</th>
-                                    <th className="p-4 text-center">Alérgeno</th>
-                                    <th className="p-4 text-right">Costo Est.</th>
-                                    <th className="p-4 text-center">Acciones</th>
+                                    <th className="px-4 py-2">SKU / Nombre</th>
+                                    <th className="px-4 py-2 text-center">Familia</th>
+                                    <th className="px-4 py-2 text-center">Ubicación</th>
+                                    <th className="px-4 py-2 text-center">Alérgeno</th>
+                                    <th className="px-4 py-2 text-right">Costo Est.</th>
+                                    <th className="px-4 py-2 text-center">Acciones</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y bg-white">
+                            <tbody className="divide-y divide-slate-100 bg-white">
                                 {ingredients.map(i => (
                                     <tr key={i.id} className="hover:bg-slate-50 transition-colors group">
-                                        <td className="p-4">
-                                            <div className="font-black flex items-center gap-2 text-slate-800">
-                                                {i.es_subensamble && <Layers size={14} className="text-orange-500" />}
+                                        <td className="px-4 py-1.5">
+                                            <div className="font-black flex items-center gap-1.5 text-slate-800">
+                                                {i.es_subensamble && <Layers size={12} className="text-orange-500" />}
                                                 {i.name}
                                             </div>
-                                            <div className="flex gap-2 items-center mt-1">
-                                                <span className="text-[9px] font-mono text-blue-500 bg-blue-50 px-1 rounded">{i.codigo}</span>
-                                                <span className="text-[9px] text-slate-400 font-normal lowercase block">({i.unidad_compra})</span>
+                                            <div className="flex gap-2 items-center mt-0.5">
+                                                <span className="text-[8px] font-mono text-blue-500 bg-blue-50 px-1 rounded">{i.codigo}</span>
+                                                <span className="text-[8px] text-slate-400 font-normal lowercase block">({i.unidad_compra})</span>
                                             </div>
                                         </td>
-                                        <td className="p-4 text-center text-[10px] text-slate-500">{i.familia || 'Otros'}</td>
-                                        <td className="p-4 text-center">
-                                            <span className="bg-blue-50 text-blue-700 border border-blue-100 px-2 py-1 rounded text-[9px]">{i.almacen || 'Sin Asignar'}</span>
+                                        <td className="px-4 py-1.5 text-center text-[9px] text-slate-500">{i.familia || 'Otros'}</td>
+                                        <td className="px-4 py-1.5 text-center">
+                                            <span className="bg-blue-50 text-blue-700 border border-blue-100 px-1.5 py-0.5 rounded text-[8px]">{i.almacen || 'Sin Asignar'}</span>
                                         </td>
-                                        <td className="p-4 text-center">
-                                            {i.alergeno ? <span className="bg-red-50 text-red-600 border border-red-100 px-2 py-1 rounded text-[9px]">{i.alergeno}</span> : <span className="text-slate-300">-</span>}
+                                        <td className="px-4 py-1.5 text-center">
+                                            {i.alergeno ? <span className="bg-red-50 text-red-600 border border-red-100 px-1.5 py-0.5 rounded text-[8px]">{i.alergeno}</span> : <span className="text-slate-300">-</span>}
                                         </td>
-                                        <td className="p-4 text-right font-mono text-emerald-600">${i.costo_estandar || 0}</td>
-                                        <td className="p-4 text-center">
+                                        <td className="px-4 py-1.5 text-right font-mono text-emerald-600">${i.costo_estandar || 0}</td>
+                                        <td className="px-4 py-1.5 text-center">
                                             {!i.es_subensamble && (
-                                                <button onClick={() => { setIngForm({ id: i.id, codigo: i.codigo, name: i.name, unidad_compra: i.unidad_compra, familia: i.familia || 'Harinas y Polvos', almacen: i.almacen || 'Almacén Secos Principal', alergeno: i.alergeno, costo_estandar: i.costo_estandar }); setShowAddIng(true); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="p-1.5 text-slate-400 hover:text-slate-800 hover:bg-slate-200 rounded transition-colors opacity-0 group-hover:opacity-100"><Wrench size={14} /></button>
+                                                <button onClick={() => { setIngForm({ id: i.id, codigo: i.codigo, name: i.name, unidad_compra: i.unidad_compra, familia: i.familia || 'Harinas y Polvos', almacen: i.almacen || 'Almacén Secos Principal', alergeno: i.alergeno, costo_estandar: i.costo_estandar }); setShowAddIng(true); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="p-1 text-slate-400 hover:text-slate-800 hover:bg-slate-200 rounded transition-colors opacity-0 group-hover:opacity-100"><Wrench size={12} /></button>
                                             )}
                                         </td>
                                     </tr>
@@ -1226,34 +1234,34 @@ function SettingsView({ config, setConfig, showToast }) {
     };
 
     return (
-        <div className="space-y-8 animate-in fade-in max-w-4xl">
-            <Card className="p-8 border-t-8 border-slate-900 bg-white shadow-xl">
-                <div className="flex items-center gap-3 mb-6 border-b pb-4"><Building className="text-slate-800" size={28} /><h4 className="text-2xl font-black uppercase italic text-slate-800">Datos de la Empresa</h4></div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end">
+        <div className="space-y-6 animate-in fade-in max-w-4xl">
+            <Card className="p-6 border-t-8 border-slate-900 bg-white shadow-md">
+                <div className="flex items-center gap-3 mb-5 border-b pb-3"><Building className="text-slate-800" size={24} /><h4 className="text-xl font-black uppercase italic text-slate-800">Datos de la Empresa</h4></div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
                     <Input label="Nombre de la Empresa / Marca" value={form.companyName} onChange={v => setForm({ ...form, companyName: v })} />
                     <Input label="Subtítulo / Versión del Sistema" value={form.appName} onChange={v => setForm({ ...form, appName: v })} />
                 </div>
             </Card>
 
-            <Card className="p-8 border-t-8 border-emerald-500 bg-emerald-50/30 shadow-xl">
-                <div className="flex items-center gap-3 mb-6 border-b border-emerald-200 pb-4"><Calculator className="text-emerald-600" size={28} /><h4 className="text-2xl font-black uppercase italic text-emerald-900">Variables Financieras Globales</h4></div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-end">
+            <Card className="p-6 border-t-8 border-emerald-500 bg-emerald-50/30 shadow-md">
+                <div className="flex items-center gap-3 mb-5 border-b border-emerald-200 pb-3"><Calculator className="text-emerald-600" size={24} /><h4 className="text-xl font-black uppercase italic text-emerald-900">Variables Financieras Globales</h4></div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
                     <Input label="Costo Mano Obra ($ / Hora)" type="number" value={form.finanzas.costoHoraHombre} onChange={v => setForm({ ...form, finanzas: { ...form.finanzas, costoHoraHombre: Number(v) } })} />
-                    <Input label="Gastos Indirectos Fabricación" type="number" value={form.finanzas.costosIndirectosPct} suffix="% de MP" onChange={v => setForm({ ...form, finanzas: { ...form.finanzas, costosIndirectosPct: Number(v) } })} />
-                    <Input label="Markup (Margen Deseado)" type="number" value={form.finanzas.margenGanancia} suffix="% por Lote" onChange={v => setForm({ ...form, finanzas: { ...form.finanzas, margenGanancia: Number(v) } })} />
+                    <Input label="Gastos Indirectos" type="number" value={form.finanzas.costosIndirectosPct} suffix="% de MP" onChange={v => setForm({ ...form, finanzas: { ...form.finanzas, costosIndirectosPct: Number(v) } })} />
+                    <Input label="Markup (Margen)" type="number" value={form.finanzas.margenGanancia} suffix="%" onChange={v => setForm({ ...form, finanzas: { ...form.finanzas, margenGanancia: Number(v) } })} />
                 </div>
             </Card>
 
             <div className="flex justify-end">
-                <Button variant="success" onClick={saveCompanyData} className="px-12 py-4 shadow-lg text-sm">Guardar Toda la Configuración</Button>
+                <Button variant="success" onClick={saveCompanyData} className="px-10 py-3 shadow-md">Guardar Configuración</Button>
             </div>
 
-            <Card className="p-8 border-t-8 border-orange-500 bg-white shadow-xl">
-                <div className="flex items-center gap-3 mb-6 border-b pb-4"><Store className="text-orange-500" size={28} /><h4 className="text-2xl font-black uppercase italic text-slate-800">Locales y Sucursales</h4></div>
-                <form onSubmit={addBranch} className="flex gap-4 items-end bg-slate-50 p-6 rounded-2xl border mb-8"><div className="flex-1"><Input label="Nombre de la Nueva Sucursal" placeholder="Ej. Local Norte..." value={newBranch} onChange={setNewBranch} /></div><Button variant="primary" type="submit" className="py-2.5 px-6 h-[42px]"><Plus size={16} /> Agregar</Button></form>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <Card className="p-6 border-t-8 border-orange-500 bg-white shadow-md">
+                <div className="flex items-center gap-3 mb-5 border-b pb-3"><Store className="text-orange-500" size={24} /><h4 className="text-xl font-black uppercase italic text-slate-800">Locales y Sucursales</h4></div>
+                <form onSubmit={addBranch} className="flex gap-4 items-end bg-slate-50 p-5 rounded-xl border mb-6"><div className="flex-1"><Input label="Nombre de la Nueva Sucursal" placeholder="Ej. Local Norte..." value={newBranch} onChange={setNewBranch} /></div><Button variant="primary" type="submit" className="py-2 px-5 h-[38px]"><Plus size={14} /> Agregar</Button></form>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                     {form.branches.map(branch => (
-                        <div key={branch} className="flex justify-between items-center bg-white border-2 border-slate-200 p-4 rounded-xl shadow-sm hover:border-orange-300 transition-colors group"><span className="font-bold text-sm text-slate-700 uppercase tracking-wide truncate pr-2">{branch}</span><button onClick={() => removeBranch(branch)} className="text-slate-300 hover:text-red-500 p-2 rounded-lg group-hover:bg-red-50"><Trash2 size={16} /></button></div>
+                        <div key={branch} className="flex justify-between items-center bg-white border border-slate-200 p-3 rounded-lg shadow-sm hover:border-orange-300 transition-colors group"><span className="font-bold text-xs text-slate-700 uppercase tracking-wide truncate pr-2">{branch}</span><button onClick={() => removeBranch(branch)} className="text-slate-300 hover:text-red-500 p-1.5 rounded-md group-hover:bg-red-50"><Trash2 size={14} /></button></div>
                     ))}
                 </div>
             </Card>
