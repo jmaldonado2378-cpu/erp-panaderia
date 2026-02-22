@@ -6,7 +6,7 @@ import {
     Warehouse, ThermometerSun, ArrowRight, Truck, Layout,
     Clock, ClipboardList, Printer, QrCode, Square, MapPin,
     AlertTriangle, Hash, Search, Calendar, Wrench, Building,
-    Store, CheckCircle2, XCircle
+    Store, CheckCircle2, XCircle, Calculator, DollarSign, PieChart
 } from 'lucide-react';
 
 // ============================================================================
@@ -47,6 +47,7 @@ const INITIAL_PROVIDERS = [
     { id: 'p9', codigo: 'PRV-009', nombre: 'Huevos San Juan', cuit: '30-99988877-5', rubro: 'Huevos' }
 ];
 
+// Costo Estándar = Precio por Gramo o por Unidad de la receta
 const INITIAL_INGREDIENTS = [
     { id: 'i1', codigo: 'RAW-HAR-001', name: 'Harina 000 (Fuerza)', unidad_compra: 'Bolsa 25kg', familia: 'Harinas y Polvos', almacen: 'Harinera', alergeno: 'TACC', costo_estandar: 0.8 },
     { id: 'i2', codigo: 'RAW-HAR-002', name: 'Harina 0000 (Pastelera)', unidad_compra: 'Bolsa 25kg', familia: 'Harinas y Polvos', almacen: 'Harinera', alergeno: 'TACC', costo_estandar: 1.2 },
@@ -59,8 +60,8 @@ const INITIAL_INGREDIENTS = [
     { id: 'i9', codigo: 'RAW-HUE-001', name: 'Huevo Líquido Pasteurizado', unidad_compra: 'Sachet 5L', familia: 'Huevos', almacen: 'Cámara de Frío 1 (Insumos)', alergeno: 'Huevo', costo_estandar: 4.2 },
     { id: 'i10', codigo: 'RAW-AZÚ-002', name: 'Dulce de Leche Repostero', unidad_compra: 'Tacho 10kg', familia: 'Azúcares y Dulces', almacen: 'Almacén Secos Principal', alergeno: 'Lácteo', costo_estandar: 5.5 },
     { id: 'i11', codigo: 'RAW-AZÚ-003', name: 'Chocolate Cobertura Semiamargo', unidad_compra: 'Caja 5kg', familia: 'Azúcares y Dulces', almacen: 'Heladera de Tránsito', alergeno: 'Lácteo', costo_estandar: 15.0 },
-    { id: 'i12', codigo: 'RAW-ADI-001', name: 'Mejorador Pan Francés (Ácido Ascórbico)', unidad_compra: 'Bolsa 5kg', familia: 'Aditivos y Esencias', almacen: 'Almacén Secos Principal', alergeno: '', costo_estandar: 25.0 },
-    { id: 'i13', codigo: 'RAW-ADI-002', name: 'Propionato de Calcio (Antimoho)', unidad_compra: 'Bolsa 5kg', familia: 'Aditivos y Esencias', almacen: 'Almacén Secos Principal', alergeno: '', costo_estandar: 18.0 },
+    { id: 'i12', codigo: 'RAW-ADI-001', name: 'Mejorador Pan Francés', unidad_compra: 'Bolsa 5kg', familia: 'Aditivos y Esencias', almacen: 'Almacén Secos Principal', alergeno: '', costo_estandar: 25.0 },
+    { id: 'i13', codigo: 'RAW-ADI-002', name: 'Propionato de Calcio', unidad_compra: 'Bolsa 5kg', familia: 'Aditivos y Esencias', almacen: 'Almacén Secos Principal', alergeno: '', costo_estandar: 18.0 },
     { id: 'i14', codigo: 'RAW-HAR-004', name: 'Polvo de Hornear Doble Acción', unidad_compra: 'Tarro 2kg', familia: 'Harinas y Polvos', almacen: 'Almacén Secos Principal', alergeno: '', costo_estandar: 6.0 },
     { id: 'i15', codigo: 'RAW-ADI-003', name: 'Extracto de Malta Líquido', unidad_compra: 'Bidón 5kg', familia: 'Aditivos y Esencias', almacen: 'Almacén Secos Principal', alergeno: 'TACC', costo_estandar: 8.0 },
     { id: 'i16', codigo: 'RAW-ADI-004', name: 'Esencia de Vainilla Concentrada', unidad_compra: 'Botella 1L', familia: 'Aditivos y Esencias', almacen: 'Almacén Secos Principal', alergeno: '', costo_estandar: 12.0 },
@@ -68,53 +69,26 @@ const INITIAL_INGREDIENTS = [
     { id: 'wip_F1', codigo: 'WIP-F-001', name: '[WIP] Masa Madre Activa (Poolish)', unidad_compra: 'Gramos', familia: 'WIP (Producción)', almacen: 'Cámara de Frío 2 (WIP)', alergeno: 'TACC', costo_estandar: 1.5, es_subensamble: true },
     { id: 'wip_A1', codigo: 'WIP-A-001', name: '[WIP] Cremado Base Vainilla', unidad_compra: 'Gramos', familia: 'WIP (Producción)', almacen: 'Cámara de Frío 2 (WIP)', alergeno: 'TACC, Lácteo, Huevo', costo_estandar: 3.5, es_subensamble: true },
     { id: 'wip_B1', codigo: 'WIP-B-001', name: '[WIP] Plancha Pan de Miga Blanca', unidad_compra: 'Gramos', familia: 'WIP (Producción)', almacen: 'Almacén Secos Principal', alergeno: 'TACC', costo_estandar: 2.5, es_subensamble: true },
-    { id: 'wip_C1', codigo: 'WIP-C-001', name: '[WIP] Crema Pastelera Horneable', unidad_compra: 'Gramos', familia: 'WIP (Producción)', almacen: 'Cámara de Frío 2 (WIP)', alergeno: 'Lácteo, Huevo', costo_estandar: 4.0, es_subensamble: true },
-    { id: 'wip_D1', codigo: 'WIP-D-001', name: '[WIP] Bastón Hojaldre (Empaste)', unidad_compra: 'Gramos', familia: 'WIP (Producción)', almacen: 'Cámara de Frío 2 (WIP)', alergeno: 'TACC, Lácteo', costo_estandar: 5.5, es_subensamble: true },
-    { id: 'wip_E1', codigo: 'WIP-E-001', name: '[WIP] Masa Sablee Base', unidad_compra: 'Gramos', familia: 'WIP (Producción)', almacen: 'Cámara de Frío 2 (WIP)', alergeno: 'TACC, Lácteo', costo_estandar: 3.8, es_subensamble: true }
+    { id: 'wip_D1', codigo: 'WIP-D-001', name: '[WIP] Bastón Hojaldre (Empaste)', unidad_compra: 'Gramos', familia: 'WIP (Producción)', almacen: 'Cámara de Frío 2 (WIP)', alergeno: 'TACC, Lácteo', costo_estandar: 5.5, es_subensamble: true }
 ];
 
 const INITIAL_LOTS = [
     { id: 'L-H00-CAÑ', ingredientId: 'i1', providerId: 'p1', amount: 500000, expiry: '2026-12-01', ingreso: '2025-10-01' },
-    { id: 'L-H00-CAM', ingredientId: 'i1', providerId: 'p2', amount: 200000, expiry: '2026-10-15', ingreso: '2025-11-20' },
     { id: 'L-H04-CAÑ', ingredientId: 'i2', providerId: 'p1', amount: 300000, expiry: '2026-11-15', ingreso: '2025-09-10' },
     { id: 'L-LEV-CAL', ingredientId: 'i5', providerId: 'p5', amount: 25000, expiry: '2026-03-20', ingreso: '2026-01-05' },
-    { id: 'L-LEV-LES', ingredientId: 'i5', providerId: 'p6', amount: 15000, expiry: '2026-04-10', ingreso: '2026-01-20' },
     { id: 'L-DDL-VAC', ingredientId: 'i10', providerId: 'p4', amount: 80000, expiry: '2026-08-30', ingreso: '2026-01-10' },
     { id: 'L-MEJ-PUR', ingredientId: 'i12', providerId: 'p7', amount: 10000, expiry: '2027-01-01', ingreso: '2026-01-15' },
-    { id: 'WIP-MM-01', ingredientId: 'wip_F1', providerId: 'interno', amount: 45000, expiry: '2026-02-28', ingreso: '2026-02-20' },
-    { id: 'WIP-HOJ-01', ingredientId: 'wip_D1', providerId: 'interno', amount: 60000, expiry: '2026-03-05', ingreso: '2026-02-21' }
+    { id: 'WIP-MM-01', ingredientId: 'wip_F1', providerId: 'interno', amount: 45000, expiry: '2026-02-28', ingreso: '2026-02-20' }
 ];
 
 const BASE_RECIPES = [
-    { nombre_producto: 'Baguette Francesa', familia: 'F', merma: 18, details: [{ ingredientId: 'i1', porcentaje: 100, gramos: 1000 }, { ingredientId: 'i3', porcentaje: 65, gramos: 650 }, { ingredientId: 'i4', porcentaje: 2, gramos: 20 }, { ingredientId: 'i5', porcentaje: 1.5, gramos: 15 }, { ingredientId: 'i12', porcentaje: 1, gramos: 10 }] },
-    { nombre_producto: 'Pan de Molde Larga Vida', familia: 'F', merma: 10, details: [{ ingredientId: 'i1', porcentaje: 100, gramos: 1000 }, { ingredientId: 'i3', porcentaje: 55, gramos: 550 }, { ingredientId: 'i6', porcentaje: 8, gramos: 80 }, { ingredientId: 'i5', porcentaje: 3, gramos: 30 }, { ingredientId: 'i13', porcentaje: 0.5, gramos: 5 }] },
-    { nombre_producto: 'Ciabatta Rústica', familia: 'F', merma: 15, details: [{ ingredientId: 'i1', porcentaje: 100, gramos: 1000 }, { ingredientId: 'wip_F1', porcentaje: 30, gramos: 300 }, { ingredientId: 'i3', porcentaje: 80, gramos: 800 }, { ingredientId: 'i4', porcentaje: 2.2, gramos: 22 }] },
-    { nombre_producto: 'Pan Integral con Malta', familia: 'F', merma: 12, details: [{ ingredientId: 'i1', porcentaje: 100, gramos: 1000 }, { ingredientId: 'i15', porcentaje: 5, gramos: 50 }, { ingredientId: 'i3', porcentaje: 68, gramos: 680 }, { ingredientId: 'i5', porcentaje: 4, gramos: 40 }] },
-
-    { nombre_producto: 'Budín Húmedo de Vainilla', familia: 'A', merma: 8, details: [{ ingredientId: 'i2', porcentaje: 100, gramos: 1000 }, { ingredientId: 'i8', porcentaje: 100, gramos: 1000 }, { ingredientId: 'i9', porcentaje: 100, gramos: 1000 }, { ingredientId: 'i7', porcentaje: 80, gramos: 800 }, { ingredientId: 'i14', porcentaje: 4, gramos: 40 }, { ingredientId: 'i16', porcentaje: 2, gramos: 20 }, { ingredientId: 'i13', porcentaje: 0.3, gramos: 3 }] },
-    { nombre_producto: 'Muffins de Chocolate', familia: 'A', merma: 10, details: [{ ingredientId: 'i2', porcentaje: 100, gramos: 1000 }, { ingredientId: 'i8', porcentaje: 90, gramos: 900 }, { ingredientId: 'i9', porcentaje: 85, gramos: 850 }, { ingredientId: 'i11', porcentaje: 25, gramos: 250 }, { ingredientId: 'i14', porcentaje: 5, gramos: 50 }] },
-    { nombre_producto: 'Pionono Clásico', familia: 'A', merma: 5, details: [{ ingredientId: 'wip_A1', porcentaje: 100, gramos: 1000 }, { ingredientId: 'i2', porcentaje: 40, gramos: 400 }, { ingredientId: 'i15', porcentaje: 10, gramos: 100 }] },
-    { nombre_producto: 'Bizcochuelo Premium', familia: 'A', merma: 12, details: [{ ingredientId: 'i2', porcentaje: 100, gramos: 1000 }, { ingredientId: 'i8', parse: 100, gramos: 1000 }, { ingredientId: 'i9', porcentaje: 120, gramos: 1200 }, { ingredientId: 'i16', porcentaje: 1.5, gramos: 15 }] },
-
-    { nombre_producto: 'Sándwich Miga Triple J&Q', familia: 'B', merma: 0, details: [{ ingredientId: 'wip_B1', porcentaje: 100, gramos: 1000 }, { ingredientId: 'i6', porcentaje: 15, gramos: 150 }] },
-    { nombre_producto: 'Fosforito Relleno', familia: 'B', merma: 2, details: [{ ingredientId: 'wip_D1', porcentaje: 100, gramos: 1000 }, { ingredientId: 'i8', porcentaje: 10, gramos: 100 }] },
-    { nombre_producto: 'Pebete Relleno Especial', familia: 'B', merma: 0, details: [{ ingredientId: 'wip_B1', porcentaje: 100, gramos: 1000 }, { ingredientId: 'i6', porcentaje: 8, gramos: 80 }] },
-    { nombre_producto: 'Chips de Almuerzo', familia: 'B', merma: 5, details: [{ ingredientId: 'i1', porcentaje: 100, gramos: 1000 }, { ingredientId: 'i3', porcentaje: 50, gramos: 500 }, { ingredientId: 'i6', porcentaje: 10, gramos: 100 }, { ingredientId: 'i5', porcentaje: 4, gramos: 40 }] },
-
-    { nombre_producto: 'Torta Selva Negra', familia: 'C', merma: 5, details: [{ ingredientId: 'wip_A1', porcentaje: 100, gramos: 1000 }, { ingredientId: 'i11', porcentaje: 40, gramos: 400 }, { ingredientId: 'i8', porcentaje: 50, gramos: 500 }] },
-    { nombre_producto: 'Lemon Pie Clásico', familia: 'C', merma: 8, details: [{ ingredientId: 'wip_E1', porcentaje: 100, gramos: 1000 }, { ingredientId: 'wip_C1', porcentaje: 150, gramos: 1500 }, { ingredientId: 'i8', porcentaje: 80, gramos: 800 }] },
-    { nombre_producto: 'Cheesecake Horneado', familia: 'C', merma: 10, details: [{ ingredientId: 'wip_E1', porcentaje: 100, gramos: 1000 }, { ingredientId: 'i9', porcentaje: 40, gramos: 400 }, { ingredientId: 'i8', porcentaje: 60, gramos: 600 }] },
-    { nombre_producto: 'Tarta Cabsha', familia: 'C', merma: 5, details: [{ ingredientId: 'wip_E1', porcentaje: 100, gramos: 1000 }, { ingredientId: 'i10', porcentaje: 200, gramos: 2000 }, { ingredientId: 'i11', porcentaje: 50, gramos: 500 }] },
-
-    { nombre_producto: 'Medialuna de Manteca', familia: 'D', merma: 20, details: [{ ingredientId: 'wip_D1', porcentaje: 100, gramos: 1000 }, { ingredientId: 'i8', porcentaje: 15, gramos: 150 }, { ingredientId: 'i3', porcentaje: 45, gramos: 450 }, { ingredientId: 'i5', porcentaje: 4, gramos: 40 }] },
-    { nombre_producto: 'Cañoncito de DDL', familia: 'D', merma: 15, details: [{ ingredientId: 'wip_D1', porcentaje: 100, gramos: 1000 }, { ingredientId: 'i10', porcentaje: 80, gramos: 800 }] },
-    { nombre_producto: 'Palmera Caramelizada', familia: 'D', merma: 12, details: [{ ingredientId: 'wip_D1', porcentaje: 100, gramos: 1000 }, { ingredientId: 'i8', porcentaje: 60, gramos: 600 }] },
-    { nombre_producto: 'Vigilante', familia: 'D', merma: 18, details: [{ ingredientId: 'wip_D1', porcentaje: 100, gramos: 1000 }, { ingredientId: 'i16', porcentaje: 2, gramos: 20 }] },
-
-    { nombre_producto: 'Alfajor de Maicena', familia: 'E', merma: 6, details: [{ ingredientId: 'wip_E1', porcentaje: 100, gramos: 1000 }, { ingredientId: 'i10', porcentaje: 150, gramos: 1500 }, { ingredientId: 'i14', porcentaje: 3, gramos: 30 }] },
-    { nombre_producto: 'Galletas Pepas', familia: 'E', merma: 8, details: [{ ingredientId: 'wip_E1', porcentaje: 100, gramos: 1000 }, { ingredientId: 'i10', porcentaje: 50, gramos: 500 }, { ingredientId: 'i14', porcentaje: 2, gramos: 20 }] },
-    { nombre_producto: 'Polvorones Caseros', familia: 'E', merma: 10, details: [{ ingredientId: 'i2', porcentaje: 100, gramos: 1000 }, { ingredientId: 'i6', porcentaje: 60, gramos: 600 }, { ingredientId: 'i8', porcentaje: 50, gramos: 500 }, { ingredientId: 'i14', porcentaje: 4, gramos: 40 }] },
-    { nombre_producto: 'Lengüitas de Gato', familia: 'E', merma: 5, details: [{ ingredientId: 'i2', porcentaje: 100, gramos: 1000 }, { ingredientId: 'i6', porcentaje: 80, gramos: 800 }, { ingredientId: 'i8', porcentaje: 80, gramos: 800 }, { ingredientId: 'i9', porcentaje: 30, gramos: 300 }, { ingredientId: 'i16', porcentaje: 3, gramos: 30 }] }
+    { nombre_producto: 'Baguette Francesa', familia: 'F', merma: 18, horas_hombre: 1.5, costo_empaque: 0, details: [{ ingredientId: 'i1', porcentaje: 100, gramos: 1000 }, { ingredientId: 'i3', porcentaje: 65, gramos: 650 }, { ingredientId: 'i4', porcentaje: 2, gramos: 20 }, { ingredientId: 'i5', porcentaje: 1.5, gramos: 15 }, { ingredientId: 'i12', porcentaje: 1, gramos: 10 }] },
+    { nombre_producto: 'Pan de Molde Larga Vida', familia: 'F', merma: 10, horas_hombre: 2.0, costo_empaque: 120, details: [{ ingredientId: 'i1', porcentaje: 100, gramos: 1000 }, { ingredientId: 'i3', porcentaje: 55, gramos: 550 }, { ingredientId: 'i6', porcentaje: 8, gramos: 80 }, { ingredientId: 'i5', porcentaje: 3, gramos: 30 }, { ingredientId: 'i13', porcentaje: 0.5, gramos: 5 }] },
+    { nombre_producto: 'Ciabatta Rústica', familia: 'F', merma: 15, horas_hombre: 2.5, costo_empaque: 0, details: [{ ingredientId: 'i1', porcentaje: 100, gramos: 1000 }, { ingredientId: 'wip_F1', porcentaje: 30, gramos: 300 }, { ingredientId: 'i3', porcentaje: 80, gramos: 800 }, { ingredientId: 'i4', porcentaje: 2.2, gramos: 22 }] },
+    { nombre_producto: 'Budín Húmedo de Vainilla', familia: 'A', merma: 8, horas_hombre: 1.2, costo_empaque: 85, details: [{ ingredientId: 'i2', porcentaje: 100, gramos: 1000 }, { ingredientId: 'i8', porcentaje: 100, gramos: 1000 }, { ingredientId: 'i9', porcentaje: 100, gramos: 1000 }, { ingredientId: 'i7', porcentaje: 80, gramos: 800 }, { ingredientId: 'i14', porcentaje: 4, gramos: 40 }, { ingredientId: 'i16', porcentaje: 2, gramos: 20 }] },
+    { nombre_producto: 'Sándwich Miga Triple J&Q', familia: 'B', merma: 0, horas_hombre: 0.8, costo_empaque: 250, details: [{ ingredientId: 'wip_B1', porcentaje: 100, gramos: 1000 }, { ingredientId: 'i6', porcentaje: 15, gramos: 150 }] },
+    { nombre_producto: 'Medialuna de Manteca', familia: 'D', merma: 20, horas_hombre: 3.5, costo_empaque: 0, details: [{ ingredientId: 'wip_D1', porcentaje: 100, gramos: 1000 }, { ingredientId: 'i8', porcentaje: 15, gramos: 150 }, { ingredientId: 'i3', porcentaje: 45, gramos: 450 }, { ingredientId: 'i5', porcentaje: 4, gramos: 40 }] },
+    { nombre_producto: 'Alfajor de Maicena', familia: 'E', merma: 6, horas_hombre: 1.8, costo_empaque: 45, details: [{ ingredientId: 'i2', porcentaje: 100, gramos: 1000 }, { ingredientId: 'i10', porcentaje: 150, gramos: 1500 }, { ingredientId: 'i14', porcentaje: 3, gramos: 30 }] }
 ];
 
 const GENERATE_RECIPES = () => {
@@ -123,9 +97,7 @@ const GENERATE_RECIPES = () => {
     const FORMATOS = [
         { f: 'Unidad', p: 80, s: 'Mini' },
         { f: 'Unidad', p: 250, s: 'Estándar' },
-        { f: 'Unidad', p: 500, s: 'Familiar' },
-        { f: 'Unidad', p: 1000, s: 'Extra Grande' },
-        { f: 'Kg', p: null, s: 'a Granel' }
+        { f: 'Unidad', p: 500, s: 'Familiar' }
     ];
 
     Object.keys(FAMILIAS).forEach(famKey => {
@@ -136,7 +108,7 @@ const GENERATE_RECIPES = () => {
                 extended.push({
                     ...base,
                     id: `R-${famKey}-${String(rId).padStart(3, '0')}`,
-                    codigo: `FG-${famKey}-${String(rId).padStart(3, '0')}`, // Código Final Good industrial
+                    codigo: `FG-${famKey}${idx + 1}-${String(rId).padStart(3, '0')}`,
                     nombre_producto: `${base.nombre_producto} ${fmt.s}`,
                     version: 1,
                     es_subensamble: false,
@@ -156,20 +128,24 @@ const INITIAL_RECIPES = GENERATE_RECIPES();
 
 const INITIAL_ORDERS = [
     { id: 'o1708450001', recipeId: 'R-F-002', targetAmount: 500, status: 'PLANIFICADA', date: '2026-02-20' },
-    { id: 'o1708450002', recipeId: 'R-D-082', targetAmount: 1200, status: 'AMASADO', date: '2026-02-20' },
-    { id: 'o1708450003', recipeId: 'R-F-003', targetAmount: 300, status: 'FERMENTACION', date: '2026-02-20' },
-    { id: 'o1708450004', recipeId: 'R-F-004', targetAmount: 150, status: 'HORNEADO', date: '2026-02-20' }
+    { id: 'o1708450002', recipeId: 'R-D-017', targetAmount: 1200, status: 'AMASADO', date: '2026-02-20' }
 ];
 
-const INITIAL_LOGISTICS = [
-    { id: 'l1', dispatchId: 'DESP-8A9X', destination: 'Local Morón Centro', timestamp: '2026-02-20T08:30:00Z', items: [{ nombre_producto: 'Baguette Francesa Estándar', amount: 200 }, { nombre_producto: 'Medialuna de Manteca Estándar', amount: 500 }] },
-    { id: 'l2', dispatchId: 'DESP-2B4Y', destination: 'Sucursal Castelar', timestamp: '2026-02-20T09:15:00Z', items: [{ nombre_producto: 'Pan de Molde Larga Vida Familiar', amount: 50 }, { nombre_producto: 'Alfajor de Maicena Mini', amount: 120 }] }
-];
+const INITIAL_LOGISTICS = [];
 
-const INITIAL_CONFIG = { companyName: 'IMPERIO', appName: 'MES PRO V11', branches: ['Morón Centro', 'Castelar'] };
+const INITIAL_CONFIG = {
+    companyName: 'IMPERIO',
+    appName: 'MES PRO V12 (FINANZAS)',
+    branches: ['Morón Centro', 'Castelar'],
+    finanzas: {
+        costoHoraHombre: 4500,  // Valor de 1 hora de mano de obra en $
+        margenGanancia: 120,    // Markup esperado %
+        costosIndirectosPct: 20 // Porcentaje sobre la Materia Prima para cubrir CIF (luz, gas)
+    }
+};
 
 // ============================================================================
-// COMPONENTES UI (Widgets Reutilizables)
+// COMPONENTES UI
 // ============================================================================
 const Card = ({ children, className = "" }) => (
     <div className={`border border-slate-200 rounded-xl shadow-sm overflow-hidden ${className.includes('bg-') ? className : 'bg-white ' + className}`}>
@@ -189,10 +165,13 @@ const Button = ({ children, onClick, variant = 'primary', className = "", disabl
     return <button disabled={disabled} type={type} onClick={onClick} className={`px-4 py-2 rounded-lg font-bold uppercase tracking-wider text-[11px] transition-all flex items-center justify-center gap-2 disabled:opacity-40 active:scale-95 ${styles[variant]} ${className}`}>{children}</button>;
 };
 
-const Input = ({ label, type = "text", value, onChange, placeholder, required = false, disabled = false }) => (
+const Input = ({ label, type = "text", value, onChange, placeholder, required = false, disabled = false, suffix = null }) => (
     <div className="flex flex-col gap-1 w-full text-left">
         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{label} {required && "*"}</label>
-        <input type={type} value={value} required={required} disabled={disabled} onChange={(e) => onChange ? onChange(e.target.value) : null} placeholder={placeholder} className={`border border-slate-200 bg-white rounded-lg px-3 py-2.5 outline-none focus:ring-2 focus:ring-slate-900/5 focus:border-slate-400 text-sm font-semibold text-slate-800 transition-all shadow-sm ${disabled ? 'opacity-60 bg-slate-100 cursor-not-allowed text-slate-500' : ''}`} />
+        <div className="relative">
+            <input type={type} value={value} required={required} disabled={disabled} onChange={(e) => onChange ? onChange(e.target.value) : null} placeholder={placeholder} className={`w-full border border-slate-200 bg-white rounded-lg px-3 py-2.5 outline-none focus:ring-2 focus:ring-slate-900/5 focus:border-slate-400 text-sm font-semibold text-slate-800 transition-all shadow-sm ${disabled ? 'opacity-60 bg-slate-100 cursor-not-allowed text-slate-500' : ''}`} />
+            {suffix && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">{suffix}</span>}
+        </div>
     </div>
 );
 
@@ -223,7 +202,7 @@ const Toast = ({ message, type = 'success', onClose }) => {
 // ============================================================================
 export default function App() {
     const [currentRole, setCurrentRole] = useState(ROLES.ADMIN);
-    const [view, setView] = useState('engineering'); // Iniciamos en Ingeniería
+    const [view, setView] = useState('engineering'); // Directo a Ingeniería para ver los Costos
 
     const [ingredients, setIngredients] = useState(INITIAL_INGREDIENTS);
     const [recipes, setRecipes] = useState(INITIAL_RECIPES);
@@ -247,7 +226,7 @@ export default function App() {
         { id: 'purchases', label: 'Ingreso Insumos', icon: <ShoppingBag size={18} /> },
         { id: 'orders', label: 'Órdenes Producción', icon: <ClipboardList size={18} /> },
         { id: 'kanban', label: 'Kanban WIP (Planta)', icon: <Layout size={18} /> },
-        { id: 'engineering', label: 'Ingeniería MultiBOM', icon: <Layers size={18} /> },
+        { id: 'engineering', label: 'Ingeniería y Costos', icon: <Layers size={18} /> },
         { id: 'logistics', label: 'Despacho Locales', icon: <Truck size={18} /> },
         { id: 'master_data', label: 'Maestros Base', icon: <Briefcase size={18} /> },
         { id: 'settings', label: 'Configuración', icon: <Settings size={18} /> },
@@ -282,12 +261,12 @@ export default function App() {
                     </div>
                 </header>
 
-                {view === 'dashboard' && <DashboardView recipes={recipes} ingredients={ingredients} lots={lots} orders={orders} logistics={logistics} quality={qualityLogs} />}
+                {view === 'dashboard' && <DashboardView recipes={recipes} ingredients={ingredients} lots={lots} orders={orders} logistics={logistics} quality={qualityLogs} config={config} />}
                 {view === 'inventory' && <InventoryView ingredients={ingredients} lots={lots} providers={providers} setLots={setLots} showToast={showToast} />}
                 {view === 'purchases' && <PurchasesView providers={providers} ingredients={ingredients} purchases={purchases} setPurchases={setPurchases} lots={lots} setLots={setLots} showToast={showToast} />}
                 {view === 'orders' && <ProductionOrdersView recipes={recipes} ingredients={ingredients} lots={lots} orders={orders} setOrders={setOrders} showToast={showToast} />}
                 {view === 'kanban' && <KanbanView orders={orders} recipes={recipes} setOrders={setOrders} qualityLogs={qualityLogs} setQualityLogs={setQualityLogs} showToast={showToast} />}
-                {view === 'engineering' && <EngineeringView recipes={recipes} ingredients={ingredients} setRecipes={setRecipes} setIngredients={setIngredients} showToast={showToast} />}
+                {view === 'engineering' && <EngineeringView recipes={recipes} ingredients={ingredients} setRecipes={setRecipes} setIngredients={setIngredients} showToast={showToast} config={config} />}
                 {view === 'logistics' && <LogisticsView recipes={recipes} logistics={logistics} setLogistics={setLogistics} branches={config.branches} showToast={showToast} />}
                 {view === 'master_data' && <MasterDataView ingredients={ingredients} setIngredients={setIngredients} providers={providers} setProviders={setProviders} showToast={showToast} />}
                 {view === 'settings' && <SettingsView config={config} setConfig={setConfig} showToast={showToast} />}
@@ -300,7 +279,7 @@ export default function App() {
 // VISTAS 
 // ============================================================================
 
-function DashboardView({ recipes, ingredients, lots, orders, logistics, quality }) {
+function DashboardView({ recipes, ingredients, lots, orders, logistics, quality, config }) {
     const stockMetrics = ingredients.map(ing => {
         const totalGrams = lots.filter(l => l.ingredientId === ing.id).reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
         return { ...ing, stock: totalGrams };
@@ -367,17 +346,25 @@ function DashboardView({ recipes, ingredients, lots, orders, logistics, quality 
                 </Card>
 
                 <Card className="p-8 bg-slate-900 text-white">
-                    <h4 className="text-xs font-black uppercase text-orange-500 mb-6 tracking-widest border-b border-slate-800 pb-2">Catálogo Ingeniería</h4>
+                    <h4 className="text-xs font-black uppercase text-orange-500 mb-6 tracking-widest border-b border-slate-800 pb-2">Top Fichas (Costo Real)</h4>
                     <div className="space-y-4">
-                        {recipes.slice(0, 7).map(r => (
-                            <div key={r.id} className="p-3 bg-slate-800 rounded-lg border border-slate-700 flex justify-between items-center">
-                                <div>
-                                    <p className="text-[11px] font-black uppercase text-slate-200">{r.nombre_producto}</p>
-                                    <p className="text-[9px] font-bold text-slate-400 mt-1 uppercase">Merma: -{r.merma}%</p>
+                        {recipes.slice(0, 5).map(r => {
+                            const costo_mp = r.details?.reduce((acc, d) => acc + (Number(d.gramos) * (ingredients.find(i => i.id === d.ingredientId)?.costo_estandar || 0)), 0) || 0;
+                            const costo_mo = (Number(r.horas_hombre) || 0) * config.finanzas.costoHoraHombre;
+                            const costo_cif = costo_mp * (config.finanzas.costosIndirectosPct / 100);
+                            const costo_empaque = Number(r.costo_empaque) || 0;
+                            const costo_total_batch = costo_mp + costo_mo + costo_cif + costo_empaque;
+
+                            return (
+                                <div key={r.id} className="p-3 bg-slate-800 rounded-lg border border-slate-700 flex justify-between items-center">
+                                    <div>
+                                        <p className="text-[11px] font-black uppercase text-slate-200">{r.nombre_producto}</p>
+                                        <p className="text-[9px] font-bold text-slate-400 mt-1 uppercase">Batch: ${costo_total_batch.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</p>
+                                    </div>
+                                    <span className={`text-[9px] font-black text-white px-2 py-1 rounded uppercase ${FAMILIAS[r.familia]?.color}`}>{FAMILIAS[r.familia]?.id}</span>
                                 </div>
-                                <span className={`text-[9px] font-black text-white px-2 py-1 rounded uppercase ${FAMILIAS[r.familia]?.color}`}>{FAMILIAS[r.familia]?.id}</span>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 </Card>
             </div>
@@ -385,12 +372,13 @@ function DashboardView({ recipes, ingredients, lots, orders, logistics, quality 
     );
 }
 
-function EngineeringView({ recipes, ingredients, setRecipes, setIngredients, showToast }) {
+function EngineeringView({ recipes, ingredients, setRecipes, setIngredients, showToast, config }) {
     const [showAdd, setShowAdd] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
 
     const [form, setForm] = useState({
-        id: null, codigo: '', nombre: '', familia: 'F', ver: 1, wip: false, merma: 15, formato_venta: 'Unidad', peso_unidad: 100, details: []
+        id: null, codigo: '', nombre: '', familia: 'F', ver: 1, wip: false, merma: 15, formato_venta: 'Unidad', peso_unidad: 100,
+        horas_hombre: 1, costo_empaque: 0, details: []
     });
 
     // Motor de Auto-Generación de Código SKU para Fichas
@@ -421,28 +409,31 @@ function EngineeringView({ recipes, ingredients, setRecipes, setIngredients, sho
         if (!form.nombre || !form.codigo || !hasFlourBase) return;
 
         const recipeData = {
-            codigo: form.codigo.toUpperCase(), nombre_producto: form.nombre, familia: form.familia, version: form.ver, es_subensamble: form.wip, merma: form.merma, formato_venta: form.formato_venta, peso_unidad: form.formato_venta === 'Unidad' ? Number(form.peso_unidad) : null, peso_crudo: pesoCrudo, peso_final: pesoFinal, details: form.details
+            codigo: form.codigo.toUpperCase(), nombre_producto: form.nombre, familia: form.familia, version: form.ver, es_subensamble: form.wip, merma: form.merma,
+            formato_venta: form.formato_venta, peso_unidad: form.formato_venta === 'Unidad' ? Number(form.peso_unidad) : null, peso_crudo: pesoCrudo, peso_final: pesoFinal,
+            horas_hombre: Number(form.horas_hombre), costo_empaque: Number(form.costo_empaque), details: form.details
         };
 
         if (form.id) {
             setRecipes(recipes.map(r => r.id === form.id ? { ...r, ...recipeData, id: r.id } : r));
-            showToast("Ficha técnica actualizada correctamente");
+            showToast("Ficha técnica y financiera actualizada.");
         } else {
             const newId = `R-NVO-${Date.now()}`;
             setRecipes([{ id: newId, ...recipeData }, ...recipes]);
             if (form.wip) {
                 setIngredients([...ingredients, { id: `wip${Date.now()}`, codigo: form.codigo.toUpperCase(), name: `[WIP] ${form.nombre}`, unidad_compra: 'Gramos', factor_conversion: 1, es_subensamble: true, familia: 'WIP (Producción)', almacen: 'Cámara de Frío 2 (WIP)', costo_estandar: 0 }]);
             }
-            showToast(`Ficha ${form.codigo} creada exitosamente`);
+            showToast(`Ficha ${form.codigo} creada con análisis de costos.`);
         }
 
         setShowAdd(false);
-        setForm({ id: null, codigo: '', nombre: '', familia: 'F', ver: 1, wip: false, merma: 15, formato_venta: 'Unidad', peso_unidad: 100, details: [] });
+        setForm({ id: null, codigo: '', nombre: '', familia: 'F', ver: 1, wip: false, merma: 15, formato_venta: 'Unidad', peso_unidad: 100, horas_hombre: 1, costo_empaque: 0, details: [] });
     };
 
     const handleEdit = (rec) => {
         setForm({
-            id: rec.id, codigo: rec.codigo || '', nombre: rec.nombre_producto, familia: rec.familia, ver: (rec.version || 1) + 1, wip: !!rec.es_subensamble, merma: rec.merma || 15, formato_venta: rec.formato_venta || 'Unidad', peso_unidad: rec.peso_unidad || 100, details: rec.details ? [...rec.details] : []
+            id: rec.id, codigo: rec.codigo || '', nombre: rec.nombre_producto, familia: rec.familia, ver: (rec.version || 1) + 1, wip: !!rec.es_subensamble, merma: rec.merma || 15,
+            formato_venta: rec.formato_venta || 'Unidad', peso_unidad: rec.peso_unidad || 100, horas_hombre: rec.horas_hombre || 1, costo_empaque: rec.costo_empaque || 0, details: rec.details ? [...rec.details] : []
         });
         setShowAdd(true);
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -459,21 +450,23 @@ function EngineeringView({ recipes, ingredients, setRecipes, setIngredients, sho
         <div className="space-y-8 animate-in fade-in">
             <div className="bg-white p-6 rounded-2xl border shadow-sm flex justify-between items-center gap-6">
                 <div>
-                    <h3 className="text-xl font-black uppercase italic text-slate-800">Catálogo MultiBOM</h3>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Total Fichas: {recipes.length}</p>
+                    <h3 className="text-xl font-black uppercase italic text-slate-800">Catálogo MultiBOM y Costos</h3>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Total Fichas Activas: {recipes.length}</p>
                 </div>
                 <div className="flex-1 max-w-md relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                     <input type="text" placeholder="Buscar por código o nombre..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg text-xs font-bold outline-none focus:border-orange-500 bg-slate-50 focus:bg-white transition-all" />
                 </div>
-                <Button onClick={() => { setShowAdd(!showAdd); if (!showAdd) setForm({ id: null, codigo: '', nombre: '', familia: 'F', ver: 1, wip: false, merma: 15, formato_venta: 'Unidad', peso_unidad: 100, details: [] }); }} variant={showAdd ? "secondary" : "accent"}>
+                <Button onClick={() => { setShowAdd(!showAdd); if (!showAdd) setForm({ id: null, codigo: '', nombre: '', familia: 'F', ver: 1, wip: false, merma: 15, formato_venta: 'Unidad', peso_unidad: 100, horas_hombre: 1, costo_empaque: 0, details: [] }); }} variant={showAdd ? "secondary" : "accent"}>
                     {showAdd ? "Cancelar Edición" : <><Plus size={16} /> Nueva Ficha</>}
                 </Button>
             </div>
 
             {showAdd && (
                 <Card className="p-10 border-[6px] border-slate-900 bg-white shadow-2xl animate-in slide-in-from-top-4">
-                    <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 mb-8 space-y-6">
+
+                    {/* SECCIÓN 1: IDENTIFICACIÓN */}
+                    <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 mb-6 space-y-6">
                         <div className="flex items-center gap-2 border-b border-slate-200 pb-3 mb-2">
                             <Hash size={18} className="text-slate-400" />
                             <h4 className="text-xs font-black uppercase tracking-widest text-slate-600">Datos de Identificación</h4>
@@ -500,6 +493,22 @@ function EngineeringView({ recipes, ingredients, setRecipes, setIngredients, sho
                         </div>
                     </div>
 
+                    {/* SECCIÓN 2: COSTOS FINANCIEROS Y OPERATIVOS */}
+                    <div className="bg-emerald-50/50 p-6 rounded-xl border border-emerald-100 mb-6 space-y-6">
+                        <div className="flex items-center justify-between border-b border-emerald-200 pb-3 mb-2">
+                            <div className="flex items-center gap-2">
+                                <Calculator size={18} className="text-emerald-500" />
+                                <h4 className="text-xs font-black uppercase tracking-widest text-emerald-800">Costos Operativos del Lote</h4>
+                            </div>
+                            <span className="text-[9px] font-bold uppercase text-emerald-600">Basado en Configuración Global</span>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <Input label="Tiempo de Mano de Obra" type="number" placeholder="Ej. 1.5" value={form.horas_hombre} onChange={v => setForm({ ...form, horas_hombre: v })} suffix="Horas/Lote" required />
+                            <Input label="Costo de Empaque" type="number" placeholder="Ej. 150" value={form.costo_empaque} onChange={v => setForm({ ...form, costo_empaque: v })} suffix="$/Lote" />
+                        </div>
+                    </div>
+
+                    {/* SECCIÓN 3: INGREDIENTES */}
                     <div className="mb-8">
                         <div className="flex justify-between items-end mb-4">
                             <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest bg-slate-100 px-3 py-1 rounded-lg">Ingredientes del Amasijo (Escandallo)</p>
@@ -543,37 +552,82 @@ function EngineeringView({ recipes, ingredients, setRecipes, setIngredients, sho
                 </Card>
             )}
 
-            <Card className="overflow-hidden border-2">
-                <table className="w-full text-left font-bold text-xs uppercase text-slate-700">
-                    <thead className="bg-slate-900 text-white text-[9px] tracking-widest">
-                        <tr><th className="p-4">Código / ID</th><th className="p-4">Producto</th><th className="p-4 text-center">Familia</th><th className="p-4 text-center">Formato</th><th className="p-4 text-center">Peso Unid.</th><th className="p-4 text-right">Rinde Final</th><th className="p-4 text-center">Acciones</th></tr>
-                    </thead>
-                    <tbody className="divide-y bg-white">
-                        {filteredRecipes.map(r => {
-                            const familiaData = FAMILIAS[r.familia] || FAMILIAS.F;
-                            return (
-                                <tr key={r.id} className="hover:bg-slate-50 transition-colors group">
-                                    <td className="p-4"><p className="text-xs font-black text-slate-800">{r.codigo || 'S/C'}</p><p className="text-[9px] font-mono text-slate-400 mt-0.5">{r.id}</p></td>
-                                    <td className="p-4"><span className="font-black italic text-sm text-slate-800 block">{r.nombre_producto}</span>{r.details?.length > 0 && <span className="text-[9px] text-slate-400 lowercase italic">{r.details.length} componentes</span>}</td>
-                                    <td className="p-4 text-center"><span className={`px-2 py-1 rounded text-[9px] text-white ${familiaData.color}`}>{familiaData.id}</span></td>
-                                    <td className="p-4 text-center"><span className="bg-blue-50 text-blue-700 border border-blue-100 px-2 py-1 rounded text-[9px]">{r.formato_venta || 'Unidad'}</span></td>
-                                    <td className="p-4 text-center font-mono text-orange-600">{r.formato_venta === 'Unidad' ? `${r.peso_unidad || 100}g` : '-'}</td>
-                                    <td className="p-4 text-right font-mono text-slate-800">{Number(r.peso_final || 0).toFixed(0)} g</td>
-                                    <td className="p-4 text-center">
-                                        <div className="flex justify-center gap-2">
-                                            <button onClick={() => handleEdit(r)} className="p-1.5 text-slate-400 hover:text-slate-800 hover:bg-slate-200 rounded transition-colors opacity-0 group-hover:opacity-100" title="Editar Ficha"><Wrench size={14} /></button>
-                                            <button onClick={() => handleDelete(r.id)} className="p-1.5 text-red-300 hover:text-red-600 hover:bg-red-50 rounded transition-colors opacity-0 group-hover:opacity-100" title="Eliminar"><Trash2 size={14} /></button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            );
-                        })}
-                        {filteredRecipes.length === 0 && (
-                            <tr><td colSpan="7" className="p-10 text-center text-slate-400 italic bg-slate-50">No hay fichas que coincidan con la búsqueda.</td></tr>
-                        )}
-                    </tbody>
-                </table>
-            </Card>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                {filteredRecipes.map(r => {
+                    const familiaData = FAMILIAS[r.familia] || FAMILIAS.F;
+
+                    // CÁLCULOS FINANCIEROS DEL ERP
+                    const costo_mp = r.details?.reduce((acc, d) => acc + (Number(d.gramos) * (ingredients.find(i => i.id === d.ingredientId)?.costo_estandar || 0)), 0) || 0;
+                    const costo_mo = (Number(r.horas_hombre) || 0) * config.finanzas.costoHoraHombre;
+                    const costo_cif = costo_mp * (config.finanzas.costosIndirectosPct / 100);
+                    const costo_empaque = Number(r.costo_empaque) || 0;
+                    const costo_total_batch = costo_mp + costo_mo + costo_cif + costo_empaque;
+
+                    // Pricing
+                    let unidades_rinde = 1;
+                    let label_unidad = 'Kg';
+                    if (r.formato_venta === 'Unidad' && r.peso_unidad > 0) {
+                        unidades_rinde = Math.floor(Number(r.peso_final) / Number(r.peso_unidad));
+                        label_unidad = 'Unid.';
+                    } else {
+                        unidades_rinde = Number(r.peso_final) / 1000;
+                    }
+
+                    const costo_unitario = unidades_rinde > 0 ? (costo_total_batch / unidades_rinde) : 0;
+                    const precio_sugerido = costo_unitario * (1 + (config.finanzas.margenGanancia / 100));
+
+                    return (
+                        <Card key={r.id} className="flex flex-col border-t-4 border-slate-900 shadow-lg hover:shadow-xl transition-shadow relative group">
+                            <div className="p-5 flex-1">
+                                <div className="flex justify-between items-start mb-4">
+                                    <div>
+                                        <p className="text-[10px] font-mono font-bold text-slate-400 mb-1">{r.codigo}</p>
+                                        <span className={`px-2 py-0.5 rounded text-[8px] font-black text-white uppercase ${familiaData.color}`}>{familiaData.id}</span>
+                                        {r.es_subensamble && <span className="ml-2 bg-orange-100 text-orange-700 px-2 py-0.5 rounded text-[8px] font-black uppercase">WIP</span>}
+                                    </div>
+                                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <button onClick={() => handleEdit(r)} className="p-1.5 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded"><Wrench size={14} /></button>
+                                        <button onClick={() => handleDelete(r.id)} className="p-1.5 text-red-300 hover:text-red-600 hover:bg-red-50 rounded"><Trash2 size={14} /></button>
+                                    </div>
+                                </div>
+
+                                <h4 className="text-lg font-black uppercase italic text-slate-800 leading-tight mb-4">{r.nombre_producto}</h4>
+
+                                <div className="bg-slate-50 rounded-lg p-3 border border-slate-100 mb-4">
+                                    <div className="flex items-center gap-1.5 mb-2 pb-2 border-b border-slate-200">
+                                        <PieChart size={12} className="text-slate-400" />
+                                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">Desglose Costo Lote</p>
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <div className="flex justify-between text-[10px] font-bold"><span className="text-slate-500">Materia Prima (MP)</span><span className="font-mono text-slate-800">${costo_mp.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>
+                                        <div className="flex justify-between text-[10px] font-bold"><span className="text-slate-500">Mano de Obra (MO)</span><span className="font-mono text-slate-800">${costo_mo.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>
+                                        <div className="flex justify-between text-[10px] font-bold"><span className="text-slate-500">Costos Indir. (CIF)</span><span className="font-mono text-slate-800">${costo_cif.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>
+                                        <div className="flex justify-between text-[10px] font-bold"><span className="text-slate-500">Costo Empaque</span><span className="font-mono text-slate-800">${costo_empaque.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>
+                                    </div>
+                                    <div className="flex justify-between items-end mt-3 pt-3 border-t border-slate-200">
+                                        <span className="text-[10px] font-black uppercase text-slate-800">Costo Total Lote</span>
+                                        <span className="text-sm font-black font-mono text-red-600">${costo_total_batch.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="bg-slate-900 p-5 mt-auto flex justify-between items-center">
+                                <div>
+                                    <p className="text-[9px] font-black uppercase text-slate-400 mb-1 tracking-widest">Costo {label_unidad}</p>
+                                    <p className="text-lg font-black text-white font-mono leading-none">${costo_unitario.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-[9px] font-black uppercase text-emerald-500 mb-1 tracking-widest flex items-center justify-end gap-1"><DollarSign size={10} /> Sugerido</p>
+                                    <p className="text-xl font-black text-emerald-400 font-mono leading-none">${precio_sugerido.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                                </div>
+                            </div>
+                        </Card>
+                    );
+                })}
+                {filteredRecipes.length === 0 && (
+                    <div className="col-span-full p-10 text-center text-slate-400 italic bg-slate-50 rounded-xl border-2 border-dashed">No hay fichas que coincidan con la búsqueda.</div>
+                )}
+            </div>
         </div>
     );
 }
@@ -668,7 +722,7 @@ function PurchasesView({ providers, ingredients, purchases, setPurchases, lots, 
         if (!form.providerId || cart.length === 0) return;
         const newLots = cart.map((item) => {
             const ing = ingredients.find(i => i.id === item.ingredientId);
-            const grams = Number(item.amount) * Number(ing?.factor_conversion || 1000); // Simplificación
+            const grams = Number(item.amount) * Number(ing?.factor_conversion || 1000);
             const baseLoteId = `L-${form.providerId.replace('p', '')}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
             return { id: baseLoteId, ingredientId: item.ingredientId, providerId: form.providerId, amount: grams, expiry: item.expiry, ingreso: new Date().toISOString() };
         });
@@ -956,14 +1010,12 @@ function LogisticsView({ recipes, logistics, setLogistics, branches, showToast }
 
 function MasterDataView({ ingredients, setIngredients, providers, setProviders, showToast }) {
     const [tab, setTab] = useState('prov');
-
     const [form, setForm] = useState({ id: null, codigo: '', nombre: '', cuit: '', rubro: '' });
     const [showAdd, setShowAdd] = useState(false);
 
     const [ingForm, setIngForm] = useState({ id: null, codigo: '', name: '', unidad_compra: 'Bolsa 25kg', familia: 'Harinas y Polvos', almacen: 'Almacén Secos Principal', alergeno: '', costo_estandar: '' });
     const [showAddIng, setShowAddIng] = useState(false);
 
-    // Auto-Generación Código Proveedor
     useEffect(() => {
         if (!form.id && showAdd) {
             const prefix = `PRV`;
@@ -978,7 +1030,6 @@ function MasterDataView({ ingredients, setIngredients, providers, setProviders, 
         }
     }, [showAdd, providers]);
 
-    // Auto-Generación Código Insumo
     useEffect(() => {
         if (!ingForm.id && showAddIng) {
             const catPrefix = ingForm.familia ? ingForm.familia.substring(0, 3).toUpperCase() : 'OTR';
@@ -1153,25 +1204,24 @@ function MasterDataView({ ingredients, setIngredients, providers, setProviders, 
 }
 
 function SettingsView({ config, setConfig, showToast }) {
-    const [companyName, setCompanyName] = useState(config.companyName);
-    const [appName, setAppName] = useState(config.appName);
+    const [form, setForm] = useState(config);
     const [newBranch, setNewBranch] = useState('');
 
     const saveCompanyData = () => {
-        setConfig({ ...config, companyName, appName });
-        showToast("Datos de la empresa actualizados correctamente.");
+        setConfig(form);
+        showToast("Configuración general actualizada correctamente.");
     };
 
     const addBranch = (e) => {
         e.preventDefault();
-        if (!newBranch.trim() || config.branches.includes(newBranch.trim())) return;
-        setConfig({ ...config, branches: [...config.branches, newBranch.trim()] });
+        if (!newBranch.trim() || form.branches.includes(newBranch.trim())) return;
+        setForm({ ...form, branches: [...form.branches, newBranch.trim()] });
         setNewBranch('');
     };
 
     const removeBranch = (branchToRemove) => {
         if (confirm(`¿Eliminar la sucursal ${branchToRemove}?`)) {
-            setConfig({ ...config, branches: config.branches.filter(b => b !== branchToRemove) });
+            setForm({ ...form, branches: form.branches.filter(b => b !== branchToRemove) });
         }
     };
 
@@ -1179,14 +1229,30 @@ function SettingsView({ config, setConfig, showToast }) {
         <div className="space-y-8 animate-in fade-in max-w-4xl">
             <Card className="p-8 border-t-8 border-slate-900 bg-white shadow-xl">
                 <div className="flex items-center gap-3 mb-6 border-b pb-4"><Building className="text-slate-800" size={28} /><h4 className="text-2xl font-black uppercase italic text-slate-800">Datos de la Empresa</h4></div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end"><Input label="Nombre de la Empresa / Marca" value={companyName} onChange={setCompanyName} /><Input label="Subtítulo / Versión del Sistema" value={appName} onChange={setAppName} /><div className="md:col-span-2 flex justify-end mt-2"><Button variant="success" onClick={saveCompanyData} className="px-8 py-3">Guardar Datos Principales</Button></div></div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end">
+                    <Input label="Nombre de la Empresa / Marca" value={form.companyName} onChange={v => setForm({ ...form, companyName: v })} />
+                    <Input label="Subtítulo / Versión del Sistema" value={form.appName} onChange={v => setForm({ ...form, appName: v })} />
+                </div>
             </Card>
+
+            <Card className="p-8 border-t-8 border-emerald-500 bg-emerald-50/30 shadow-xl">
+                <div className="flex items-center gap-3 mb-6 border-b border-emerald-200 pb-4"><Calculator className="text-emerald-600" size={28} /><h4 className="text-2xl font-black uppercase italic text-emerald-900">Variables Financieras Globales</h4></div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-end">
+                    <Input label="Costo Mano Obra ($ / Hora)" type="number" value={form.finanzas.costoHoraHombre} onChange={v => setForm({ ...form, finanzas: { ...form.finanzas, costoHoraHombre: Number(v) } })} />
+                    <Input label="Gastos Indirectos Fabricación" type="number" value={form.finanzas.costosIndirectosPct} suffix="% de MP" onChange={v => setForm({ ...form, finanzas: { ...form.finanzas, costosIndirectosPct: Number(v) } })} />
+                    <Input label="Markup (Margen Deseado)" type="number" value={form.finanzas.margenGanancia} suffix="% por Lote" onChange={v => setForm({ ...form, finanzas: { ...form.finanzas, margenGanancia: Number(v) } })} />
+                </div>
+            </Card>
+
+            <div className="flex justify-end">
+                <Button variant="success" onClick={saveCompanyData} className="px-12 py-4 shadow-lg text-sm">Guardar Toda la Configuración</Button>
+            </div>
 
             <Card className="p-8 border-t-8 border-orange-500 bg-white shadow-xl">
                 <div className="flex items-center gap-3 mb-6 border-b pb-4"><Store className="text-orange-500" size={28} /><h4 className="text-2xl font-black uppercase italic text-slate-800">Locales y Sucursales</h4></div>
                 <form onSubmit={addBranch} className="flex gap-4 items-end bg-slate-50 p-6 rounded-2xl border mb-8"><div className="flex-1"><Input label="Nombre de la Nueva Sucursal" placeholder="Ej. Local Norte..." value={newBranch} onChange={setNewBranch} /></div><Button variant="primary" type="submit" className="py-2.5 px-6 h-[42px]"><Plus size={16} /> Agregar</Button></form>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {config.branches.map(branch => (
+                    {form.branches.map(branch => (
                         <div key={branch} className="flex justify-between items-center bg-white border-2 border-slate-200 p-4 rounded-xl shadow-sm hover:border-orange-300 transition-colors group"><span className="font-bold text-sm text-slate-700 uppercase tracking-wide truncate pr-2">{branch}</span><button onClick={() => removeBranch(branch)} className="text-slate-300 hover:text-red-500 p-2 rounded-lg group-hover:bg-red-50"><Trash2 size={16} /></button></div>
                     ))}
                 </div>
