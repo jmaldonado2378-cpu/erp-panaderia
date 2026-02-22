@@ -637,7 +637,6 @@ function EngineeringView({ recipes, ingredients, setRecipes, setIngredients, sho
                                             </td>
                                         </tr>
 
-                                        {/* PANEL DESPLEGABLE: FICHA TÉCNICA DETALLADA */}
                                         {isExpanded && (
                                             <tr className="bg-slate-50 border-b-2 border-slate-200 shadow-inner">
                                                 <td colSpan="6" className="px-6 py-5">
