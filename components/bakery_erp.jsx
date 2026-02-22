@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 
 // ============================================================================
-// DATOS MAESTROS INDUSTRIALES (Ampliados y Complejos)
+// DATOS MAESTROS INDUSTRIALES
 // ============================================================================
 const ROLES = { ADMIN: 'Gerencia_Total', STAFF: 'Supervisor_Planta' };
 
@@ -35,50 +35,45 @@ const ETAPAS_KANBAN = [
 const CATEGORIAS_INSUMO = ['Harinas y Polvos', 'Lácteos y Derivados', 'Grasas y Aceites', 'Azúcares y Dulces', 'Fermentos', 'Aditivos y Esencias', 'Huevos', 'Empaque', 'WIP (Producción)', 'Otros'];
 const UBICACIONES_ALMACEN = ['Almacén Secos Principal', 'Harinera', 'Cámara de Frío 1 (Insumos)', 'Cámara de Frío 2 (WIP)', 'Heladera de Tránsito', 'Depósito Empaque'];
 
-// 2+ Proveedores por Insumo
 const INITIAL_PROVIDERS = [
-    { id: 'p1', nombre: 'Molino Cañuelas', cuit: '30-12345678-1', rubro: 'Harinas' },
-    { id: 'p2', nombre: 'Molino Campodónico', cuit: '30-22345678-1', rubro: 'Harinas' },
-    { id: 'p3', nombre: 'Lácteos La Serenísima', cuit: '30-87654321-2', rubro: 'Lácteos' },
-    { id: 'p4', nombre: 'Lácteos Vacalin', cuit: '30-97654321-2', rubro: 'Lácteos y DDL' },
-    { id: 'p5', nombre: 'Levaduras Calsa', cuit: '30-11122233-3', rubro: 'Fermentos' },
-    { id: 'p6', nombre: 'Levaduras Lesaffre', cuit: '30-21122233-3', rubro: 'Fermentos y Aditivos' },
-    { id: 'p7', nombre: 'Puratos Argentina', cuit: '30-33344455-4', rubro: 'Aditivos y Mejoradores' },
-    { id: 'p8', nombre: 'Margarinas Dánica', cuit: '30-55566677-5', rubro: 'Grasas y Aceites' },
-    { id: 'p9', nombre: 'Huevos San Juan', cuit: '30-99988877-5', rubro: 'Huevos' }
+    { id: 'p1', codigo: 'PRV-001', nombre: 'Molino Cañuelas', cuit: '30-12345678-1', rubro: 'Harinas' },
+    { id: 'p2', codigo: 'PRV-002', nombre: 'Molino Campodónico', cuit: '30-22345678-1', rubro: 'Harinas' },
+    { id: 'p3', codigo: 'PRV-003', nombre: 'Lácteos La Serenísima', cuit: '30-87654321-2', rubro: 'Lácteos' },
+    { id: 'p4', codigo: 'PRV-004', nombre: 'Lácteos Vacalin', cuit: '30-97654321-2', rubro: 'Lácteos y DDL' },
+    { id: 'p5', codigo: 'PRV-005', nombre: 'Levaduras Calsa', cuit: '30-11122233-3', rubro: 'Fermentos' },
+    { id: 'p6', codigo: 'PRV-006', nombre: 'Levaduras Lesaffre', cuit: '30-21122233-3', rubro: 'Fermentos y Aditivos' },
+    { id: 'p7', codigo: 'PRV-007', nombre: 'Puratos Argentina', cuit: '30-33344455-4', rubro: 'Aditivos y Mejoradores' },
+    { id: 'p8', codigo: 'PRV-008', nombre: 'Margarinas Dánica', cuit: '30-55566677-5', rubro: 'Grasas y Aceites' },
+    { id: 'p9', codigo: 'PRV-009', nombre: 'Huevos San Juan', cuit: '30-99988877-5', rubro: 'Huevos' }
 ];
 
 const INITIAL_INGREDIENTS = [
-    // Materias Primas Base
-    { id: 'i1', name: 'Harina 000 (Fuerza)', unidad_compra: 'Bolsa 25kg', familia: 'Harinas y Polvos', almacen: 'Harinera', alergeno: 'TACC', costo_estandar: 0.8 },
-    { id: 'i2', name: 'Harina 0000 (Pastelera)', unidad_compra: 'Bolsa 25kg', familia: 'Harinas y Polvos', almacen: 'Harinera', alergeno: 'TACC', costo_estandar: 1.2 },
-    { id: 'i3', name: 'Agua Filtrada', unidad_compra: 'Litros', familia: 'Otros', almacen: 'Almacén Secos Principal', alergeno: '', costo_estandar: 0.05 },
-    { id: 'i4', name: 'Sal Fina', unidad_compra: 'Bolsa 5kg', familia: 'Harinas y Polvos', almacen: 'Almacén Secos Principal', alergeno: '', costo_estandar: 0.5 },
-    { id: 'i5', name: 'Levadura Fresca', unidad_compra: 'Paquete 500g', familia: 'Fermentos', almacen: 'Cámara de Frío 1 (Insumos)', alergeno: '', costo_estandar: 3.0 },
-    { id: 'i6', name: 'Manteca Extrafina', unidad_compra: 'Caja 20kg', familia: 'Grasas y Aceites', almacen: 'Cámara de Frío 1 (Insumos)', alergeno: 'Lácteo', costo_estandar: 8.5 },
-    { id: 'i7', name: 'Margarina Hojaldre Alta Fusión', unidad_compra: 'Caja 10kg', familia: 'Grasas y Aceites', almacen: 'Almacén Secos Principal', alergeno: 'Lácteo', costo_estandar: 6.8 },
-    { id: 'i8', name: 'Azúcar Común', unidad_compra: 'Bolsa 50kg', familia: 'Azúcares y Dulces', almacen: 'Almacén Secos Principal', alergeno: '', costo_estandar: 1.0 },
-    { id: 'i9', name: 'Huevo Líquido Pasteurizado', unidad_compra: 'Sachet 5L', familia: 'Huevos', almacen: 'Cámara de Frío 1 (Insumos)', alergeno: 'Huevo', costo_estandar: 4.2 },
-    { id: 'i10', name: 'Dulce de Leche Repostero', unidad_compra: 'Tacho 10kg', familia: 'Azúcares y Dulces', almacen: 'Almacén Secos Principal', alergeno: 'Lácteo', costo_estandar: 5.5 },
-    { id: 'i11', name: 'Chocolate Cobertura Semiamargo', unidad_compra: 'Caja 5kg', familia: 'Azúcares y Dulces', almacen: 'Heladera de Tránsito', alergeno: 'Lácteo', costo_estandar: 15.0 },
-    // Aditivos y Mejoradores Químicos
-    { id: 'i12', name: 'Mejorador Pan Francés (Ácido Ascórbico)', unidad_compra: 'Bolsa 5kg', familia: 'Aditivos y Esencias', almacen: 'Almacén Secos Principal', alergeno: '', costo_estandar: 25.0 },
-    { id: 'i13', name: 'Propionato de Calcio (Antimoho)', unidad_compra: 'Bolsa 5kg', familia: 'Aditivos y Esencias', almacen: 'Almacén Secos Principal', alergeno: '', costo_estandar: 18.0 },
-    { id: 'i14', name: 'Polvo de Hornear Doble Acción', unidad_compra: 'Tarro 2kg', familia: 'Harinas y Polvos', almacen: 'Almacén Secos Principal', alergeno: '', costo_estandar: 6.0 },
-    { id: 'i15', name: 'Extracto de Malta Líquido', unidad_compra: 'Bidón 5kg', familia: 'Aditivos y Esencias', almacen: 'Almacén Secos Principal', alergeno: 'TACC', costo_estandar: 8.0 },
-    { id: 'i16', name: 'Esencia de Vainilla Concentrada', unidad_compra: 'Botella 1L', familia: 'Aditivos y Esencias', almacen: 'Almacén Secos Principal', alergeno: '', costo_estandar: 12.0 },
+    { id: 'i1', codigo: 'RAW-HAR-001', name: 'Harina 000 (Fuerza)', unidad_compra: 'Bolsa 25kg', familia: 'Harinas y Polvos', almacen: 'Harinera', alergeno: 'TACC', costo_estandar: 0.8 },
+    { id: 'i2', codigo: 'RAW-HAR-002', name: 'Harina 0000 (Pastelera)', unidad_compra: 'Bolsa 25kg', familia: 'Harinas y Polvos', almacen: 'Harinera', alergeno: 'TACC', costo_estandar: 1.2 },
+    { id: 'i3', codigo: 'RAW-OTR-001', name: 'Agua Filtrada', unidad_compra: 'Litros', familia: 'Otros', almacen: 'Almacén Secos Principal', alergeno: '', costo_estandar: 0.05 },
+    { id: 'i4', codigo: 'RAW-HAR-003', name: 'Sal Fina', unidad_compra: 'Bolsa 5kg', familia: 'Harinas y Polvos', almacen: 'Almacén Secos Principal', alergeno: '', costo_estandar: 0.5 },
+    { id: 'i5', codigo: 'RAW-FER-001', name: 'Levadura Fresca', unidad_compra: 'Paquete 500g', familia: 'Fermentos', almacen: 'Cámara de Frío 1 (Insumos)', alergeno: '', costo_estandar: 3.0 },
+    { id: 'i6', codigo: 'RAW-GRA-001', name: 'Manteca Extrafina', unidad_compra: 'Caja 20kg', familia: 'Grasas y Aceites', almacen: 'Cámara de Frío 1 (Insumos)', alergeno: 'Lácteo', costo_estandar: 8.5 },
+    { id: 'i7', codigo: 'RAW-GRA-002', name: 'Margarina Hojaldre Alta Fusión', unidad_compra: 'Caja 10kg', familia: 'Grasas y Aceites', almacen: 'Almacén Secos Principal', alergeno: 'Lácteo', costo_estandar: 6.8 },
+    { id: 'i8', codigo: 'RAW-AZÚ-001', name: 'Azúcar Común', unidad_compra: 'Bolsa 50kg', familia: 'Azúcares y Dulces', almacen: 'Almacén Secos Principal', alergeno: '', costo_estandar: 1.0 },
+    { id: 'i9', codigo: 'RAW-HUE-001', name: 'Huevo Líquido Pasteurizado', unidad_compra: 'Sachet 5L', familia: 'Huevos', almacen: 'Cámara de Frío 1 (Insumos)', alergeno: 'Huevo', costo_estandar: 4.2 },
+    { id: 'i10', codigo: 'RAW-AZÚ-002', name: 'Dulce de Leche Repostero', unidad_compra: 'Tacho 10kg', familia: 'Azúcares y Dulces', almacen: 'Almacén Secos Principal', alergeno: 'Lácteo', costo_estandar: 5.5 },
+    { id: 'i11', codigo: 'RAW-AZÚ-003', name: 'Chocolate Cobertura Semiamargo', unidad_compra: 'Caja 5kg', familia: 'Azúcares y Dulces', almacen: 'Heladera de Tránsito', alergeno: 'Lácteo', costo_estandar: 15.0 },
+    { id: 'i12', codigo: 'RAW-ADI-001', name: 'Mejorador Pan Francés (Ácido Ascórbico)', unidad_compra: 'Bolsa 5kg', familia: 'Aditivos y Esencias', almacen: 'Almacén Secos Principal', alergeno: '', costo_estandar: 25.0 },
+    { id: 'i13', codigo: 'RAW-ADI-002', name: 'Propionato de Calcio (Antimoho)', unidad_compra: 'Bolsa 5kg', familia: 'Aditivos y Esencias', almacen: 'Almacén Secos Principal', alergeno: '', costo_estandar: 18.0 },
+    { id: 'i14', codigo: 'RAW-HAR-004', name: 'Polvo de Hornear Doble Acción', unidad_compra: 'Tarro 2kg', familia: 'Harinas y Polvos', almacen: 'Almacén Secos Principal', alergeno: '', costo_estandar: 6.0 },
+    { id: 'i15', codigo: 'RAW-ADI-003', name: 'Extracto de Malta Líquido', unidad_compra: 'Bidón 5kg', familia: 'Aditivos y Esencias', almacen: 'Almacén Secos Principal', alergeno: 'TACC', costo_estandar: 8.0 },
+    { id: 'i16', codigo: 'RAW-ADI-004', name: 'Esencia de Vainilla Concentrada', unidad_compra: 'Botella 1L', familia: 'Aditivos y Esencias', almacen: 'Almacén Secos Principal', alergeno: '', costo_estandar: 12.0 },
 
-    // WIPs (Sub-ensambles para todas las familias)
-    { id: 'wip_F1', name: '[WIP] Masa Madre Activa (Poolish)', unidad_compra: 'Gramos', familia: 'WIP (Producción)', almacen: 'Cámara de Frío 2 (WIP)', alergeno: 'TACC', costo_estandar: 1.5, es_subensamble: true },
-    { id: 'wip_A1', name: '[WIP] Cremado Base Vainilla', unidad_compra: 'Gramos', familia: 'WIP (Producción)', almacen: 'Cámara de Frío 2 (WIP)', alergeno: 'TACC, Lácteo, Huevo', costo_estandar: 3.5, es_subensamble: true },
-    { id: 'wip_B1', name: '[WIP] Plancha Pan de Miga Blanca', unidad_compra: 'Gramos', familia: 'WIP (Producción)', almacen: 'Almacén Secos Principal', alergeno: 'TACC', costo_estandar: 2.5, es_subensamble: true },
-    { id: 'wip_C1', name: '[WIP] Crema Pastelera Horneable', unidad_compra: 'Gramos', familia: 'WIP (Producción)', almacen: 'Cámara de Frío 2 (WIP)', alergeno: 'Lácteo, Huevo', costo_estandar: 4.0, es_subensamble: true },
-    { id: 'wip_D1', name: '[WIP] Bastón Hojaldre (Empaste)', unidad_compra: 'Gramos', familia: 'WIP (Producción)', almacen: 'Cámara de Frío 2 (WIP)', alergeno: 'TACC, Lácteo', costo_estandar: 5.5, es_subensamble: true },
-    { id: 'wip_E1', name: '[WIP] Masa Sablee Base', unidad_compra: 'Gramos', familia: 'WIP (Producción)', almacen: 'Cámara de Frío 2 (WIP)', alergeno: 'TACC, Lácteo', costo_estandar: 3.8, es_subensamble: true }
+    { id: 'wip_F1', codigo: 'WIP-F-001', name: '[WIP] Masa Madre Activa (Poolish)', unidad_compra: 'Gramos', familia: 'WIP (Producción)', almacen: 'Cámara de Frío 2 (WIP)', alergeno: 'TACC', costo_estandar: 1.5, es_subensamble: true },
+    { id: 'wip_A1', codigo: 'WIP-A-001', name: '[WIP] Cremado Base Vainilla', unidad_compra: 'Gramos', familia: 'WIP (Producción)', almacen: 'Cámara de Frío 2 (WIP)', alergeno: 'TACC, Lácteo, Huevo', costo_estandar: 3.5, es_subensamble: true },
+    { id: 'wip_B1', codigo: 'WIP-B-001', name: '[WIP] Plancha Pan de Miga Blanca', unidad_compra: 'Gramos', familia: 'WIP (Producción)', almacen: 'Almacén Secos Principal', alergeno: 'TACC', costo_estandar: 2.5, es_subensamble: true },
+    { id: 'wip_C1', codigo: 'WIP-C-001', name: '[WIP] Crema Pastelera Horneable', unidad_compra: 'Gramos', familia: 'WIP (Producción)', almacen: 'Cámara de Frío 2 (WIP)', alergeno: 'Lácteo, Huevo', costo_estandar: 4.0, es_subensamble: true },
+    { id: 'wip_D1', codigo: 'WIP-D-001', name: '[WIP] Bastón Hojaldre (Empaste)', unidad_compra: 'Gramos', familia: 'WIP (Producción)', almacen: 'Cámara de Frío 2 (WIP)', alergeno: 'TACC, Lácteo', costo_estandar: 5.5, es_subensamble: true },
+    { id: 'wip_E1', codigo: 'WIP-E-001', name: '[WIP] Masa Sablee Base', unidad_compra: 'Gramos', familia: 'WIP (Producción)', almacen: 'Cámara de Frío 2 (WIP)', alergeno: 'TACC, Lácteo', costo_estandar: 3.8, es_subensamble: true }
 ];
 
 const INITIAL_LOTS = [
-    // Lotes mezclados de distintos proveedores para probar trazabilidad
     { id: 'L-H00-CAÑ', ingredientId: 'i1', providerId: 'p1', amount: 500000, expiry: '2026-12-01', ingreso: '2025-10-01' },
     { id: 'L-H00-CAM', ingredientId: 'i1', providerId: 'p2', amount: 200000, expiry: '2026-10-15', ingreso: '2025-11-20' },
     { id: 'L-H04-CAÑ', ingredientId: 'i2', providerId: 'p1', amount: 300000, expiry: '2026-11-15', ingreso: '2025-09-10' },
@@ -90,46 +85,38 @@ const INITIAL_LOTS = [
     { id: 'WIP-HOJ-01', ingredientId: 'wip_D1', providerId: 'interno', amount: 60000, expiry: '2026-03-05', ingreso: '2026-02-21' }
 ];
 
-// Fórmulas Base Maestras (Altamente detalladas con Aditivos y WIPs)
 const BASE_RECIPES = [
-    // F: Panificados
     { nombre_producto: 'Baguette Francesa', familia: 'F', merma: 18, details: [{ ingredientId: 'i1', porcentaje: 100, gramos: 1000 }, { ingredientId: 'i3', porcentaje: 65, gramos: 650 }, { ingredientId: 'i4', porcentaje: 2, gramos: 20 }, { ingredientId: 'i5', porcentaje: 1.5, gramos: 15 }, { ingredientId: 'i12', porcentaje: 1, gramos: 10 }] },
     { nombre_producto: 'Pan de Molde Larga Vida', familia: 'F', merma: 10, details: [{ ingredientId: 'i1', porcentaje: 100, gramos: 1000 }, { ingredientId: 'i3', porcentaje: 55, gramos: 550 }, { ingredientId: 'i6', porcentaje: 8, gramos: 80 }, { ingredientId: 'i5', porcentaje: 3, gramos: 30 }, { ingredientId: 'i13', porcentaje: 0.5, gramos: 5 }] },
     { nombre_producto: 'Ciabatta Rústica', familia: 'F', merma: 15, details: [{ ingredientId: 'i1', porcentaje: 100, gramos: 1000 }, { ingredientId: 'wip_F1', porcentaje: 30, gramos: 300 }, { ingredientId: 'i3', porcentaje: 80, gramos: 800 }, { ingredientId: 'i4', porcentaje: 2.2, gramos: 22 }] },
     { nombre_producto: 'Pan Integral con Malta', familia: 'F', merma: 12, details: [{ ingredientId: 'i1', porcentaje: 100, gramos: 1000 }, { ingredientId: 'i15', porcentaje: 5, gramos: 50 }, { ingredientId: 'i3', porcentaje: 68, gramos: 680 }, { ingredientId: 'i5', porcentaje: 4, gramos: 40 }] },
 
-    // A: Batidos
     { nombre_producto: 'Budín Húmedo de Vainilla', familia: 'A', merma: 8, details: [{ ingredientId: 'i2', porcentaje: 100, gramos: 1000 }, { ingredientId: 'i8', porcentaje: 100, gramos: 1000 }, { ingredientId: 'i9', porcentaje: 100, gramos: 1000 }, { ingredientId: 'i7', porcentaje: 80, gramos: 800 }, { ingredientId: 'i14', porcentaje: 4, gramos: 40 }, { ingredientId: 'i16', porcentaje: 2, gramos: 20 }, { ingredientId: 'i13', porcentaje: 0.3, gramos: 3 }] },
     { nombre_producto: 'Muffins de Chocolate', familia: 'A', merma: 10, details: [{ ingredientId: 'i2', porcentaje: 100, gramos: 1000 }, { ingredientId: 'i8', porcentaje: 90, gramos: 900 }, { ingredientId: 'i9', porcentaje: 85, gramos: 850 }, { ingredientId: 'i11', porcentaje: 25, gramos: 250 }, { ingredientId: 'i14', porcentaje: 5, gramos: 50 }] },
     { nombre_producto: 'Pionono Clásico', familia: 'A', merma: 5, details: [{ ingredientId: 'wip_A1', porcentaje: 100, gramos: 1000 }, { ingredientId: 'i2', porcentaje: 40, gramos: 400 }, { ingredientId: 'i15', porcentaje: 10, gramos: 100 }] },
     { nombre_producto: 'Bizcochuelo Premium', familia: 'A', merma: 12, details: [{ ingredientId: 'i2', porcentaje: 100, gramos: 1000 }, { ingredientId: 'i8', parse: 100, gramos: 1000 }, { ingredientId: 'i9', porcentaje: 120, gramos: 1200 }, { ingredientId: 'i16', porcentaje: 1.5, gramos: 15 }] },
 
-    // B: Ensamblados
     { nombre_producto: 'Sándwich Miga Triple J&Q', familia: 'B', merma: 0, details: [{ ingredientId: 'wip_B1', porcentaje: 100, gramos: 1000 }, { ingredientId: 'i6', porcentaje: 15, gramos: 150 }] },
     { nombre_producto: 'Fosforito Relleno', familia: 'B', merma: 2, details: [{ ingredientId: 'wip_D1', porcentaje: 100, gramos: 1000 }, { ingredientId: 'i8', porcentaje: 10, gramos: 100 }] },
     { nombre_producto: 'Pebete Relleno Especial', familia: 'B', merma: 0, details: [{ ingredientId: 'wip_B1', porcentaje: 100, gramos: 1000 }, { ingredientId: 'i6', porcentaje: 8, gramos: 80 }] },
     { nombre_producto: 'Chips de Almuerzo', familia: 'B', merma: 5, details: [{ ingredientId: 'i1', porcentaje: 100, gramos: 1000 }, { ingredientId: 'i3', porcentaje: 50, gramos: 500 }, { ingredientId: 'i6', porcentaje: 10, gramos: 100 }, { ingredientId: 'i5', porcentaje: 4, gramos: 40 }] },
 
-    // C: Pastelería
     { nombre_producto: 'Torta Selva Negra', familia: 'C', merma: 5, details: [{ ingredientId: 'wip_A1', porcentaje: 100, gramos: 1000 }, { ingredientId: 'i11', porcentaje: 40, gramos: 400 }, { ingredientId: 'i8', porcentaje: 50, gramos: 500 }] },
     { nombre_producto: 'Lemon Pie Clásico', familia: 'C', merma: 8, details: [{ ingredientId: 'wip_E1', porcentaje: 100, gramos: 1000 }, { ingredientId: 'wip_C1', porcentaje: 150, gramos: 1500 }, { ingredientId: 'i8', porcentaje: 80, gramos: 800 }] },
     { nombre_producto: 'Cheesecake Horneado', familia: 'C', merma: 10, details: [{ ingredientId: 'wip_E1', porcentaje: 100, gramos: 1000 }, { ingredientId: 'i9', porcentaje: 40, gramos: 400 }, { ingredientId: 'i8', porcentaje: 60, gramos: 600 }] },
     { nombre_producto: 'Tarta Cabsha', familia: 'C', merma: 5, details: [{ ingredientId: 'wip_E1', porcentaje: 100, gramos: 1000 }, { ingredientId: 'i10', porcentaje: 200, gramos: 2000 }, { ingredientId: 'i11', porcentaje: 50, gramos: 500 }] },
 
-    // D: Hojaldres
     { nombre_producto: 'Medialuna de Manteca', familia: 'D', merma: 20, details: [{ ingredientId: 'wip_D1', porcentaje: 100, gramos: 1000 }, { ingredientId: 'i8', porcentaje: 15, gramos: 150 }, { ingredientId: 'i3', porcentaje: 45, gramos: 450 }, { ingredientId: 'i5', porcentaje: 4, gramos: 40 }] },
     { nombre_producto: 'Cañoncito de DDL', familia: 'D', merma: 15, details: [{ ingredientId: 'wip_D1', porcentaje: 100, gramos: 1000 }, { ingredientId: 'i10', porcentaje: 80, gramos: 800 }] },
     { nombre_producto: 'Palmera Caramelizada', familia: 'D', merma: 12, details: [{ ingredientId: 'wip_D1', porcentaje: 100, gramos: 1000 }, { ingredientId: 'i8', porcentaje: 60, gramos: 600 }] },
     { nombre_producto: 'Vigilante', familia: 'D', merma: 18, details: [{ ingredientId: 'wip_D1', porcentaje: 100, gramos: 1000 }, { ingredientId: 'i16', porcentaje: 2, gramos: 20 }] },
 
-    // E: Secos
     { nombre_producto: 'Alfajor de Maicena', familia: 'E', merma: 6, details: [{ ingredientId: 'wip_E1', porcentaje: 100, gramos: 1000 }, { ingredientId: 'i10', porcentaje: 150, gramos: 1500 }, { ingredientId: 'i14', porcentaje: 3, gramos: 30 }] },
     { nombre_producto: 'Galletas Pepas', familia: 'E', merma: 8, details: [{ ingredientId: 'wip_E1', porcentaje: 100, gramos: 1000 }, { ingredientId: 'i10', porcentaje: 50, gramos: 500 }, { ingredientId: 'i14', porcentaje: 2, gramos: 20 }] },
     { nombre_producto: 'Polvorones Caseros', familia: 'E', merma: 10, details: [{ ingredientId: 'i2', porcentaje: 100, gramos: 1000 }, { ingredientId: 'i6', porcentaje: 60, gramos: 600 }, { ingredientId: 'i8', porcentaje: 50, gramos: 500 }, { ingredientId: 'i14', porcentaje: 4, gramos: 40 }] },
     { nombre_producto: 'Lengüitas de Gato', familia: 'E', merma: 5, details: [{ ingredientId: 'i2', porcentaje: 100, gramos: 1000 }, { ingredientId: 'i6', porcentaje: 80, gramos: 800 }, { ingredientId: 'i8', porcentaje: 80, gramos: 800 }, { ingredientId: 'i9', porcentaje: 30, gramos: 300 }, { ingredientId: 'i16', porcentaje: 3, gramos: 30 }] }
 ];
 
-// Generador Procedimental de las 120 Recetas (20 por Familia)
 const GENERATE_RECIPES = () => {
     const extended = [];
     let rId = 1;
@@ -144,13 +131,12 @@ const GENERATE_RECIPES = () => {
     Object.keys(FAMILIAS).forEach(famKey => {
         const bases = BASE_RECIPES.filter(r => r.familia === famKey);
         bases.forEach(base => {
-            // Por cada una de las 4 bases de la familia, creamos 5 variantes = 20 fichas
             FORMATOS.forEach((fmt, idx) => {
                 const pesoCrudo = base.details.reduce((a, b) => a + Number(b.gramos || 0), 0);
                 extended.push({
                     ...base,
                     id: `R-${famKey}-${String(rId).padStart(3, '0')}`,
-                    codigo: `BOM-${famKey}${idx + 1}-${String(rId).padStart(3, '0')}`,
+                    codigo: `FG-${famKey}-${String(rId).padStart(3, '0')}`, // Código Final Good industrial
                     nombre_producto: `${base.nombre_producto} ${fmt.s}`,
                     version: 1,
                     es_subensamble: false,
@@ -169,19 +155,21 @@ const GENERATE_RECIPES = () => {
 const INITIAL_RECIPES = GENERATE_RECIPES();
 
 const INITIAL_ORDERS = [
-    { id: 'OP-17084', recipeId: 'R-F-002', targetAmount: 500, status: 'PLANIFICADA' },
-    { id: 'OP-17085', recipeId: 'R-D-082', targetAmount: 300, status: 'FERMENTACION' },
-    { id: 'OP-17086', recipeId: 'R-A-025', targetAmount: 150, status: 'AMASADO' }
+    { id: 'o1708450001', recipeId: 'R-F-002', targetAmount: 500, status: 'PLANIFICADA', date: '2026-02-20' },
+    { id: 'o1708450002', recipeId: 'R-D-082', targetAmount: 1200, status: 'AMASADO', date: '2026-02-20' },
+    { id: 'o1708450003', recipeId: 'R-F-003', targetAmount: 300, status: 'FERMENTACION', date: '2026-02-20' },
+    { id: 'o1708450004', recipeId: 'R-F-004', targetAmount: 150, status: 'HORNEADO', date: '2026-02-20' }
 ];
 
 const INITIAL_LOGISTICS = [
-    { id: 'l1', dispatchId: 'DESP-8A9X', destination: 'Local Morón Centro', timestamp: '2026-02-20T08:30:00Z', items: [{ nombre_producto: 'Baguette Francesa Estándar', amount: 200 }] }
+    { id: 'l1', dispatchId: 'DESP-8A9X', destination: 'Local Morón Centro', timestamp: '2026-02-20T08:30:00Z', items: [{ nombre_producto: 'Baguette Francesa Estándar', amount: 200 }, { nombre_producto: 'Medialuna de Manteca Estándar', amount: 500 }] },
+    { id: 'l2', dispatchId: 'DESP-2B4Y', destination: 'Sucursal Castelar', timestamp: '2026-02-20T09:15:00Z', items: [{ nombre_producto: 'Pan de Molde Larga Vida Familiar', amount: 50 }, { nombre_producto: 'Alfajor de Maicena Mini', amount: 120 }] }
 ];
 
 const INITIAL_CONFIG = { companyName: 'IMPERIO', appName: 'MES PRO V11', branches: ['Morón Centro', 'Castelar'] };
 
 // ============================================================================
-// COMPONENTES UI (Widgets)
+// COMPONENTES UI (Widgets Reutilizables)
 // ============================================================================
 const Card = ({ children, className = "" }) => (
     <div className={`border border-slate-200 rounded-xl shadow-sm overflow-hidden ${className.includes('bg-') ? className : 'bg-white ' + className}`}>
@@ -191,33 +179,32 @@ const Card = ({ children, className = "" }) => (
 
 const Button = ({ children, onClick, variant = 'primary', className = "", disabled = false, type = "button" }) => {
     const styles = {
-        primary: "bg-slate-900 text-white hover:bg-black",
+        primary: "bg-slate-900 text-white hover:bg-black shadow-md",
         secondary: "bg-white text-slate-700 hover:bg-slate-50 border border-slate-300",
-        success: "bg-emerald-600 text-white hover:bg-emerald-700",
-        accent: "bg-orange-600 text-white hover:bg-orange-700",
+        success: "bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm",
+        accent: "bg-orange-600 text-white hover:bg-orange-700 shadow-sm",
         danger: "bg-red-50 text-red-600 hover:bg-red-100",
         ghost: "bg-transparent text-slate-500 hover:text-slate-900"
     };
-    return <button disabled={disabled} type={type} onClick={onClick} className={`px-4 py-2 rounded-lg font-bold uppercase text-[11px] transition-all flex items-center justify-center gap-2 disabled:opacity-50 ${styles[variant]} ${className}`}>{children}</button>;
+    return <button disabled={disabled} type={type} onClick={onClick} className={`px-4 py-2 rounded-lg font-bold uppercase tracking-wider text-[11px] transition-all flex items-center justify-center gap-2 disabled:opacity-40 active:scale-95 ${styles[variant]} ${className}`}>{children}</button>;
 };
 
 const Input = ({ label, type = "text", value, onChange, placeholder, required = false, disabled = false }) => (
     <div className="flex flex-col gap-1 w-full text-left">
         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{label} {required && "*"}</label>
-        <input type={type} value={value} required={required} disabled={disabled} onChange={(e) => onChange ? onChange(e.target.value) : null} placeholder={placeholder} className={`border border-slate-200 bg-white rounded-lg px-3 py-2.5 outline-none focus:ring-2 focus:ring-slate-900/5 focus:border-slate-400 text-sm font-semibold text-slate-800 transition-all shadow-sm ${disabled ? 'opacity-50 bg-slate-100' : ''}`} />
+        <input type={type} value={value} required={required} disabled={disabled} onChange={(e) => onChange ? onChange(e.target.value) : null} placeholder={placeholder} className={`border border-slate-200 bg-white rounded-lg px-3 py-2.5 outline-none focus:ring-2 focus:ring-slate-900/5 focus:border-slate-400 text-sm font-semibold text-slate-800 transition-all shadow-sm ${disabled ? 'opacity-60 bg-slate-100 cursor-not-allowed text-slate-500' : ''}`} />
     </div>
 );
 
 const Select = ({ label, value, onChange, required = false, children, disabled = false }) => (
     <div className="flex flex-col gap-1 w-full text-left">
         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{label} {required && "*"}</label>
-        <select value={value} required={required} disabled={disabled} onChange={(e) => onChange ? onChange(e.target.value) : null} className={`border border-slate-200 bg-white rounded-lg px-3 py-2.5 outline-none focus:ring-2 focus:ring-slate-900/5 focus:border-slate-400 text-sm font-semibold text-slate-800 transition-all shadow-sm cursor-pointer ${disabled ? 'opacity-50 bg-slate-100' : ''}`}>
+        <select value={value} required={required} disabled={disabled} onChange={(e) => onChange ? onChange(e.target.value) : null} className={`border border-slate-200 bg-white rounded-lg px-3 py-2.5 outline-none focus:ring-2 focus:ring-slate-900/5 focus:border-slate-400 text-sm font-semibold text-slate-800 transition-all shadow-sm cursor-pointer ${disabled ? 'opacity-60 bg-slate-100 cursor-not-allowed text-slate-500' : ''}`}>
             {children}
         </select>
     </div>
 );
 
-// Componente para Notificaciones (Reemplaza a los alert)
 const Toast = ({ message, type = 'success', onClose }) => {
     if (!message) return null;
     return (
@@ -236,7 +223,7 @@ const Toast = ({ message, type = 'success', onClose }) => {
 // ============================================================================
 export default function App() {
     const [currentRole, setCurrentRole] = useState(ROLES.ADMIN);
-    const [view, setView] = useState('engineering'); // Empezamos en Ingeniería para ver las 120 recetas
+    const [view, setView] = useState('engineering'); // Iniciamos en Ingeniería
 
     const [ingredients, setIngredients] = useState(INITIAL_INGREDIENTS);
     const [recipes, setRecipes] = useState(INITIAL_RECIPES);
@@ -406,6 +393,21 @@ function EngineeringView({ recipes, ingredients, setRecipes, setIngredients, sho
         id: null, codigo: '', nombre: '', familia: 'F', ver: 1, wip: false, merma: 15, formato_venta: 'Unidad', peso_unidad: 100, details: []
     });
 
+    // Motor de Auto-Generación de Código SKU para Fichas
+    useEffect(() => {
+        if (!form.id && showAdd) {
+            const prefix = form.wip ? `WIP-${form.familia}` : `FG-${form.familia}`;
+            let max = 0;
+            recipes.forEach(r => {
+                if (r.codigo && r.codigo.startsWith(prefix)) {
+                    const num = parseInt(r.codigo.split('-').pop());
+                    if (!isNaN(num) && num > max) max = num;
+                }
+            });
+            setForm(prev => ({ ...prev, codigo: `${prefix}-${String(max + 1).padStart(3, '0')}` }));
+        }
+    }, [form.familia, form.wip, showAdd, recipes]);
+
     const filteredRecipes = recipes.filter(r =>
         r.nombre_producto.toLowerCase().includes(searchTerm.toLowerCase()) ||
         r.codigo?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -429,9 +431,9 @@ function EngineeringView({ recipes, ingredients, setRecipes, setIngredients, sho
             const newId = `R-NVO-${Date.now()}`;
             setRecipes([{ id: newId, ...recipeData }, ...recipes]);
             if (form.wip) {
-                setIngredients([...ingredients, { id: `wip${Date.now()}`, name: `[WIP] ${form.nombre}`, unidad_compra: 'Gramos', factor_conversion: 1, es_subensamble: true, familia: 'WIP (Producción)', almacen: 'Cámara de Frío 2 (WIP)', costo_estandar: 0 }]);
+                setIngredients([...ingredients, { id: `wip${Date.now()}`, codigo: form.codigo.toUpperCase(), name: `[WIP] ${form.nombre}`, unidad_compra: 'Gramos', factor_conversion: 1, es_subensamble: true, familia: 'WIP (Producción)', almacen: 'Cámara de Frío 2 (WIP)', costo_estandar: 0 }]);
             }
-            showToast("Nueva ficha técnica creada");
+            showToast(`Ficha ${form.codigo} creada exitosamente`);
         }
 
         setShowAdd(false);
@@ -478,8 +480,12 @@ function EngineeringView({ recipes, ingredients, setRecipes, setIngredients, sho
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-                            <div className="md:col-span-4 lg:col-span-3"><Input label="Código SKU" value={form.codigo} onChange={v => setForm({ ...form, codigo: v })} placeholder="Ej. PAN-001" required /></div>
-                            <div className="md:col-span-8 lg:col-span-9"><Input label="Nombre del Producto o WIP" value={form.nombre} onChange={v => setForm({ ...form, nombre: v })} placeholder="Ej. Baguette Clásica" required /></div>
+                            <div className="md:col-span-4 lg:col-span-3">
+                                <Input label="Código SKU (Auto)" value={form.codigo} disabled required />
+                            </div>
+                            <div className="md:col-span-8 lg:col-span-9">
+                                <Input label="Nombre del Producto o WIP" value={form.nombre} onChange={v => setForm({ ...form, nombre: v })} placeholder="Ej. Baguette Clásica" required />
+                            </div>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-end">
@@ -513,7 +519,7 @@ function EngineeringView({ recipes, ingredients, setRecipes, setIngredients, sho
                                         <tr key={i} className="hover:bg-slate-50 transition-colors group">
                                             <td className="p-2 border-r border-slate-100">
                                                 <select className="w-full bg-transparent text-xs font-bold text-slate-700 outline-none cursor-pointer p-2" value={l.ingredientId} onChange={e => { const nd = [...form.details]; nd[i].ingredientId = e.target.value; setForm({ ...form, details: nd }) }}>
-                                                    <option value="" disabled>Seleccionar Componente...</option>{ingredients.map(ing => (<option key={ing.id} value={ing.id}>{ing.name}</option>))}
+                                                    <option value="" disabled>Seleccionar Componente...</option>{ingredients.map(ing => (<option key={ing.id} value={ing.id}>[{ing.codigo}] {ing.name}</option>))}
                                                 </select>
                                             </td>
                                             <td className="p-2 border-r border-slate-100"><div className="flex items-center justify-center bg-slate-100 rounded-md border border-slate-200 px-2 py-1 focus-within:border-orange-500 focus-within:bg-white transition-all"><input type="number" className="w-full bg-transparent text-xs font-black text-center outline-none text-slate-800" value={l.porcentaje} onChange={e => { const v = e.target.value; const nd = [...form.details]; nd[i].porcentaje = v; nd[i].gramos = Number(v) * 10; setForm({ ...form, details: nd }) }} placeholder="0" /><span className="text-[10px] text-slate-400 font-bold ml-1">%</span></div></td>
@@ -951,13 +957,42 @@ function LogisticsView({ recipes, logistics, setLogistics, branches, showToast }
 function MasterDataView({ ingredients, setIngredients, providers, setProviders, showToast }) {
     const [tab, setTab] = useState('prov');
 
-    // Estado para Proveedores
-    const [form, setForm] = useState({ id: null, nombre: '', cuit: '', rubro: '' });
+    const [form, setForm] = useState({ id: null, codigo: '', nombre: '', cuit: '', rubro: '' });
     const [showAdd, setShowAdd] = useState(false);
 
-    // Estado para Insumos
-    const [ingForm, setIngForm] = useState({ id: null, name: '', unidad_compra: 'Bolsa 25kg', familia: 'Harinas y Polvos', almacen: 'Almacén Secos Principal', alergeno: '', costo_estandar: '' });
+    const [ingForm, setIngForm] = useState({ id: null, codigo: '', name: '', unidad_compra: 'Bolsa 25kg', familia: 'Harinas y Polvos', almacen: 'Almacén Secos Principal', alergeno: '', costo_estandar: '' });
     const [showAddIng, setShowAddIng] = useState(false);
+
+    // Auto-Generación Código Proveedor
+    useEffect(() => {
+        if (!form.id && showAdd) {
+            const prefix = `PRV`;
+            let max = 0;
+            providers.forEach(p => {
+                if (p.codigo && p.codigo.startsWith(prefix)) {
+                    const num = parseInt(p.codigo.split('-').pop());
+                    if (!isNaN(num) && num > max) max = num;
+                }
+            });
+            setForm(prev => ({ ...prev, codigo: `${prefix}-${String(max + 1).padStart(3, '0')}` }));
+        }
+    }, [showAdd, providers]);
+
+    // Auto-Generación Código Insumo
+    useEffect(() => {
+        if (!ingForm.id && showAddIng) {
+            const catPrefix = ingForm.familia ? ingForm.familia.substring(0, 3).toUpperCase() : 'OTR';
+            const prefix = `RAW-${catPrefix}`;
+            let max = 0;
+            ingredients.forEach(i => {
+                if (i.codigo && i.codigo.startsWith(prefix)) {
+                    const num = parseInt(i.codigo.split('-').pop());
+                    if (!isNaN(num) && num > max) max = num;
+                }
+            });
+            setIngForm(prev => ({ ...prev, codigo: `${prefix}-${String(max + 1).padStart(3, '0')}` }));
+        }
+    }, [ingForm.familia, showAddIng, ingredients]);
 
     const saveProvider = () => {
         if (!form.nombre || !form.cuit) return;
@@ -968,7 +1003,7 @@ function MasterDataView({ ingredients, setIngredients, providers, setProviders, 
             setProviders([{ ...form, id: `p${Date.now()}` }, ...providers]);
             showToast("Nuevo proveedor registrado.");
         }
-        setForm({ id: null, nombre: '', cuit: '', rubro: '' }); setShowAdd(false);
+        setForm({ id: null, codigo: '', nombre: '', cuit: '', rubro: '' }); setShowAdd(false);
     };
 
     const saveIngredient = () => {
@@ -980,7 +1015,7 @@ function MasterDataView({ ingredients, setIngredients, providers, setProviders, 
             setIngredients([{ ...ingForm, id: `i${Date.now()}`, costo_estandar: Number(ingForm.costo_estandar), es_subensamble: false }, ...ingredients]);
             showToast("Nuevo insumo registrado exitosamente.");
         }
-        setIngForm({ id: null, name: '', unidad_compra: 'Bolsa 25kg', familia: 'Harinas y Polvos', almacen: 'Almacén Secos Principal', alergeno: '', costo_estandar: '' });
+        setIngForm({ id: null, codigo: '', name: '', unidad_compra: 'Bolsa 25kg', familia: 'Harinas y Polvos', almacen: 'Almacén Secos Principal', alergeno: '', costo_estandar: '' });
         setShowAddIng(false);
     };
 
@@ -1001,11 +1036,20 @@ function MasterDataView({ ingredients, setIngredients, providers, setProviders, 
                 <Card className="p-8 bg-slate-50">
                     <div className="flex justify-between items-center mb-6">
                         <h4 className="text-lg font-black uppercase italic text-slate-800">Directorio de Proveedores</h4>
-                        <Button onClick={() => { setShowAdd(!showAdd); setForm({ id: null, nombre: '', cuit: '', rubro: '' }); }} variant={showAdd ? "secondary" : "accent"}>{showAdd ? "Cancelar" : <><Plus size={16} /> Nuevo Proveedor</>}</Button>
+                        <Button onClick={() => { setShowAdd(!showAdd); setForm({ id: null, codigo: '', nombre: '', cuit: '', rubro: '' }); }} variant={showAdd ? "secondary" : "accent"}>{showAdd ? "Cancelar" : <><Plus size={16} /> Nuevo Proveedor</>}</Button>
                     </div>
 
                     {showAdd && (
-                        <Card className="p-8 border-4 border-slate-900 bg-white mb-8"><h4 className="text-sm font-black uppercase mb-6 italic">{form.id ? 'Editar Proveedor' : 'Alta Proveedor'}</h4><div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-end"><Input label="Razón Social" value={form.nombre} onChange={v => setForm({ ...form, nombre: v })} required /><Input label="CUIT" value={form.cuit} onChange={v => setForm({ ...form, cuit: v })} required /><Input label="Rubro" value={form.rubro} onChange={v => setForm({ ...form, rubro: v })} /><Button onClick={saveProvider} variant="success" className="py-2.5 h-[42px]">Guardar Cambios</Button></div></Card>
+                        <Card className="p-8 border-4 border-slate-900 bg-white mb-8">
+                            <h4 className="text-sm font-black uppercase mb-6 italic">{form.id ? 'Editar Proveedor' : 'Alta Proveedor'}</h4>
+                            <div className="grid grid-cols-1 md:grid-cols-5 gap-6 items-end">
+                                <div className="md:col-span-1"><Input label="Cod. Prov. (Auto)" value={form.codigo} disabled required /></div>
+                                <div className="md:col-span-2"><Input label="Razón Social" value={form.nombre} onChange={v => setForm({ ...form, nombre: v })} required /></div>
+                                <Input label="CUIT" value={form.cuit} onChange={v => setForm({ ...form, cuit: v })} required />
+                                <Input label="Rubro" value={form.rubro} onChange={v => setForm({ ...form, rubro: v })} />
+                            </div>
+                            <div className="flex justify-end mt-6"><Button onClick={saveProvider} variant="success" className="py-2.5 h-[42px] px-8">Guardar Cambios</Button></div>
+                        </Card>
                     )}
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -1015,7 +1059,10 @@ function MasterDataView({ ingredients, setIngredients, providers, setProviders, 
                                     <div className="bg-slate-100 p-3 rounded-lg text-slate-500"><Briefcase size={24} /></div>
                                     <div>
                                         <h5 className="font-black uppercase italic text-slate-800 text-sm">{p.nombre}</h5>
-                                        <p className="text-[10px] font-bold text-slate-400 uppercase mt-1">CUIT: {p.cuit}</p>
+                                        <div className="flex gap-2 items-center mt-1">
+                                            <span className="text-[9px] font-mono text-blue-500 bg-blue-50 px-1 rounded">{p.codigo}</span>
+                                            <p className="text-[10px] font-bold text-slate-400 uppercase">CUIT: {p.cuit}</p>
+                                        </div>
                                         <p className="text-[9px] font-black text-orange-500 uppercase mt-1 tracking-widest bg-orange-50 inline-block px-2 py-0.5 rounded">{p.rubro}</p>
                                     </div>
                                 </div>
@@ -1030,13 +1077,14 @@ function MasterDataView({ ingredients, setIngredients, providers, setProviders, 
                 <Card className="p-8 bg-slate-50">
                     <div className="flex justify-between items-center mb-6">
                         <h4 className="text-lg font-black uppercase italic text-slate-800">Catálogo de Insumos</h4>
-                        <Button onClick={() => { setShowAddIng(!showAddIng); setIngForm({ id: null, name: '', unidad_compra: 'Bolsa 25kg', alergeno: '', reqFrio: false, costo_estandar: '' }); }} variant={showAddIng ? "secondary" : "accent"}>{showAddIng ? "Cancelar" : <><Plus size={16} /> Nuevo Insumo</>}</Button>
+                        <Button onClick={() => { setShowAddIng(!showAddIng); setIngForm({ id: null, codigo: '', name: '', unidad_compra: 'Bolsa 25kg', familia: 'Harinas y Polvos', almacen: 'Almacén Secos Principal', alergeno: '', costo_estandar: '' }); }} variant={showAddIng ? "secondary" : "accent"}>{showAddIng ? "Cancelar" : <><Plus size={16} /> Nuevo Insumo</>}</Button>
                     </div>
 
                     {showAddIng && (
                         <Card className="p-8 border-4 border-slate-900 bg-white mb-8">
                             <h4 className="text-sm font-black uppercase mb-6 italic">{ingForm.id ? 'Editar Insumo' : 'Alta de Insumo (RAW)'}</h4>
-                            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-end">
+                            <div className="grid grid-cols-1 md:grid-cols-5 gap-6 items-end">
+                                <div className="md:col-span-1"><Input label="SKU (Auto)" value={ingForm.codigo} disabled required /></div>
                                 <div className="md:col-span-2"><Input label="Nombre del Insumo" value={ingForm.name} onChange={v => setIngForm({ ...ingForm, name: v })} required /></div>
                                 <Select label="Familia / Categoría" value={ingForm.familia} onChange={e => setIngForm({ ...ingForm, familia: e })}>
                                     {CATEGORIAS_INSUMO.map(c => <option key={c} value={c}>{c}</option>)}
@@ -1046,7 +1094,7 @@ function MasterDataView({ ingredients, setIngredients, providers, setProviders, 
                                 <div className="md:col-span-2"><Select label="Ubicación (Almacén)" value={ingForm.almacen} onChange={e => setIngForm({ ...ingForm, almacen: e })}>
                                     {UBICACIONES_ALMACEN.map(u => <option key={u} value={u}>{u}</option>)}
                                 </Select></div>
-                                <Input label="Alérgenos (Opcional)" placeholder="Ej. TACC, Lácteo" value={ingForm.alergeno} onChange={v => setIngForm({ ...ingForm, alergeno: v })} />
+                                <div className="md:col-span-2"><Input label="Alérgenos (Opcional)" placeholder="Ej. TACC, Lácteo" value={ingForm.alergeno} onChange={v => setIngForm({ ...ingForm, alergeno: v })} /></div>
                                 <Input label="Costo Est. ($)" type="number" value={ingForm.costo_estandar} onChange={v => setIngForm({ ...ingForm, costo_estandar: v })} required />
                             </div>
                             <div className="flex items-center justify-end mt-6 pt-6 border-t border-slate-100">
@@ -1059,7 +1107,7 @@ function MasterDataView({ ingredients, setIngredients, providers, setProviders, 
                         <table className="w-full text-left font-bold text-xs uppercase text-slate-700">
                             <thead className="bg-slate-900 text-white text-[9px] tracking-widest">
                                 <tr>
-                                    <th className="p-4">SKU Nombre</th>
+                                    <th className="p-4">SKU / Nombre</th>
                                     <th className="p-4 text-center">Familia</th>
                                     <th className="p-4 text-center">Ubicación</th>
                                     <th className="p-4 text-center">Alérgeno</th>
@@ -1070,10 +1118,15 @@ function MasterDataView({ ingredients, setIngredients, providers, setProviders, 
                             <tbody className="divide-y bg-white">
                                 {ingredients.map(i => (
                                     <tr key={i.id} className="hover:bg-slate-50 transition-colors group">
-                                        <td className="p-4 font-black flex items-center gap-2">
-                                            {i.es_subensamble && <Layers size={14} className="text-orange-500" />}
-                                            {i.name}
-                                            <span className="text-[9px] text-slate-400 font-normal lowercase block">({i.unidad_compra})</span>
+                                        <td className="p-4">
+                                            <div className="font-black flex items-center gap-2 text-slate-800">
+                                                {i.es_subensamble && <Layers size={14} className="text-orange-500" />}
+                                                {i.name}
+                                            </div>
+                                            <div className="flex gap-2 items-center mt-1">
+                                                <span className="text-[9px] font-mono text-blue-500 bg-blue-50 px-1 rounded">{i.codigo}</span>
+                                                <span className="text-[9px] text-slate-400 font-normal lowercase block">({i.unidad_compra})</span>
+                                            </div>
                                         </td>
                                         <td className="p-4 text-center text-[10px] text-slate-500">{i.familia || 'Otros'}</td>
                                         <td className="p-4 text-center">
@@ -1085,7 +1138,7 @@ function MasterDataView({ ingredients, setIngredients, providers, setProviders, 
                                         <td className="p-4 text-right font-mono text-emerald-600">${i.costo_estandar || 0}</td>
                                         <td className="p-4 text-center">
                                             {!i.es_subensamble && (
-                                                <button onClick={() => { setIngForm({ id: i.id, name: i.name, unidad_compra: i.unidad_compra, familia: i.familia || 'Harinas y Polvos', almacen: i.almacen || 'Almacén Secos Principal', alergeno: i.alergeno, costo_estandar: i.costo_estandar }); setShowAddIng(true); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="p-1.5 text-slate-400 hover:text-slate-800 hover:bg-slate-200 rounded transition-colors opacity-0 group-hover:opacity-100"><Wrench size={14} /></button>
+                                                <button onClick={() => { setIngForm({ id: i.id, codigo: i.codigo, name: i.name, unidad_compra: i.unidad_compra, familia: i.familia || 'Harinas y Polvos', almacen: i.almacen || 'Almacén Secos Principal', alergeno: i.alergeno, costo_estandar: i.costo_estandar }); setShowAddIng(true); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="p-1.5 text-slate-400 hover:text-slate-800 hover:bg-slate-200 rounded transition-colors opacity-0 group-hover:opacity-100"><Wrench size={14} /></button>
                                             )}
                                         </td>
                                     </tr>
