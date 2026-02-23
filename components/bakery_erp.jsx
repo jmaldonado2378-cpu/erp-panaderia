@@ -554,22 +554,47 @@ function EngineeringView({ recipes, ingredients, setRecipes, setIngredients, sho
                         <div className="border border-slate-200 rounded-lg overflow-hidden bg-white shadow-sm">
                             <table className="w-full text-left">
                                 <thead className="bg-slate-900 text-white text-[9px] uppercase tracking-widest">
-                                    <tr><th className="px-3 py-1.5">Componente</th><th className="px-3 py-1.5 w-24 text-center">% Panadero</th><th className="px-3 py-1.5 w-24 text-center">Gramos</th><th className="px-3 py-1.5 w-10 text-center"></th></tr>
+                                    <tr>
+                                        <th className="px-3 py-1.5">Componente</th>
+                                        <th className="px-3 py-1.5 w-24 text-center">% Panadero</th>
+                                        <th className="px-3 py-1.5 w-24 text-center">% T. Batch</th>
+                                        <th className="px-3 py-1.5 w-24 text-center">Gramos</th>
+                                        <th className="px-3 py-1.5 w-10 text-center"></th>
+                                    </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100 bg-white">
-                                    {form.details.map((l, i) => (
-                                        <tr key={i} className="hover:bg-slate-50 transition-colors group">
-                                            <td className="px-2 py-1 border-r border-slate-100">
-                                                <select className="w-full bg-transparent text-xs font-bold text-slate-700 outline-none cursor-pointer py-1" value={l.ingredientId} onChange={e => { const nd = [...form.details]; nd[i].ingredientId = e.target.value; setForm({ ...form, details: nd }) }}>
-                                                    <option value="" disabled>Seleccionar Componente...</option>{ingredients.map(ing => (<option key={ing.id} value={ing.id}>[{ing.codigo}] {ing.name}</option>))}
-                                                </select>
-                                            </td>
-                                            <td className="px-2 py-1 border-r border-slate-100"><div className="flex items-center justify-center bg-slate-100 rounded border border-slate-200 px-1 py-0.5"><input type="number" className="w-full bg-transparent text-xs font-black text-center outline-none text-slate-800" value={l.porcentaje} onChange={e => { const v = e.target.value; const nd = [...form.details]; nd[i].porcentaje = v; nd[i].gramos = Number(v) * 10; setForm({ ...form, details: nd }) }} placeholder="0" /><span className="text-[9px] text-slate-400 font-bold ml-1">%</span></div></td>
-                                            <td className="px-2 py-1 border-r border-slate-100"><div className="flex items-center justify-center bg-slate-100 rounded border border-slate-200 px-1 py-0.5"><input type="number" className="w-full bg-transparent text-xs font-black text-center outline-none text-slate-800" value={l.gramos} onChange={e => { const v = e.target.value; const nd = [...form.details]; nd[i].gramos = v; setForm({ ...form, details: nd }) }} placeholder="0" /><span className="text-[9px] text-slate-400 font-bold ml-1">g</span></div></td>
-                                            <td className="px-2 py-1 text-center"><button type="button" onClick={() => { const nd = [...form.details]; nd.splice(i, 1); setForm({ ...form, details: nd }) }} className="text-slate-300 hover:text-red-500 hover:bg-red-50 p-1 rounded transition-all opacity-0 group-hover:opacity-100"><Trash2 size={12} /></button></td>
-                                        </tr>
-                                    ))}
-                                    {form.details.length === 0 && (<tr><td colSpan="4" className="p-8 text-center text-slate-400 text-xs italic bg-slate-50/50">No hay ingredientes en esta receta. Haz clic en "Agregar Componente" para empezar.</td></tr>)}
+                                    {form.details.map((l, i) => {
+                                        const pctBatch = pesoCrudo > 0 ? ((Number(l.gramos || 0) / pesoCrudo) * 100).toFixed(1) : '0.0';
+                                        const pctPanadero = l.porcentaje || '0';
+                                        const isBatchFormula = ['A', 'B', 'C'].includes(form.familia);
+
+                                        return (
+                                            <tr key={i} className="hover:bg-slate-50 transition-colors group">
+                                                <td className="px-2 py-1 border-r border-slate-100">
+                                                    <select className="w-full bg-transparent text-xs font-bold text-slate-700 outline-none cursor-pointer py-1" value={l.ingredientId} onChange={e => { const nd = [...form.details]; nd[i].ingredientId = e.target.value; setForm({ ...form, details: nd }) }}>
+                                                        <option value="" disabled>Seleccionar Componente...</option>{ingredients.map(ing => (<option key={ing.id} value={ing.id}>[{ing.codigo}] {ing.name}</option>))}
+                                                    </select>
+                                                </td>
+                                                <td className="px-2 py-1 border-r border-slate-100">
+                                                    {!isBatchFormula ? (
+                                                        <div className="flex items-center justify-center bg-slate-100 rounded border border-slate-200 px-1 py-0.5"><input type="number" className="w-full bg-transparent text-xs font-black text-center outline-none text-slate-800" value={l.porcentaje} onChange={e => { const v = e.target.value; const nd = [...form.details]; nd[i].porcentaje = v; nd[i].pctBatchInput = ''; nd[i].gramos = Number(v) * 10; setForm({ ...form, details: nd }) }} placeholder="0" /><span className="text-[9px] text-slate-400 font-bold ml-1">%</span></div>
+                                                    ) : (
+                                                        <div className="text-center text-xs font-black text-slate-400 opacity-50 bg-slate-50/50">{pctPanadero}%</div>
+                                                    )}
+                                                </td>
+                                                <td className="px-2 py-1 border-r border-slate-100 text-center">
+                                                    {isBatchFormula ? (
+                                                        <div className="flex items-center justify-center bg-emerald-50 rounded border border-emerald-200 px-1 py-0.5"><input type="number" className="w-full bg-transparent text-xs font-black text-center outline-none text-emerald-800" value={l.pctBatchInput !== undefined ? l.pctBatchInput : (pctBatch !== '0.0' ? pctBatch : '')} onChange={e => { const v = e.target.value; const targetGrams = v ? (Number(v) / 100) * form.loteMinimo * (form.unidadLote === 'kg' ? 1000 : 1) : 0; const nd = [...form.details]; nd[i].pctBatchInput = v; nd[i].gramos = targetGrams; nd[i].porcentaje = ''; setForm({ ...form, details: nd }) }} placeholder="0" /><span className="text-[9px] text-emerald-600 font-bold ml-1">%</span></div>
+                                                    ) : (
+                                                        <div className="text-xs font-black text-slate-600 bg-slate-50/50">{pctBatch}%</div>
+                                                    )}
+                                                </td>
+                                                <td className="px-2 py-1 border-r border-slate-100"><div className="flex items-center justify-center bg-slate-100 rounded border border-slate-200 px-1 py-0.5"><input type="number" className="w-full bg-transparent text-xs font-black text-center outline-none text-slate-800" value={l.gramos} onChange={e => { const v = e.target.value; const nd = [...form.details]; nd[i].gramos = v; if (isBatchFormula) { nd[i].pctBatchInput = ''; } setForm({ ...form, details: nd }) }} placeholder="0" /><span className="text-[9px] text-slate-400 font-bold ml-1">g</span></div></td>
+                                                <td className="px-2 py-1 text-center"><button type="button" onClick={() => { const nd = [...form.details]; nd.splice(i, 1); setForm({ ...form, details: nd }) }} className="text-slate-300 hover:text-red-500 hover:bg-red-50 p-1 rounded transition-all opacity-0 group-hover:opacity-100"><Trash2 size={12} /></button></td>
+                                            </tr>
+                                        )
+                                    })}
+                                    {form.details.length === 0 && (<tr><td colSpan="5" className="p-8 text-center text-slate-400 text-xs italic bg-slate-50/50">No hay ingredientes en esta receta. Haz clic en "Agregar Componente" para empezar.</td></tr>)}
                                 </tbody>
                             </table>
                             <div className="p-1 bg-slate-50 border-t border-slate-200"><button type="button" onClick={() => setForm({ ...form, details: [...form.details, { ingredientId: '', porcentaje: '', gramos: '' }] })} className="w-full py-1.5 border border-dashed border-slate-300 rounded-md text-[9px] font-black uppercase text-slate-500 hover:bg-slate-200 hover:text-slate-800 hover:border-slate-400 transition-all flex items-center justify-center gap-1"><Plus size={12} /> Añadir Insumo</button></div>
