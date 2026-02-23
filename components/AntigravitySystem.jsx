@@ -207,24 +207,22 @@ export const AntigravitySystem = ({ children }) => {
             {children}
 
             {/* Control Panel (Flotante) para accionar la gravedad */}
-
-            {!gravityActive && (
-                <button
-                    onClick={triggerSystemCrash}
-                    className="bg-red-600 hover:bg-red-700 text-white p-4 rounded-full shadow-2xl flex items-center justify-center transition-transform hover:scale-110 border-4 border-red-800"
-                    title="Activar Antigravity"
-                >
-                    <ZapOff size={28} />
-                </button>
-            )}
-            {gravityActive && (
-                <div className="bg-slate-900 text-white text-xs p-3 rounded-lg border border-slate-700 shadow-xl flex items-center gap-2 animate-pulse">
-                    <GripHorizontal size={16} className="text-blue-400" />
-                    <span>Físicas activas. Arrastra las cajas con el ratón.</span>
-                </div>
-            )}
+            <div className="fixed bottom-10 right-6 z-[10000] flex flex-col items-end gap-2">
+                {!gravityActive && (
+                    <button
+                        onClick={triggerSystemCrash}
+                        className="opacity-0 w-16 h-16 rounded-full cursor-default"
+                        title="Activar Antigravity"
+                    />
+                )}
+                {gravityActive && (
+                    <div className="bg-slate-900 text-white text-xs p-3 rounded-lg border border-slate-700 shadow-xl flex items-center gap-2 animate-pulse">
+                        <GripHorizontal size={16} className="text-blue-400" />
+                        <span>Físicas activas. Arrastra las cajas con el ratón.</span>
+                    </div>
+                )}
+            </div>
         </div>
-        </div >
     );
 };
 
