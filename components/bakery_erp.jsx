@@ -10,7 +10,6 @@ import {
     RotateCcw, ChevronDown, ChevronUp, Eye
 } from 'lucide-react';
 import AntigravitySystem from './AntigravitySystem';
-import AntigravitySystem from './AntigravitySystem';
 
 // ============================================================================
 // DATOS MAESTROS INDUSTRIALES
