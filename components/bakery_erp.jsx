@@ -409,7 +409,7 @@ function EngineeringView({ recipes, ingredients, setRecipes, setIngredients, sho
 
     const [form, setForm] = useState({
         id: null, codigo: '', nombre: '', familia: 'F', ver: 1, wip: false, merma: 15, formato_venta: 'Unidad', peso_unidad: 100,
-        horas_hombre: 1, costo_empaque: 0, details: []
+        horas_hombre: 1, costo_empaque: 0, loteMinimo: 1, unidadLote: 'kg', details: []
     });
 
     useEffect(() => {
@@ -441,7 +441,7 @@ function EngineeringView({ recipes, ingredients, setRecipes, setIngredients, sho
         const recipeData = {
             codigo: form.codigo.toUpperCase(), nombre_producto: form.nombre, familia: form.familia, version: form.ver, es_subensamble: form.wip, merma: form.merma,
             formato_venta: form.formato_venta, peso_unidad: form.formato_venta === 'Unidad' ? Number(form.peso_unidad) : null, peso_crudo: pesoCrudo, peso_final: pesoFinal,
-            horas_hombre: Number(form.horas_hombre), costo_empaque: Number(form.costo_empaque), details: form.details
+            horas_hombre: Number(form.horas_hombre), costo_empaque: Number(form.costo_empaque), loteMinimo: Number(form.loteMinimo), unidadLote: form.unidadLote, details: form.details
         };
 
         if (form.id) {
@@ -457,13 +457,13 @@ function EngineeringView({ recipes, ingredients, setRecipes, setIngredients, sho
         }
 
         setShowAdd(false);
-        setForm({ id: null, codigo: '', nombre: '', familia: 'F', ver: 1, wip: false, merma: 15, formato_venta: 'Unidad', peso_unidad: 100, horas_hombre: 1, costo_empaque: 0, details: [] });
+        setForm({ id: null, codigo: '', nombre: '', familia: 'F', ver: 1, wip: false, merma: 15, formato_venta: 'Unidad', peso_unidad: 100, horas_hombre: 1, costo_empaque: 0, loteMinimo: 1, unidadLote: 'kg', details: [] });
     };
 
     const handleEdit = (rec) => {
         setForm({
             id: rec.id, codigo: rec.codigo || '', nombre: rec.nombre_producto, familia: rec.familia, ver: (rec.version || 1) + 1, wip: !!rec.es_subensamble, merma: rec.merma || 15,
-            formato_venta: rec.formato_venta || 'Unidad', peso_unidad: rec.peso_unidad || 100, horas_hombre: rec.horas_hombre || 1, costo_empaque: rec.costo_empaque || 0, details: rec.details ? [...rec.details] : []
+            formato_venta: rec.formato_venta || 'Unidad', peso_unidad: rec.peso_unidad || 100, horas_hombre: rec.horas_hombre || 1, costo_empaque: rec.costo_empaque || 0, loteMinimo: rec.loteMinimo || 1, unidadLote: rec.unidadLote || 'kg', details: rec.details ? [...rec.details] : []
         });
         setShowAdd(true);
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -487,7 +487,7 @@ function EngineeringView({ recipes, ingredients, setRecipes, setIngredients, sho
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                     <input type="text" placeholder="Buscar por código o nombre..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg text-xs font-bold outline-none focus:border-orange-500 bg-slate-50 focus:bg-white transition-all" />
                 </div>
-                <Button onClick={() => { setShowAdd(!showAdd); if (!showAdd) setForm({ id: null, codigo: '', nombre: '', familia: 'F', ver: 1, wip: false, merma: 15, formato_venta: 'Unidad', peso_unidad: 100, horas_hombre: 1, costo_empaque: 0, details: [] }); }} variant={showAdd ? "secondary" : "accent"}>
+                <Button onClick={() => { setShowAdd(!showAdd); if (!showAdd) setForm({ id: null, codigo: '', nombre: '', familia: 'F', ver: 1, wip: false, merma: 15, formato_venta: 'Unidad', peso_unidad: 100, horas_hombre: 1, costo_empaque: 0, loteMinimo: 1, unidadLote: 'kg', details: [] }); }} variant={showAdd ? "secondary" : "accent"}>
                     {showAdd ? "Cancelar Edición" : <><Plus size={16} /> Nueva Ficha</>}
                 </Button>
             </div>
@@ -517,6 +517,20 @@ function EngineeringView({ recipes, ingredients, setRecipes, setIngredients, sho
                             </div>
                             <div className="md:col-span-2 lg:col-span-3">
                                 <label className="flex items-center justify-center gap-2 p-2 bg-white rounded-lg border border-slate-200 shadow-sm cursor-pointer hover:border-orange-400 transition-colors h-[38px]"><input type="checkbox" checked={form.wip} onChange={e => setForm({ ...form, wip: e.target.checked })} className="w-4 h-4 accent-orange-600" /><span className="text-[9px] font-black uppercase text-slate-700 leading-tight">WIP?</span></label>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end bg-white p-3 rounded-lg border border-slate-200 mt-2">
+                            <div className="flex flex-col gap-1 w-full text-left">
+                                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Lote mínimo a producir</label>
+                                <input type="number" min="0.1" step="0.1" value={form.loteMinimo} onChange={e => setForm({ ...form, loteMinimo: e.target.value })} className="w-full border border-slate-200 bg-slate-50 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-slate-900/5 focus:border-slate-400 text-sm font-semibold text-slate-800 transition-all shadow-sm" />
+                            </div>
+                            <div className="flex flex-col gap-1 w-full text-left">
+                                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Unidad del Lote</label>
+                                <select value={form.unidadLote} onChange={e => setForm({ ...form, unidadLote: e.target.value })} className="border border-slate-200 bg-slate-50 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-slate-900/5 focus:border-slate-400 text-sm font-semibold text-slate-800 transition-all shadow-sm cursor-pointer">
+                                    <option value="kg">kg</option>
+                                    <option value="Unidades">Unidades</option>
+                                </select>
                             </div>
                         </div>
                     </div>
