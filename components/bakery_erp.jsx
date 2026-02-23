@@ -9,6 +9,8 @@ import {
     Store, CheckCircle2, XCircle, Calculator, DollarSign, PieChart,
     RotateCcw, ChevronDown, ChevronUp, Eye
 } from 'lucide-react';
+import AntigravitySystem from './AntigravitySystem';
+import AntigravitySystem from './AntigravitySystem';
 
 // ============================================================================
 // DATOS MAESTROS INDUSTRIALES
@@ -239,48 +241,50 @@ export default function App() {
     ];
 
     return (
-        <div className="flex h-screen bg-slate-50 font-sans text-slate-900 overflow-hidden text-left">
-            <Toast message={toastMsg?.msg} type={toastMsg?.type} onClose={() => setToastMsg(null)} />
+        <AntigravitySystem>
+            <div className="flex h-screen bg-slate-50 font-sans text-slate-900 overflow-hidden text-left">
+                <Toast message={toastMsg?.msg} type={toastMsg?.type} onClose={() => setToastMsg(null)} />
 
-            <aside className="w-64 bg-slate-950 text-white flex flex-col shrink-0 shadow-2xl z-10 border-r border-slate-900 print:hidden">
-                <div className="p-6 border-b border-slate-900 flex items-center gap-3 mb-2">
-                    <div className="bg-orange-600 p-2 rounded-xl text-white"><Factory size={20} /></div>
-                    <div className="overflow-hidden">
-                        <h1 className="text-xl font-black italic uppercase leading-none truncate max-w-[140px]">{config.companyName}</h1>
-                        <p className="text-orange-500 text-[9px] font-black uppercase tracking-widest mt-1 truncate">{config.appName}</p>
+                <aside className="w-64 bg-slate-950 text-white flex flex-col shrink-0 shadow-2xl z-10 border-r border-slate-900 print:hidden fall-target">
+                    <div className="p-6 border-b border-slate-900 flex items-center gap-3 mb-2">
+                        <div className="bg-orange-600 p-2 rounded-xl text-white"><Factory size={20} /></div>
+                        <div className="overflow-hidden">
+                            <h1 className="text-xl font-black italic uppercase leading-none truncate max-w-[140px]">{config.companyName}</h1>
+                            <p className="text-orange-500 text-[9px] font-black uppercase tracking-widest mt-1 truncate">{config.appName}</p>
+                        </div>
                     </div>
-                </div>
-                <nav className="flex-1 p-4 flex flex-col gap-1 overflow-y-auto">
-                    {menuItems.map(item => (
-                        <button key={item.id} onClick={() => setView(item.id)} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-black text-[10px] uppercase tracking-wider ${view === item.id ? 'bg-orange-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-900 hover:text-slate-200'}`}>
-                            {item.icon} {item.label}
-                        </button>
-                    ))}
-                </nav>
-                <div className="p-4 border-t border-slate-900 text-center opacity-40">
-                    <p className="text-[8px] font-mono tracking-widest uppercase">Modo: Local Memory</p>
-                </div>
-            </aside>
-
-            <main className="flex-1 overflow-y-auto p-10 relative bg-slate-50 print:p-0 print:bg-white">
-                <header className="flex justify-between items-center mb-6 border-b border-slate-200 pb-4 print:hidden">
-                    <div>
-                        <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tighter italic leading-none">{menuItems.find(m => m.id === view)?.label}</h2>
-                        <p className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.2em] mt-1.5 leading-none italic">Sistema Integral de Manufactura Panadera</p>
+                    <nav className="flex-1 p-4 flex flex-col gap-1 overflow-y-auto">
+                        {menuItems.map(item => (
+                            <button key={item.id} onClick={() => setView(item.id)} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-black text-[10px] uppercase tracking-wider ${view === item.id ? 'bg-orange-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-900 hover:text-slate-200'}`}>
+                                {item.icon} {item.label}
+                            </button>
+                        ))}
+                    </nav>
+                    <div className="p-4 border-t border-slate-900 text-center opacity-40">
+                        <p className="text-[8px] font-mono tracking-widest uppercase">Modo: Local Memory</p>
                     </div>
-                </header>
+                </aside>
 
-                {view === 'dashboard' && <DashboardView recipes={recipes} ingredients={ingredients} lots={lots} orders={orders} logistics={logistics} quality={qualityLogs} config={config} purchases={purchases} />}
-                {view === 'inventory' && <InventoryView ingredients={ingredients} lots={lots} providers={providers} setLots={setLots} showToast={showToast} inventoryLogs={inventoryLogs} setInventoryLogs={setInventoryLogs} />}
-                {view === 'purchases' && <PurchasesView providers={providers} ingredients={ingredients} purchases={purchases} setPurchases={setPurchases} lots={lots} setLots={setLots} showToast={showToast} />}
-                {view === 'orders' && <ProductionOrdersView recipes={recipes} ingredients={ingredients} lots={lots} orders={orders} setOrders={setOrders} showToast={showToast} />}
-                {view === 'kanban' && <KanbanView orders={orders} recipes={recipes} setOrders={setOrders} qualityLogs={qualityLogs} setQualityLogs={setQualityLogs} showToast={showToast} />}
-                {view === 'engineering' && <EngineeringView recipes={recipes} ingredients={ingredients} setRecipes={setRecipes} setIngredients={setIngredients} showToast={showToast} config={config} />}
-                {view === 'logistics' && <LogisticsView recipes={recipes} logistics={logistics} setLogistics={setLogistics} branches={config.branches} showToast={showToast} />}
-                {view === 'master_data' && <MasterDataView ingredients={ingredients} setIngredients={setIngredients} providers={providers} setProviders={setProviders} showToast={showToast} />}
-                {view === 'settings' && <SettingsView config={config} setConfig={setConfig} showToast={showToast} />}
-            </main>
-        </div>
+                <main className="flex-1 overflow-y-auto p-10 relative bg-slate-50 print:p-0 print:bg-white">
+                    <header className="flex justify-between items-center mb-6 border-b border-slate-200 pb-4 print:hidden fall-target">
+                        <div>
+                            <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tighter italic leading-none">{menuItems.find(m => m.id === view)?.label}</h2>
+                            <p className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.2em] mt-1.5 leading-none italic">Sistema Integral de Manufactura Panadera</p>
+                        </div>
+                    </header>
+
+                    {view === 'dashboard' && <DashboardView recipes={recipes} ingredients={ingredients} lots={lots} orders={orders} logistics={logistics} quality={qualityLogs} config={config} purchases={purchases} />}
+                    {view === 'inventory' && <InventoryView ingredients={ingredients} lots={lots} providers={providers} setLots={setLots} showToast={showToast} inventoryLogs={inventoryLogs} setInventoryLogs={setInventoryLogs} />}
+                    {view === 'purchases' && <PurchasesView providers={providers} ingredients={ingredients} purchases={purchases} setPurchases={setPurchases} lots={lots} setLots={setLots} showToast={showToast} />}
+                    {view === 'orders' && <ProductionOrdersView recipes={recipes} ingredients={ingredients} lots={lots} orders={orders} setOrders={setOrders} showToast={showToast} />}
+                    {view === 'kanban' && <KanbanView orders={orders} recipes={recipes} setOrders={setOrders} qualityLogs={qualityLogs} setQualityLogs={setQualityLogs} showToast={showToast} />}
+                    {view === 'engineering' && <EngineeringView recipes={recipes} ingredients={ingredients} setRecipes={setRecipes} setIngredients={setIngredients} showToast={showToast} config={config} />}
+                    {view === 'logistics' && <LogisticsView recipes={recipes} logistics={logistics} setLogistics={setLogistics} branches={config.branches} showToast={showToast} />}
+                    {view === 'master_data' && <MasterDataView ingredients={ingredients} setIngredients={setIngredients} providers={providers} setProviders={setProviders} showToast={showToast} />}
+                    {view === 'settings' && <SettingsView config={config} setConfig={setConfig} showToast={showToast} />}
+                </main>
+            </div>
+        </AntigravitySystem>
     );
 }
 
@@ -313,29 +317,29 @@ function DashboardView({ recipes, ingredients, lots, orders, logistics, quality,
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <Card className="bg-slate-900 text-white p-3.5 relative overflow-hidden flex flex-col justify-center shadow-sm min-h-[64px]">
+                <Card className="fall-target bg-slate-900 text-white p-3.5 relative overflow-hidden flex flex-col justify-center shadow-sm min-h-[64px]">
                     <div className="absolute -right-2 -top-1 opacity-10"><ClipboardList size={48} /></div>
                     <p className="text-[8px] font-black uppercase opacity-60 tracking-widest mb-0.5">Pedidos Recibidos</p>
                     <h3 className="text-2xl font-black italic leading-none">{orders.length}</h3>
                 </Card>
-                <Card className="bg-emerald-700 text-white p-3.5 relative overflow-hidden flex flex-col justify-center shadow-sm min-h-[64px]">
+                <Card className="fall-target bg-emerald-700 text-white p-3.5 relative overflow-hidden flex flex-col justify-center shadow-sm min-h-[64px]">
                     <div className="absolute -right-2 -top-1 opacity-10"><Coins size={48} /></div>
                     <p className="text-[8px] font-black uppercase opacity-60 tracking-widest mb-0.5">Valorización Stock</p>
                     <h3 className="text-2xl font-black italic leading-none">${totalValue.toLocaleString('es-AR', { maximumFractionDigits: 0 })}</h3>
                 </Card>
-                <Card className="bg-rose-700 text-white p-3.5 relative overflow-hidden flex flex-col justify-center shadow-sm min-h-[64px]">
+                <Card className="fall-target bg-rose-700 text-white p-3.5 relative overflow-hidden flex flex-col justify-center shadow-sm min-h-[64px]">
                     <div className="absolute -right-2 -top-1 opacity-10"><AlertTriangle size={48} /></div>
                     <p className="text-[8px] font-black uppercase opacity-60 tracking-widest mb-0.5">Pendiente Pago MP</p>
                     <h3 className="text-2xl font-black italic leading-none">${pendientePago.toLocaleString('es-AR', { maximumFractionDigits: 0 })}</h3>
                 </Card>
-                <Card className="bg-blue-700 text-white p-3.5 relative overflow-hidden flex flex-col justify-center shadow-sm min-h-[64px]">
+                <Card className="fall-target bg-blue-700 text-white p-3.5 relative overflow-hidden flex flex-col justify-center shadow-sm min-h-[64px]">
                     <div className="absolute -right-2 -top-1 opacity-10"><Truck size={48} /></div>
                     <p className="text-[8px] font-black uppercase opacity-60 tracking-widest mb-0.5">Pendientes / Despachados</p>
                     <h3 className="text-2xl font-black italic leading-none">{pendientes} <span className="text-sm opacity-70">/ {despachados}</span></h3>
                 </Card>
             </div>
 
-            <Card className="w-full border-t-4 border-orange-500 flex flex-col overflow-hidden bg-white shadow-sm">
+            <Card className="fall-target w-full border-t-4 border-orange-500 flex flex-col overflow-hidden bg-white shadow-sm">
                 <div className="p-3 border-b border-slate-100 flex justify-between items-center bg-white">
                     <div>
                         <h4 className="text-base font-black uppercase italic text-slate-800 leading-none">Auditoría de Mermas</h4>
@@ -475,7 +479,7 @@ function EngineeringView({ recipes, ingredients, setRecipes, setIngredients, sho
 
     return (
         <div className="space-y-8 animate-in fade-in">
-            <div className="bg-white p-6 rounded-2xl border shadow-sm flex justify-between items-center gap-6">
+            <div className="fall-target bg-white p-6 rounded-2xl border shadow-sm flex justify-between items-center gap-6">
                 <div>
                     <h3 className="text-xl font-black uppercase italic text-slate-800">Catálogo MultiBOM y Costos</h3>
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Total Fichas Activas: {recipes.length}</p>
@@ -490,7 +494,7 @@ function EngineeringView({ recipes, ingredients, setRecipes, setIngredients, sho
             </div>
 
             {showAdd && (
-                <Card className="p-8 border-[4px] border-slate-900 bg-white shadow-2xl animate-in slide-in-from-top-4">
+                <Card className="fall-target p-8 border-[4px] border-slate-900 bg-white shadow-2xl animate-in slide-in-from-top-4">
                     <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 mb-6 space-y-4">
                         <div className="flex items-center gap-2 border-b border-slate-200 pb-2 mb-2">
                             <Hash size={16} className="text-slate-400" />
@@ -566,7 +570,7 @@ function EngineeringView({ recipes, ingredients, setRecipes, setIngredients, sho
                 </Card>
             )}
 
-            <Card className="overflow-hidden border-2 border-slate-200 shadow-sm mt-2 bg-white">
+            <Card className="fall-target overflow-hidden border-2 border-slate-200 shadow-sm mt-2 bg-white">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left font-bold text-xs uppercase text-slate-700">
                         <thead className="bg-slate-900 text-white text-[9px] tracking-widest">
@@ -914,7 +918,7 @@ function PurchasesView({ providers, ingredients, purchases, setPurchases, lots, 
 
     return (
         <div className="space-y-8 animate-in fade-in">
-            <Card className="p-6 border-t-8 border-blue-600">
+            <Card className="fall-target p-6 border-t-8 border-blue-600">
                 <h4 className="text-xl font-black uppercase italic mb-4 border-b pb-3 text-slate-800">Entrada de Insumos (Remitos)</h4>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 bg-slate-50 p-4 rounded-xl border">
                     <Select label="Proveedor Principal" value={form.providerId} onChange={e => setForm({ ...form, providerId: e })} required><option value="">Seleccionar...</option>{providers.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}</Select>
@@ -967,7 +971,7 @@ function ProductionOrdersView({ recipes, ingredients, lots, orders, setOrders, s
         <div className="space-y-6 animate-in fade-in">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="space-y-6 print:hidden">
-                    <Card className="p-5">
+                    <Card className="fall-target p-5">
                         <h4 className="text-sm font-black uppercase mb-3 italic text-slate-800">1. Crear Orden</h4>
                         <form onSubmit={createOrder} className="space-y-3">
                             <Select label="Ficha Técnica" value={form.recipeId} onChange={e => setForm({ ...form, recipeId: e })} required>
@@ -978,7 +982,7 @@ function ProductionOrdersView({ recipes, ingredients, lots, orders, setOrders, s
                             <Button type="submit" variant="primary" className="w-full py-2">Generar Orden</Button>
                         </form>
                     </Card>
-                    <Card className="p-4">
+                    <Card className="fall-target p-4">
                         <h4 className="text-xs font-black uppercase mb-3 italic border-b pb-2 text-slate-800">2. Pendientes</h4>
                         <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
                             {orders.filter(o => o.status === 'PLANIFICADA').map(o => {
@@ -996,7 +1000,7 @@ function ProductionOrdersView({ recipes, ingredients, lots, orders, setOrders, s
                     </Card>
                 </div>
 
-                <Card className="lg:col-span-2 p-10 bg-white border-2 border-slate-200 shadow-xl print:shadow-none print:border-none min-h-[600px] flex flex-col">
+                <Card className="fall-target lg:col-span-2 p-10 bg-white border-2 border-slate-200 shadow-xl print:shadow-none print:border-none min-h-[600px] flex flex-col">
                     {!selectedOrder ? (<div className="flex-1 flex flex-col items-center justify-center text-slate-300 print:hidden"><ClipboardList size={64} className="mb-4 opacity-50" /><p className="text-lg font-black uppercase tracking-widest italic">Seleccioná una orden</p></div>) : (
                         <div className="flex-1 flex flex-col animate-in fade-in">
                             <div className="flex justify-between items-start border-b-4 border-slate-900 pb-4 mb-6">
@@ -1075,7 +1079,7 @@ function KanbanView({ orders, recipes, setOrders, qualityLogs, setQualityLogs, s
     return (
         <div className="flex gap-4 h-[calc(100vh-220px)] overflow-x-auto pb-4">
             {ETAPAS_KANBAN.map(etapa => (
-                <div key={etapa.id} className="w-64 flex-shrink-0 flex flex-col bg-slate-100 rounded-xl border border-slate-200 shadow-inner">
+                <div key={etapa.id} className="fall-target w-64 flex-shrink-0 flex flex-col bg-slate-100 rounded-xl border border-slate-200 shadow-inner">
                     <div className="p-3 bg-white border-b-2 border-slate-200 flex justify-between items-center rounded-t-xl">
                         <div className="flex items-center gap-1.5 font-black text-[9px] uppercase text-slate-800">{etapa.icon} {etapa.nombre}</div>
                         <span className="text-[9px] font-black text-white bg-slate-900 px-1.5 py-0.5 rounded-full">{orders.filter(o => o.status === etapa.id).length}</span>
@@ -1099,7 +1103,7 @@ function KanbanView({ orders, recipes, setOrders, qualityLogs, setQualityLogs, s
             ))}
             {selected && (
                 <div className="fixed inset-0 bg-slate-950/80 flex items-center justify-center p-8 z-50 animate-in fade-in">
-                    <Card className="max-w-xl w-full p-8 border-[6px] border-slate-900 shadow-2xl">
+                    <Card className="fall-target max-w-xl w-full p-8 border-[6px] border-slate-900 shadow-2xl">
                         <h3 className="text-xl font-black uppercase italic mb-6 border-b pb-3">Auditoría HACCP y Cierre</h3>
                         <div className="space-y-5">
                             <div className="grid grid-cols-2 gap-5">
@@ -1148,7 +1152,7 @@ function LogisticsView({ recipes, logistics, setLogistics, branches, showToast }
 
     if (selectedDispatch) {
         return (
-            <Card className="max-w-3xl mx-auto p-10 bg-white border-2 shadow-2xl flex flex-col animate-in zoom-in-95">
+            <Card className="fall-target max-w-3xl mx-auto p-10 bg-white border-2 shadow-2xl flex flex-col animate-in zoom-in-95">
                 <div className="flex justify-between items-start border-b-4 border-slate-900 pb-6 mb-6">
                     <div><h1 className="text-3xl font-black uppercase italic tracking-tighter leading-none text-slate-900">Remito Traslado</h1><p className="text-sm font-bold uppercase text-slate-500 mt-2 tracking-[0.2em]">ID: {selectedDispatch.dispatchId}</p><h2 className="text-xl font-black uppercase mt-4 text-blue-600">Destino: {selectedDispatch.destination}</h2></div>
                     <div className="text-center"><div className="border-4 border-slate-900 p-2 rounded-xl bg-white"><QrCode size={80} /></div><p className="text-[8px] font-mono font-black mt-2">QR RECEPCIÓN</p></div>
@@ -1164,7 +1168,7 @@ function LogisticsView({ recipes, logistics, setLogistics, branches, showToast }
     return (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 text-left animate-in fade-in">
             <div className="lg:col-span-2 space-y-6">
-                <Card className="p-8 border-t-8 border-blue-600 bg-white shadow-xl">
+                <Card className="fall-target p-8 border-t-8 border-blue-600 bg-white shadow-xl">
                     <h4 className="text-2xl font-black uppercase italic mb-8 border-b pb-4 flex items-center gap-3 text-slate-800"><Truck className="text-blue-600" size={28} /> Armar Remito</h4>
                     <div className="mb-8"><Select label="Elegir Sucursal Destino" value={destination} onChange={e => setDestination(e)}><option value="">Seleccionar...</option>{branches?.map(b => <option key={b} value={b}>{b}</option>)}</Select></div>
                     <div className="flex gap-4 items-end bg-slate-50 p-6 rounded-2xl border mb-8"><div className="flex-1"><Select label="Producto Terminado" value={currentItem.recipeId} onChange={e => setCurrentItem({ ...currentItem, recipeId: e })}><option value="">Seleccionar...</option>{recipes.filter(r => !r.es_subensamble).map(r => <option key={r.id} value={r.id}>{r.nombre_producto}</option>)}</Select></div><div className="w-32"><Input label="Cantidad" type="number" value={currentItem.amount} onChange={v => setCurrentItem({ ...currentItem, amount: v })} /></div><Button variant="primary" className="py-2.5 h-[42px]" onClick={addToCart}>Agregar</Button></div>
@@ -1172,7 +1176,7 @@ function LogisticsView({ recipes, logistics, setLogistics, branches, showToast }
                 </Card>
             </div>
             <div className="space-y-6">
-                <Card className="p-6 bg-slate-900 text-white shadow-2xl">
+                <Card className="fall-target p-6 bg-slate-900 text-white shadow-2xl">
                     <h4 className="font-black uppercase italic mb-6 border-b border-slate-800 pb-3 text-orange-500">Historial</h4>
                     <div className="space-y-3">
                         {logistics.slice(0, 8).map(l => (
@@ -1264,14 +1268,14 @@ function MasterDataView({ ingredients, setIngredients, providers, setProviders, 
             </div>
 
             {tab === 'prov' && (
-                <Card className="p-6 bg-slate-50">
+                <Card className="fall-target p-6 bg-slate-50">
                     <div className="flex justify-between items-center mb-5">
                         <h4 className="text-base font-black uppercase italic text-slate-800">Directorio de Proveedores</h4>
                         <Button onClick={() => { setShowAdd(!showAdd); setForm({ id: null, codigo: '', nombre: '', cuit: '', rubro: '' }); }} variant={showAdd ? "secondary" : "accent"}>{showAdd ? "Cancelar" : <><Plus size={14} /> Nuevo Proveedor</>}</Button>
                     </div>
 
                     {showAdd && (
-                        <Card className="p-6 border-4 border-slate-900 bg-white mb-6">
+                        <Card className="fall-target p-6 border-4 border-slate-900 bg-white mb-6">
                             <h4 className="text-xs font-black uppercase mb-4 italic">{form.id ? 'Editar Proveedor' : 'Alta Proveedor'}</h4>
                             <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
                                 <div className="md:col-span-1"><Input label="Cod. Prov. (Auto)" value={form.codigo} disabled required /></div>
@@ -1406,7 +1410,7 @@ function SettingsView({ config, setConfig, showToast }) {
 
     return (
         <div className="space-y-6 animate-in fade-in max-w-4xl">
-            <Card className="p-6 border-t-8 border-slate-900 bg-white shadow-md">
+            <Card className="fall-target p-6 border-t-8 border-slate-900 bg-white shadow-md">
                 <div className="flex items-center gap-3 mb-5 border-b pb-3"><Building className="text-slate-800" size={24} /><h4 className="text-xl font-black uppercase italic text-slate-800">Datos de la Empresa</h4></div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
                     <Input label="Nombre de la Empresa / Marca" value={form.companyName} onChange={v => setForm({ ...form, companyName: v })} />
@@ -1414,7 +1418,7 @@ function SettingsView({ config, setConfig, showToast }) {
                 </div>
             </Card>
 
-            <Card className="p-6 border-t-8 border-emerald-500 bg-emerald-50/30 shadow-md">
+            <Card className="fall-target p-6 border-t-8 border-emerald-500 bg-emerald-50/30 shadow-md">
                 <div className="flex items-center gap-3 mb-5 border-b border-emerald-200 pb-3"><Calculator className="text-emerald-600" size={24} /><h4 className="text-xl font-black uppercase italic text-emerald-900">Variables Financieras Globales</h4></div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
                     <Input label="Costo Mano Obra ($ / Hora)" type="number" value={form.finanzas.costoHoraHombre} onChange={v => setForm({ ...form, finanzas: { ...form.finanzas, costoHoraHombre: Number(v) } })} />
@@ -1427,7 +1431,7 @@ function SettingsView({ config, setConfig, showToast }) {
                 <Button variant="success" onClick={saveCompanyData} className="px-10 py-3 shadow-md">Guardar Configuración</Button>
             </div>
 
-            <Card className="p-6 border-t-8 border-orange-500 bg-white shadow-md">
+            <Card className="fall-target p-6 border-t-8 border-orange-500 bg-white shadow-md">
                 <div className="flex items-center gap-3 mb-5 border-b pb-3"><Store className="text-orange-500" size={24} /><h4 className="text-xl font-black uppercase italic text-slate-800">Locales y Sucursales</h4></div>
                 <form onSubmit={addBranch} className="flex gap-4 items-end bg-slate-50 p-5 rounded-xl border mb-6"><div className="flex-1"><Input label="Nombre de la Nueva Sucursal" placeholder="Ej. Local Norte..." value={newBranch} onChange={setNewBranch} /></div><Button variant="primary" type="submit" className="py-2 px-5 h-[38px]"><Plus size={14} /> Agregar</Button></form>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
