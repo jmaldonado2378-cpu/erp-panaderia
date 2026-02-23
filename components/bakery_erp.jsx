@@ -1480,4 +1480,4 @@ function SettingsView({ config, setConfig, showToast }) {
             </Card>
         </div>
     );
-}
+} 
