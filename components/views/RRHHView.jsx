@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { UserCircle, Calendar, Users, Plus, Wrench, Clock } from 'lucide-react';
+import { UserCircle, Calendar, Users, Plus, Wrench, Clock, Trash2 } from 'lucide-react';
+
 import { Card, Button, Input, Select } from '../bakery_erp';
 
 export default function RRHHView({ operatives, setOperatives, config, showToast }) {
