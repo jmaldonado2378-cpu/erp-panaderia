@@ -1,4 +1,5 @@
 import './globals.css';
+import { GlobalProvider } from '../components/context/GlobalContext';
 
 export default function RootLayout({
   children,
@@ -7,7 +8,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="es">
-      <body className="bg-slate-900 m-0 p-0 overflow-hidden">{children}</body>
+      <body className="bg-slate-900 m-0 p-0 overflow-hidden">
+        <GlobalProvider>
+          {children}
+        </GlobalProvider>
+      </body>
     </html>
   );
 }
