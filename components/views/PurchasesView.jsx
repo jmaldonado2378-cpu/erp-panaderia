@@ -14,7 +14,7 @@ export default function PurchasesView({ providers, ingredients, setIngredients, 
         setCurrentItem({
             ...currentItem,
             ingredientId: id,
-            unitPrice: ing ? (ing.costo_estandar || 0) : ''
+            unitPrice: ing ? (Math.round((ing.costo_estandar || 0) * (ing.factor_conversion || 1)) || '') : ''
         });
     };
 
@@ -22,11 +22,13 @@ export default function PurchasesView({ providers, ingredients, setIngredients, 
         e.preventDefault();
         if (!currentItem.ingredientId || !currentItem.amount || !currentItem.expiry || !currentItem.unitPrice) return;
         const ing = ingredients.find(i => i.id === currentItem.ingredientId);
+        const factor = Number(ing.factor_conversion) || 1;
         setCart([...cart, { 
             ...currentItem, 
             name: ing.name, 
-            unit: ing.unidad_compra, 
-            factor_conversion: ing.factor_conversion || 1000,
+            unit: ing.unidad_compra,
+            unidad_base: ing.unidad_base || 'g',
+            factor_conversion: factor,
             subtotal: Number(currentItem.amount) * Number(currentItem.unitPrice) 
         }]);
         setCurrentItem({ ingredientId: '', amount: '', expiry: '', unitPrice: '' });
@@ -146,10 +148,22 @@ export default function PurchasesView({ providers, ingredients, setIngredients, 
                             </Select>
                         </div>
                         <div className="md:col-span-2">
-                            <Input label="Cantidad" type="number" step="0.01" value={currentItem.amount} onChange={v => setCurrentItem({ ...currentItem, amount: v })} required />
+                            <Input 
+                                label={currentItem.ingredientId ? `Cantidad (${ingredients.find(i=>i.id===currentItem.ingredientId)?.unidad_compra || 'presentaciones'})` : 'Cantidad'} 
+                                type="number" step="0.01" 
+                                value={currentItem.amount} 
+                                onChange={v => setCurrentItem({ ...currentItem, amount: v })} 
+                                required 
+                            />
                         </div>
                         <div className="md:col-span-2">
-                            <Input label="Precio Unit. ($)" type="number" step="0.01" value={currentItem.unitPrice} onChange={v => setCurrentItem({ ...currentItem, unitPrice: v })} required />
+                            <Input 
+                                label={currentItem.ingredientId ? `Precio x ${ingredients.find(i=>i.id===currentItem.ingredientId)?.unidad_compra || 'presentación'} ($)` : 'Precio Unit. ($)'} 
+                                type="number" step="0.01" 
+                                value={currentItem.unitPrice} 
+                                onChange={v => setCurrentItem({ ...currentItem, unitPrice: v })} 
+                                required 
+                            />
                         </div>
                         <div className="md:col-span-3">
                             <Input label="Vencimiento" type="date" value={currentItem.expiry} onChange={v => setCurrentItem({ ...currentItem, expiry: v })} required />
@@ -184,7 +198,10 @@ export default function PurchasesView({ providers, ingredients, setIngredients, 
                                             <td className="px-4 py-3 text-center font-mono text-orange-600">{new Date(item.expiry).toLocaleDateString('es-AR')}</td>
                                             <td className="px-4 py-3 text-right text-blue-600 font-mono">{item.amount} {item.unit}</td>
                                             <td className="px-4 py-3 text-right text-slate-500 font-mono">${Number(item.unitPrice).toLocaleString('es-AR', {minimumFractionDigits: 2})}</td>
-                                            <td className="px-4 py-3 text-right font-mono text-purple-600">${(Number(item.unitPrice) / Number(item.factor_conversion)).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 4})} <span className="text-[10px] text-slate-400">c/ {item.factor_conversion >= 1000 ? 'Kg o L' : 'Unid'}</span></td>
+                                            <td className="px-4 py-3 text-right font-mono text-purple-600">
+                                                ${(Number(item.unitPrice) / Number(item.factor_conversion)).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 4})}
+                                                <span className="text-[10px] text-slate-400">/{item.unidad_base || 'g'}</span>
+                                            </td>
                                             <td className="px-4 py-3 text-right text-emerald-600 font-mono font-black border-l">${item.subtotal.toLocaleString('es-AR', {minimumFractionDigits: 2})}</td>
                                             <td className="px-4 py-3 text-center">
                                                 <button onClick={() => removeFromCart(idx)} className="text-slate-300 hover:text-red-500 transition-colors">

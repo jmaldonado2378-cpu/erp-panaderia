@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Briefcase, Wrench, Layers, Building, Store } from 'lucide-react';
-import { Card, Button, Input, Select, CATEGORIAS_INSUMO, UBICACIONES_ALMACEN } from '../bakery_erp';
+import { Card, Button, Input, Select, CATEGORIAS_INSUMO, UBICACIONES_ALMACEN, PRESENTACIONES_COMPRA } from '../bakery_erp';
 import { supabase } from '../../lib/supabase';
 
 export default function MasterDataView({ ingredients, setIngredients, providers, setProviders, clientes, setClientes, showToast }) {
@@ -8,7 +8,7 @@ export default function MasterDataView({ ingredients, setIngredients, providers,
     const [form, setForm] = useState({ id: null, codigo: '', nombre: '', cuit: '', rubro: '' });
     const [showAdd, setShowAdd] = useState(false);
 
-    const [ingForm, setIngForm] = useState({ id: null, codigo: '', name: '', unidad_compra: 'Bolsa 25kg', familia: 'Harinas y Polvos', almacen: 'Almacén Secos Principal', alergeno: '', costo_estandar: '', tipo: 'insumo' });
+    const [ingForm, setIngForm] = useState({ id: null, codigo: '', name: '', unidad_compra: 'Bolsa 25 kg', factor_conversion: 25000, familia: 'Harinas y Polvos', almacen: 'Almacén Secos Principal', alergeno: '', costo_estandar: '', tipo: 'insumo' });
     const [showAddIng, setShowAddIng] = useState(false);
 
     const [cliForm, setCliForm] = useState({ id: null, codigo: '', nombre: '', cuit: '', tipo: 'Mayorista', direccion: '' });
@@ -90,6 +90,7 @@ export default function MasterDataView({ ingredients, setIngredients, providers,
             codigo: ingForm.codigo,
             name: ingForm.name,
             unidad_compra: ingForm.unidad_compra,
+            factor_conversion: Number(ingForm.factor_conversion) || 1,
             familia: ingForm.familia,
             almacen: ingForm.almacen,
             alergeno: ingForm.alergeno || null,
@@ -109,7 +110,7 @@ export default function MasterDataView({ ingredients, setIngredients, providers,
             setIngredients([{ ...data[0] }, ...ingredients]);
             showToast("Nuevo insumo registrado remotamente.");
         }
-        setIngForm({ id: null, codigo: '', name: '', unidad_compra: 'Bolsa 25kg', familia: 'Harinas y Polvos', almacen: 'Almacén Secos Principal', alergeno: '', costo_estandar: '' });
+        setIngForm({ id: null, codigo: '', name: '', unidad_compra: 'Bolsa 25 kg', factor_conversion: 25000, familia: 'Harinas y Polvos', almacen: 'Almacén Secos Principal', alergeno: '', costo_estandar: '', tipo: 'insumo' });
         setShowAddIng(false);
     };
 
@@ -210,7 +211,15 @@ export default function MasterDataView({ ingredients, setIngredients, providers,
                                 <Select label="Familia" value={ingForm.familia} onChange={e => setIngForm({ ...ingForm, familia: e })}>
                                     {CATEGORIAS_INSUMO.map(c => <option key={c} value={c}>{c}</option>)}
                                 </Select>
-                                <Input label="Unidad Compra" placeholder="Ej. Bolsa 25kg..." value={ingForm.unidad_compra} onChange={v => setIngForm({ ...ingForm, unidad_compra: v })} required />
+                                <Select label="Presentación de Compra" value={ingForm.unidad_compra} onChange={v => {
+                                    const preset = PRESENTACIONES_COMPRA.find(p => p.label === v);
+                                    setIngForm({ ...ingForm, unidad_compra: v, factor_conversion: preset?.factor ?? ingForm.factor_conversion });
+                                }}>
+                                    {PRESENTACIONES_COMPRA.map(p => <option key={p.label} value={p.label}>{p.label} {p.factor ? `(${p.factor.toLocaleString('es-AR')} ${p.unidad_base})` : ''}</option>)}
+                                </Select>
+                                {ingForm.unidad_compra === 'Personalizada' && (
+                                    <Input label="Factor (unidades base/presentación)" type="number" placeholder="Ej: 4500 para tarro 4.5kg" value={ingForm.factor_conversion} onChange={v => setIngForm({ ...ingForm, factor_conversion: Number(v) })} required />
+                                )}
 
                                 <div className="md:col-span-2"><Select label="Ubicación (Almacén)" value={ingForm.almacen} onChange={e => setIngForm({ ...ingForm, almacen: e })}>
                                     {UBICACIONES_ALMACEN.map(u => <option key={u} value={u}>{u}</option>)}

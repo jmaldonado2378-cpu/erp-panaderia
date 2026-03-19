@@ -40,6 +40,32 @@ export const ETAPAS_KANBAN = [
 export const CATEGORIAS_INSUMO = ['Harinas y Polvos', 'Lácteos y Derivados', 'Grasas y Aceites', 'Azúcares y Dulces', 'Fermentos', 'Aditivos y Esencias', 'Huevos', 'Empaque', 'WIP (Producción)', 'Otros'];
 export const UBICACIONES_ALMACEN = ['Almacén Secos Principal', 'Harinera', 'Cámara de Frío 1 (Insumos)', 'Cámara de Frío 2 (WIP)', 'Heladera de Tránsito', 'Depósito Empaque'];
 
+// Catálogo de presentaciones de compra con su factor de conversión a unidad base
+// factor_base: cuántas unidades base (g / ml / u) contiene UNA presentación
+export const PRESENTACIONES_COMPRA = [
+    // ── Harinas y Graneles (base: gramos) ─────────────────────────────────
+    { label: 'Bolsa 25 kg',   factor: 25000, unidad_base: 'g' },
+    { label: 'Bolsa 50 kg',   factor: 50000, unidad_base: 'g' },
+    { label: 'Bolsa 10 kg',   factor: 10000, unidad_base: 'g' },
+    { label: 'Bolsa 5 kg',    factor: 5000,  unidad_base: 'g' },
+    { label: 'Bolsa 1 kg',    factor: 1000,  unidad_base: 'g' },
+    { label: 'Kg suelto',     factor: 1000,  unidad_base: 'g' },
+    { label: 'Gramo suelto',  factor: 1,     unidad_base: 'g' },
+    // ── Líquidos (base: mililitros) ────────────────────────────────────────
+    { label: 'Bidón 20 L',    factor: 20000, unidad_base: 'ml' },
+    { label: 'Bidón 10 L',    factor: 10000, unidad_base: 'ml' },
+    { label: 'Litro',         factor: 1000,  unidad_base: 'ml' },
+    { label: 'Mililitro',     factor: 1,     unidad_base: 'ml' },
+    // ── Contables / Empaques (base: unidades) ─────────────────────────────
+    { label: 'Cajón 30 u',    factor: 30,    unidad_base: 'u' },
+    { label: 'Docena',        factor: 12,    unidad_base: 'u' },
+    { label: 'Unidad',        factor: 1,     unidad_base: 'u' },
+    { label: 'Rollo',         factor: 1,     unidad_base: 'u' },
+    // ── Personalizada ─────────────────────────────────────────────────────
+    { label: 'Personalizada', factor: null,  unidad_base: 'g' },
+];
+
+
 // ============================================================================
 // COMPONENTES UI
 // ============================================================================
