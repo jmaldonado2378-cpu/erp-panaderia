@@ -14,7 +14,7 @@ export default function PurchasesView({ providers, ingredients, setIngredients, 
         setCurrentItem({
             ...currentItem,
             ingredientId: id,
-            unitPrice: ing ? (Math.round((ing.costo_estandar || 0) * (ing.factor_conversion || 1)) || '') : ''
+            unitPrice: ing ? (Number(((ing.costo_estandar || 0) * (ing.factor_conversion || 1)).toFixed(2)) || '') : ''
         });
     };
 
@@ -93,7 +93,8 @@ export default function PurchasesView({ providers, ingredients, setIngredients, 
             // Por ahora actualizamos localmente para feedback inmediato
             const updatedIngredients = ingredients.map(ing => {
                 const cartItem = cart.find(c => c.ingredientId === ing.id);
-                return cartItem ? { ...ing, costo_estandar: Number(cartItem.unitPrice) } : ing;
+                const precioPorUnidadBase = Number(cartItem?.unitPrice) / Number(cartItem?.factor_conversion || 1);
+                return cartItem ? { ...ing, costo_estandar: precioPorUnidadBase } : ing;
             });
 
             setIngredients(updatedIngredients);
