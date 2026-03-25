@@ -337,7 +337,7 @@ export default function EngineeringView({ recipes, ingredients, setRecipes, setI
                                                                 <div className="flex items-center justify-center bg-orange-50 rounded border border-orange-200 px-1 py-0.5">
                                                                     <input type="number" className="w-full bg-transparent text-xs font-black text-center outline-none text-orange-800"
                                                                         value={l.porcentaje} placeholder="0"
-                                                                        onChange={e => { const v = e.target.value; const nd = [...form.details]; nd[i].porcentaje = v; nd[i].pctBatchInput = ''; nd[i].gramos = Number(v) * 10; setForm({ ...form, details: nd }); }} />
+                                                                        onChange={e => { const v = e.target.value; const nd = [...form.details]; nd[i].porcentaje = v; nd[i].pctBatchInput = ''; setForm({ ...form, details: nd }); }} />
                                                                     <span className="text-[9px] text-orange-400 font-bold ml-1">%</span>
                                                                 </div>
                                                             ) : (
@@ -349,7 +349,7 @@ export default function EngineeringView({ recipes, ingredients, setRecipes, setI
                                                                 <div className="flex items-center justify-center bg-emerald-50 rounded border border-emerald-200 px-1 py-0.5">
                                                                     <input type="number" className="w-full bg-transparent text-xs font-black text-center outline-none text-emerald-800" placeholder="0"
                                                                         value={l.pctBatchInput !== undefined ? l.pctBatchInput : (pctBatch !== '0.0' ? pctBatch : '')}
-                                                                        onChange={e => { const v = e.target.value; const nd = [...form.details]; nd[i].pctBatchInput = v; nd[i].gramos = v ? (Number(v) / 100) * kgLote * 1000 : 0; nd[i].porcentaje = ''; setForm({ ...form, details: nd }); }} />
+                                                                        onChange={e => { const v = e.target.value; const nd = [...form.details]; nd[i].pctBatchInput = v; nd[i].gramos = v ? Math.round((Number(v) / 100) * kgLoteBruto * 1000) : 0; nd[i].porcentaje = ''; setForm({ ...form, details: nd }); }} />
                                                                     <span className="text-[9px] text-emerald-600 font-bold ml-1">%</span>
                                                                 </div>
                                                             ) : (
