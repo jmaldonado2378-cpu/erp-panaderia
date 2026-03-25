@@ -8,7 +8,7 @@ export default function MasterDataView({ ingredients, setIngredients, providers,
     const [form, setForm] = useState({ id: null, codigo: '', nombre: '', cuit: '', rubro: '' });
     const [showAdd, setShowAdd] = useState(false);
 
-    const [ingForm, setIngForm] = useState({ id: null, codigo: '', name: '', unidad_compra: 'Bolsa 25 kg', factor_conversion: 25000, familia: 'Harinas y Polvos', almacen: 'Almacén Secos Principal', alergeno: '', costo_estandar: '', tipo: 'insumo' });
+    const [ingForm, setIngForm] = useState({ id: null, codigo: '', name: '', unidad_compra: 'Bolsa 25 kg', factor_conversion: 25000, unidad_base: 'g', familia: 'Harinas y Polvos', almacen: 'Almacén Secos Principal', alergeno: '', costo_estandar: '', tipo: 'insumo' });
     const [showAddIng, setShowAddIng] = useState(false);
 
     const [cliForm, setCliForm] = useState({ id: null, codigo: '', nombre: '', cuit: '', tipo: 'Mayorista', direccion: '' });
@@ -91,6 +91,7 @@ export default function MasterDataView({ ingredients, setIngredients, providers,
             name: ingForm.name,
             unidad_compra: ingForm.unidad_compra,
             factor_conversion: Number(ingForm.factor_conversion) || 1,
+            unidad_base: ingForm.unidad_base || 'g',
             familia: ingForm.familia,
             almacen: ingForm.almacen,
             alergeno: ingForm.alergeno || null,
@@ -110,7 +111,7 @@ export default function MasterDataView({ ingredients, setIngredients, providers,
             setIngredients([{ ...data[0] }, ...ingredients]);
             showToast("Nuevo insumo registrado remotamente.");
         }
-        setIngForm({ id: null, codigo: '', name: '', unidad_compra: 'Bolsa 25 kg', factor_conversion: 25000, familia: 'Harinas y Polvos', almacen: 'Almacén Secos Principal', alergeno: '', costo_estandar: '', tipo: 'insumo' });
+        setIngForm({ id: null, codigo: '', name: '', unidad_compra: 'Bolsa 25 kg', factor_conversion: 25000, unidad_base: 'g', familia: 'Harinas y Polvos', almacen: 'Almacén Secos Principal', alergeno: '', costo_estandar: '', tipo: 'insumo' });
         setShowAddIng(false);
     };
 
@@ -213,7 +214,7 @@ export default function MasterDataView({ ingredients, setIngredients, providers,
                                 </Select>
                                 <Select label="Presentación de Compra" value={ingForm.unidad_compra} onChange={v => {
                                     const preset = PRESENTACIONES_COMPRA.find(p => p.label === v);
-                                    setIngForm({ ...ingForm, unidad_compra: v, factor_conversion: preset?.factor ?? ingForm.factor_conversion });
+                                    setIngForm({ ...ingForm, unidad_compra: v, factor_conversion: preset?.factor ?? ingForm.factor_conversion, unidad_base: preset?.unidad_base ?? ingForm.unidad_base });
                                 }}>
                                     {PRESENTACIONES_COMPRA.map(p => <option key={p.label} value={p.label}>{p.label} {p.factor ? `(${p.factor.toLocaleString('es-AR')} ${p.unidad_base})` : ''}</option>)}
                                 </Select>
@@ -265,10 +266,15 @@ export default function MasterDataView({ ingredients, setIngredients, providers,
                                         <td className="px-4 py-1.5 text-center">
                                             {i.alergeno ? <span className="bg-red-50 text-red-600 border border-red-100 px-1.5 py-0.5 rounded text-[8px]">{i.alergeno}</span> : <span className="text-slate-300">-</span>}
                                         </td>
-                                        <td className="px-4 py-1.5 text-right font-mono text-emerald-600">${i.costo_estandar || 0}</td>
+                                         <td className="px-4 py-1.5 text-right font-mono">
+                                            {Number(i.costo_estandar) === 0
+                                                ? <span className="text-amber-500 font-black text-[9px] bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">⚠ Sin precio</span>
+                                                : <span className="text-emerald-600">${Number(i.costo_estandar).toLocaleString('es-AR', { minimumFractionDigits: 4, maximumFractionDigits: 6 })}/{i.unidad_base || 'g'}</span>
+                                            }
+                                         </td>
                                         <td className="px-4 py-1.5 text-center">
                                             {!i.es_subensamble && (
-                                                <button onClick={() => { setIngForm({ id: i.id, codigo: i.codigo, name: i.name, unidad_compra: i.unidad_compra, factor_conversion: i.factor_conversion ?? 25000, familia: i.familia || 'Harinas y Polvos', almacen: i.almacen || 'Almacén Secos Principal', alergeno: i.alergeno || '', costo_estandar: i.costo_estandar, tipo: i.tipo || 'insumo' }); setShowAddIng(true); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="p-1 text-slate-400 hover:text-slate-800 hover:bg-slate-200 rounded transition-colors opacity-0 group-hover:opacity-100"><Wrench size={12} /></button>
+                                                 <button onClick={() => { setIngForm({ id: i.id, codigo: i.codigo, name: i.name, unidad_compra: i.unidad_compra, factor_conversion: i.factor_conversion ?? 25000, unidad_base: i.unidad_base || 'g', familia: i.familia || 'Harinas y Polvos', almacen: i.almacen || 'Almacén Secos Principal', alergeno: i.alergeno || '', costo_estandar: i.costo_estandar, tipo: i.tipo || 'insumo' }); setShowAddIng(true); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="p-1 text-slate-400 hover:text-slate-800 hover:bg-slate-200 rounded transition-colors opacity-0 group-hover:opacity-100"><Wrench size={12} /></button>
                                             )}
                                         </td>
                                     </tr>
