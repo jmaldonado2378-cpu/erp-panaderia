@@ -54,6 +54,11 @@ export default function EngineeringView({ recipes, ingredients, setRecipes, setI
     const pesoFinal = pesoCrudo * (1 - (form.merma / 100));
     const hasFlourBase = form.details.some(d => Number(d.porcentaje) === 100);
     const isBatchFormula = form.logica_formula === 'batch';
+    // CRIT-1 + MED-2: validación de guardado según lógica de fórmula
+    const validDetails = form.details.filter(d => d.ingredientId && Number(d.gramos) > 0);
+    const canSave = form.nombre && form.codigo && (
+        isBatchFormula ? validDetails.length > 0 : hasFlourBase
+    );
 
     // Kg del lote (calculado, reemplaza dropdown)
     const kgLote = useMemo(() => {
@@ -78,7 +83,9 @@ export default function EngineeringView({ recipes, ingredients, setRecipes, setI
     }, [form.details, form.horas_hombre, form.formato_venta, form.peso_unidad, pesoFinal, ingredients, config]);
 
     const save = async () => {
-        if (!form.nombre || !form.codigo || !hasFlourBase) return;
+        if (!canSave) return;
+        // CRIT-1: nunca insertar filas con ingrediente vacío
+        const safeDetails = form.details.filter(d => d.ingredientId && Number(d.gramos) > 0);
         const recipeData = {
             codigo: form.codigo.toUpperCase(), nombre_producto: form.nombre, familia: form.familia,
             version: form.ver, es_subensamble: form.wip, merma: form.merma,
@@ -94,7 +101,7 @@ export default function EngineeringView({ recipes, ingredients, setRecipes, setI
             if (errRec) { showToast("Error BD: " + errRec.message, "error"); return; }
             await supabase.from('receta_ingredientes').delete().eq('receta_id', form.id);
             const { error: errDet } = await supabase.from('receta_ingredientes').insert(
-                form.details.map(d => ({ receta_id: form.id, ingrediente_id: d.ingredientId, porcentaje: d.porcentaje, gramos: d.gramos }))
+                safeDetails.map(d => ({ receta_id: form.id, ingrediente_id: d.ingredientId, porcentaje: d.porcentaje, gramos: d.gramos }))
             );
             if (errDet) { showToast("Error BD Escandallo: " + errDet.message, "error"); return; }
             setRecipes(recipes.map(r => r.id === form.id ? { ...r, ...recipeData, details: form.details, loteMinimo: recipeData.lote_minimo, unidadLote: 'kg' } : r));
@@ -104,7 +111,7 @@ export default function EngineeringView({ recipes, ingredients, setRecipes, setI
             if (errRec) { showToast("Error BD: " + errRec.message, "error"); return; }
             const newId = data[0].id;
             const { error: errDet } = await supabase.from('receta_ingredientes').insert(
-                form.details.map(d => ({ receta_id: newId, ingrediente_id: d.ingredientId, porcentaje: d.porcentaje, gramos: d.gramos }))
+                safeDetails.map(d => ({ receta_id: newId, ingrediente_id: d.ingredientId, porcentaje: d.porcentaje, gramos: d.gramos }))
             );
             if (errDet) { showToast("Error BD Escandallo: " + errDet.message, "error"); return; }
             setRecipes([{ ...data[0], details: form.details, loteMinimo: recipeData.lote_minimo, unidadLote: 'kg' }, ...recipes]);
@@ -335,7 +342,7 @@ export default function EngineeringView({ recipes, ingredients, setRecipes, setI
                                         {form.formato_venta === 'Unidad' && form.peso_unidad > 0 && <p className="text-xs font-black text-slate-300 italic mb-0.5">≈ {Math.floor(pesoFinal / form.peso_unidad)} Unid.</p>}
                                     </div>
                                 </div>
-                                <Button onClick={save} variant="success" className="py-2.5 px-6" disabled={!hasFlourBase || !form.nombre || !form.codigo}>
+                                <Button onClick={save} variant="success" className="py-2.5 px-6" disabled={!canSave}>
                                     {form.id ? "Actualizar Ficha" : "Guardar Ficha"}
                                 </Button>
                             </div>

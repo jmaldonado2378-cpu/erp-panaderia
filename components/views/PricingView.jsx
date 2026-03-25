@@ -126,11 +126,14 @@ export default function PricingView({ recipes, ingredients, config, showToast })
     const save = async (publicar = false) => {
         if (!selectedReceta || !localPricing || !costos) return;
         setSavingId(selectedReceta.id);
+        // CRIT-3: usar el precio del canal seleccionado, no siempre mostrador
+        const canalKey = `precio_${localPricing.canal_principal}`; // e.g. 'precio_mostrador'
+        const precioDelCanal = Number(localPricing[canalKey]) || precioSugerido;
         const payload = {
             ...localPricing,
             estado: publicar ? 'PUBLICADO' : localPricing.estado,
             costo_empaque_total: costos.costo_empaque_total,
-            precio_publicado: publicar ? (localPricing.precio_mostrador || precioSugerido) : localPricing.precio_publicado,
+            precio_publicado: publicar ? precioDelCanal : localPricing.precio_publicado,
             updated_at: new Date().toISOString()
         };
         const { data, error } = await supabase
@@ -240,7 +243,7 @@ export default function PricingView({ recipes, ingredients, config, showToast })
                                 <div className="flex items-center gap-2 mb-4 border-b pb-3">
                                     <DollarSign size={16} className="text-emerald-600" />
                                     <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-600">Árbol de Costos — {selectedReceta.nombre_producto}</h4>
-                                    <span className="ml-auto text-[9px] bg-slate-100 text-slate-500 font-black px-2 py-0.5 rounded uppercase">{costos.unidades_rinde.toFixed(0)} {selectedReceta.formato_venta === 'Unidad' ? 'Unid' : 'Kg'} x lote</span>
+                                    <span className="ml-auto text-[9px] bg-slate-100 text-slate-500 font-black px-2 py-0.5 rounded uppercase">{isNaN(costos.unidades_rinde) ? '—' : costos.unidades_rinde.toFixed(0)} {selectedReceta.formato_venta === 'Unidad' ? 'Unid' : 'Kg'} x lote</span>
                                 </div>
 
                                 <div className="space-y-2 mb-4">
@@ -363,7 +366,7 @@ export default function PricingView({ recipes, ingredients, config, showToast })
 
                                 {/* Botones */}
                                 <div className="flex gap-3">
-                                    <Button variant="secondary" className="flex-1 py-3 font-black uppercase" onClick={() => save(false)} disabled={!!savingId}>
+                                    <Button variant="secondary" className="flex-1 py-3 font-black uppercase" onClick={() => save(false)} disabled={!!savingId || !costos}>
                                         {savingId ? <Zap className="animate-pulse" size={16} /> : '💾 Guardar Borrador'}
                                     </Button>
                                     <Button variant="primary" className="flex-[2] py-3 font-black uppercase bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-200" onClick={() => save(true)} disabled={!!savingId}>
