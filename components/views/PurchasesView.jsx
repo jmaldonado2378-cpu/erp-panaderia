@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Trash2, PackagePlus, FileText, Calendar, DollarSign, Plus, Zap, CheckCircle2, AlertTriangle } from 'lucide-react';
-import { Card, Button, Input, Select } from '../bakery_erp';
+import { Card, Button, Input, Select, PRESENTACIONES_COMPRA } from '../bakery_erp';
 import { supabase } from '../../lib/supabase';
 
 // Formatea cantidad con la unidad base correcta del insumo
@@ -35,7 +35,15 @@ export default function PurchasesView({ providers, ingredients, setIngredients, 
 
     const handleIngredientChange = (id) => {
         const ing = ingredients.find(i => i.id === id);
-        const precioSugerido = ing ? Number(((ing.costo_estandar || 0) * (ing.factor_conversion || 1)).toFixed(2)) : '';
+        if (!ing) return;
+        
+        let realFactor = Number(ing.factor_conversion);
+        if (!realFactor || realFactor === 1 || realFactor === 0) {
+            const preset = PRESENTACIONES_COMPRA.find(p => p.label === ing.unidad_compra);
+            realFactor = preset?.factor || 1;
+        }
+        
+        const precioSugerido = Number(((ing.costo_estandar || 0) * realFactor).toFixed(2));
         setCurrentItem({ ...currentItem, ingredientId: id, unitPrice: precioSugerido || '' });
     };
 
@@ -57,16 +65,22 @@ export default function PurchasesView({ providers, ingredients, setIngredients, 
         }
 
         const ing = ingredients.find(i => i.id === currentItem.ingredientId);
-        const factor = Number(ing.factor_conversion) || 1;
+        
+        let realFactor = Number(ing.factor_conversion);
+        if (!realFactor || realFactor === 1 || realFactor === 0) {
+            const preset = PRESENTACIONES_COMPRA.find(p => p.label === ing.unidad_compra);
+            realFactor = preset?.factor || 1;
+        }
+        
         const unitPrice = Number(currentItem.unitPrice);
-        const costo_interno = unitPrice / factor;
+        const costo_interno = unitPrice / realFactor;
 
         setCart([...cart, {
             ...currentItem,
             name: ing.name,
             unit: ing.unidad_compra,
             unidad_base: ing.unidad_base || 'g',
-            factor_conversion: factor,
+            factor_conversion: realFactor,
             subtotal: Number(currentItem.amount) * unitPrice,
             costo_interno
         }]);
