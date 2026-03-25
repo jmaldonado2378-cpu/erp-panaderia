@@ -131,7 +131,7 @@ export default function EngineeringView({ recipes, ingredients, setRecipes, setI
             if (errRec) { showToast("Error BD: " + errRec.message, "error"); return; }
             await supabase.from('receta_ingredientes').delete().eq('receta_id', form.id);
             const { error: errDet } = await supabase.from('receta_ingredientes').insert(
-                safeDetails.map(d => ({ receta_id: form.id, ingrediente_id: d.ingredientId, porcentaje: d.porcentaje, gramos: d.gramos }))
+                safeDetails.map(d => ({ receta_id: form.id, ingrediente_id: d.ingredientId, porcentaje: d.porcentaje !== '' && d.porcentaje != null ? Number(d.porcentaje) : null, gramos: d.gramos }))
             );
             if (errDet) { showToast("Error BD Escandallo: " + errDet.message, "error"); return; }
             setRecipes(recipes.map(r => r.id === form.id ? { ...r, ...recipeData, details: form.details, loteMinimo: recipeData.lote_minimo, unidadLote: 'kg' } : r));
@@ -141,7 +141,7 @@ export default function EngineeringView({ recipes, ingredients, setRecipes, setI
             if (errRec) { showToast("Error BD: " + errRec.message, "error"); return; }
             const newId = data[0].id;
             const { error: errDet } = await supabase.from('receta_ingredientes').insert(
-                safeDetails.map(d => ({ receta_id: newId, ingrediente_id: d.ingredientId, porcentaje: d.porcentaje, gramos: d.gramos }))
+                safeDetails.map(d => ({ receta_id: newId, ingrediente_id: d.ingredientId, porcentaje: d.porcentaje !== '' && d.porcentaje != null ? Number(d.porcentaje) : null, gramos: d.gramos }))
             );
             if (errDet) { showToast("Error BD Escandallo: " + errDet.message, "error"); return; }
             setRecipes([{ ...data[0], details: form.details, loteMinimo: recipeData.lote_minimo, unidadLote: 'kg' }, ...recipes]);
