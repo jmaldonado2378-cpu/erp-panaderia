@@ -187,9 +187,13 @@ export default function InventoryView({ ingredients, lots, providers, setLots, s
                                         <Calendar size={10} /> {new Date(lot.expiry).toLocaleDateString('es-AR')}
                                     </span>
                                 </td>
-                                {/* [CRIT-4] Costo por unidad base */}
-                                <td className="px-4 py-1.5 text-right font-mono text-slate-400 text-[10px] print:hidden">
-                                    {lot.unitPrice ? `$${Number(lot.unitPrice).toLocaleString('es-AR', { minimumFractionDigits: 4, maximumFractionDigits: 6 })}/${lot.unidad_base}` : '—'}
+                                {/* [CRIT-4] Costo Estándar (Macro Kg/L) para legibilidad humana */}
+                                <td className="px-4 py-1.5 text-right font-mono text-slate-600 font-bold text-[11px] print:hidden">
+                                    {lot.unitPrice ? (
+                                        (lot.unidad_base === 'g' || lot.unidad_base === 'ml')
+                                            ? `$${(Number(lot.unitPrice) * 1000).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} / ${lot.unidad_base === 'g' ? 'Kg' : 'L'}`
+                                            : `$${Number(lot.unitPrice).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })} / ${lot.unidad_base}`
+                                    ) : '—'}
                                 </td>
                                 {/* [CRIT-4] Unidad correcta según unidad_base del ingrediente */}
                                 <td className="px-4 py-1.5 text-right font-mono text-slate-900 text-[11px]">

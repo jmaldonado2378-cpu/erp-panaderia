@@ -86,16 +86,17 @@ export default function MasterDataView({ ingredients, setIngredients, providers,
     const saveIngredient = async () => {
         if (!ingForm.name || !ingForm.unidad_compra) return;
         
+        const finalFactor = Number(ingForm.factor_conversion) || 1;
         const iData = {
             codigo: ingForm.codigo,
             name: ingForm.name,
             unidad_compra: ingForm.unidad_compra,
-            factor_conversion: Number(ingForm.factor_conversion) || 1,
+            factor_conversion: finalFactor,
             unidad_base: ingForm.unidad_base || 'g',
             familia: ingForm.familia,
             almacen: ingForm.almacen,
             alergeno: ingForm.alergeno || null,
-            costo_estandar: Number(ingForm.costo_estandar),
+            costo_estandar: Number(ingForm.costo_estandar) / finalFactor,
             tipo: ingForm.tipo || 'insumo',
             es_subensamble: false
         };
@@ -226,7 +227,7 @@ export default function MasterDataView({ ingredients, setIngredients, providers,
                                     {UBICACIONES_ALMACEN.map(u => <option key={u} value={u}>{u}</option>)}
                                 </Select></div>
                                 <div className="md:col-span-2"><Input label="Alérgenos" placeholder="Ej. TACC, Lácteo" value={ingForm.alergeno} onChange={v => setIngForm({ ...ingForm, alergeno: v })} /></div>
-                                <Input label="Costo Est. ($)" type="number" value={ingForm.costo_estandar} onChange={v => setIngForm({ ...ingForm, costo_estandar: v })} required />
+                                <Input label="Costo x Presentación ($)" type="number" placeholder="Ej. precio de la bolsa entera" value={ingForm.costo_estandar} onChange={v => setIngForm({ ...ingForm, costo_estandar: v })} required />
                             </div>
                             <div className="flex justify-end mt-4 pt-4 border-t border-slate-100">
                                 <Button onClick={saveIngredient} variant="success" className="py-2 px-6">Guardar Insumo</Button>
@@ -269,12 +270,15 @@ export default function MasterDataView({ ingredients, setIngredients, providers,
                                          <td className="px-4 py-1.5 text-right font-mono">
                                             {Number(i.costo_estandar) === 0
                                                 ? <span className="text-amber-500 font-black text-[9px] bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">⚠ Sin precio</span>
-                                                : <span className="text-emerald-600">${Number(i.costo_estandar).toLocaleString('es-AR', { minimumFractionDigits: 4, maximumFractionDigits: 6 })}/{i.unidad_base || 'g'}</span>
+                                                : <div className="flex flex-col items-end">
+                                                      <span className="text-emerald-600 font-bold">${Number(i.costo_estandar * (i.factor_conversion || 1)).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                                      <span className="text-[8px] text-slate-400 capitalize -mt-0.5">/ {i.unidad_compra}</span>
+                                                  </div>
                                             }
                                          </td>
                                         <td className="px-4 py-1.5 text-center">
                                             {!i.es_subensamble && (
-                                                 <button onClick={() => { setIngForm({ id: i.id, codigo: i.codigo, name: i.name, unidad_compra: i.unidad_compra, factor_conversion: i.factor_conversion ?? 25000, unidad_base: i.unidad_base || 'g', familia: i.familia || 'Harinas y Polvos', almacen: i.almacen || 'Almacén Secos Principal', alergeno: i.alergeno || '', costo_estandar: i.costo_estandar, tipo: i.tipo || 'insumo' }); setShowAddIng(true); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="p-1 text-slate-400 hover:text-slate-800 hover:bg-slate-200 rounded transition-colors opacity-0 group-hover:opacity-100"><Wrench size={12} /></button>
+                                                 <button onClick={() => { setIngForm({ id: i.id, codigo: i.codigo, name: i.name, unidad_compra: i.unidad_compra, factor_conversion: i.factor_conversion ?? 25000, unidad_base: i.unidad_base || 'g', familia: i.familia || 'Harinas y Polvos', almacen: i.almacen || 'Almacén Secos Principal', alergeno: i.alergeno || '', costo_estandar: Number(i.costo_estandar || 0) * Number(i.factor_conversion || 1), tipo: i.tipo || 'insumo' }); setShowAddIng(true); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="p-1 text-slate-400 hover:text-slate-800 hover:bg-slate-200 rounded transition-colors opacity-0 group-hover:opacity-100"><Wrench size={12} /></button>
                                             )}
                                         </td>
                                     </tr>
