@@ -50,27 +50,56 @@ export default function EngineeringView({ recipes, ingredients, setRecipes, setI
     );
 
     // Derivados
-    const pesoCrudo = form.details.reduce((a, b) => a + Number(b.gramos || 0), 0);
-    const pesoFinal = pesoCrudo * (1 - (form.merma / 100));
-    const hasFlourBase = form.details.some(d => Number(d.porcentaje) === 100);
     const isBatchFormula = form.logica_formula === 'batch';
-    // CRIT-1 + MED-2: validación de guardado según lógica de fórmula
-    const validDetails = form.details.filter(d => d.ingredientId && Number(d.gramos) > 0);
-    const canSave = form.nombre && form.codigo && (
-        isBatchFormula ? validDetails.length > 0 : hasFlourBase
-    );
 
-    // Kg del lote (calculado, reemplaza dropdown)
-    const kgLote = useMemo(() => {
+    // Peso FINAL del lote (producto terminado, para mostrar al usuario)
+    const kgLoteFinal = useMemo(() => {
         if (form.formato_venta === 'Unidad') return (Number(form.loteMinimo) * Number(form.peso_unidad)) / 1000;
         return Number(form.loteMinimo);
     }, [form.formato_venta, form.loteMinimo, form.peso_unidad]);
 
-    // Panel de costos en tiempo real (Opción A)
+    // Peso BRUTO del lote (masa cruda antes de merma) — base real para ingredientes
+    const kgLoteBruto = useMemo(() => {
+        const mermaFactor = 1 - (Number(form.merma || 0) / 100);
+        return mermaFactor > 0 ? kgLoteFinal / mermaFactor : kgLoteFinal;
+    }, [kgLoteFinal, form.merma]);
+
+    // Gramos por ingrediente según lógica activa
+    //   % Panadero → auto-escala desde kgLoteBruto (Opción 1)
+    //   % Batch    → usa los gramos ingresados por el usuario
+    const detailsConGramos = useMemo(() => {
+        if (isBatchFormula) {
+            return form.details.map(d => ({ ...d, gramos: Number(d.gramos || 0) }));
+        }
+        // % Panadero: la base no es fija (1kg) — escala para cumplir el lote mínimo
+        const sumPct = form.details.reduce((acc, d) => acc + Number(d.porcentaje || 0), 0);
+        if (sumPct === 0) return form.details.map(d => ({ ...d, gramos: 0 }));
+        const masaBruta = kgLoteBruto * 1000; // en gramos
+        const baseHarina = masaBruta / (sumPct / 100); // harina base escalada
+        return form.details.map(d => ({
+            ...d,
+            gramos: Number(d.porcentaje || 0) > 0 ? Math.round((Number(d.porcentaje) / 100) * baseHarina) : 0
+        }));
+    }, [form.details, isBatchFormula, kgLoteBruto]);
+
+    // pesoCrudo y pesoFinal derivados de los gramos calculados (no hardcodeados)
+    const pesoCrudo = detailsConGramos.reduce((a, b) => a + Number(b.gramos || 0), 0);
+    const pesoFinal = pesoCrudo * (1 - (Number(form.merma || 0) / 100));
+
+    const hasFlourBase = form.details.some(d => Number(d.porcentaje) === 100);
+    const validDetails = detailsConGramos.filter(d => d.ingredientId && d.gramos > 0);
+    const canSave = form.nombre && form.codigo && (isBatchFormula ? validDetails.length > 0 : hasFlourBase);
+
+    // Suma de % Batch — debe ser exactamente 100%
+    const pctBatchSum = isBatchFormula
+        ? form.details.reduce((a, d) => a + Number(d.pctBatchInput || 0), 0)
+        : 0;
+
+    // Panel de costos en tiempo real (Opción A) — usa detailsConGramos
     const panelCostos = useMemo(() => {
-        const costo_mp = form.details.reduce((acc, d) => {
+        const costo_mp = detailsConGramos.reduce((acc, d) => {
             const ing = ingredients.find(i => i.id === d.ingredientId);
-            return acc + (Number(d.gramos || 0) * (ing?.costo_estandar || 0));
+            return acc + (d.gramos * (ing?.costo_estandar || 0));
         }, 0);
         const costo_mo = (Number(form.horas_hombre) || 0) * (config?.finanzas?.costoHoraHombre || 4500);
         const costo_cif = costo_mp * ((config?.finanzas?.costosIndirectosPct || 20) / 100);
@@ -80,12 +109,13 @@ export default function EngineeringView({ recipes, ingredients, setRecipes, setI
             : pesoFinal / 1000;
         unidades = unidades || 1;
         return { costo_mp, costo_mo, costo_cif, costo_total, costo_unitario: costo_total / unidades, unidades };
-    }, [form.details, form.horas_hombre, form.formato_venta, form.peso_unidad, pesoFinal, ingredients, config]);
+    }, [detailsConGramos, form.horas_hombre, form.formato_venta, form.peso_unidad, pesoFinal, ingredients, config]);
 
     const save = async () => {
         if (!canSave) return;
         // CRIT-1: nunca insertar filas con ingrediente vacío
-        const safeDetails = form.details.filter(d => d.ingredientId && Number(d.gramos) > 0);
+        // Usar detailsConGramos: para Panadero tienen gramos calculados, para Batch los ingresados
+        const safeDetails = detailsConGramos.filter(d => d.ingredientId && d.gramos > 0);
         const recipeData = {
             codigo: form.codigo.toUpperCase(), nombre_producto: form.nombre, familia: form.familia,
             version: form.ver, es_subensamble: form.wip, merma: form.merma,
@@ -230,13 +260,17 @@ export default function EngineeringView({ recipes, ingredients, setRecipes, setI
                                             className="w-full border border-slate-200 bg-slate-50 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-slate-900/5 text-sm font-semibold text-slate-800 shadow-sm" />
                                     </div>
                                     <div className="flex flex-col gap-1">
-                                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Kg del Lote</label>
+                                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">
+                                            Kg del Lote <span className="text-slate-300 font-normal normal-case">(masa cruda)</span>
+                                        </label>
                                         <div className="flex items-center gap-3 bg-slate-100 border border-slate-200 rounded-lg px-3 py-2 h-[42px]">
                                             <span className="text-sm font-black text-slate-800 font-mono">
-                                                {kgLote >= 1 ? `${kgLote.toFixed(2)} kg` : `${(kgLote * 1000).toFixed(0)} g`}
+                                                {kgLoteBruto >= 1 ? `${kgLoteBruto.toFixed(2)} kg` : `${(kgLoteBruto * 1000).toFixed(0)} g`}
                                             </span>
                                             {form.formato_venta === 'Unidad' && (
-                                                <span className="text-[10px] text-slate-400 font-bold">{form.loteMinimo} u × {form.peso_unidad} g</span>
+                                                <span className="text-[10px] text-slate-400 font-bold">
+                                                    rinde {form.loteMinimo} u × {form.peso_unidad}g
+                                                </span>
                                             )}
                                         </div>
                                     </div>
@@ -257,7 +291,21 @@ export default function EngineeringView({ recipes, ingredients, setRecipes, setI
 
                             {/* ESCANDALLO */}
                             <div className="mb-6">
-                                <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest bg-slate-100 px-3 py-1 rounded-lg inline-block mb-3">Escandallo</p>
+                                <div className="flex items-center justify-between mb-3">
+                                    <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest bg-slate-100 px-3 py-1 rounded-lg inline-block">Escandallo</p>
+                                    {isBatchFormula && (
+                                        <span className={`text-[10px] font-black px-2 py-1 rounded-lg border ${
+                                            Math.abs(pctBatchSum - 100) <= 1
+                                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                                : 'bg-red-50 text-red-600 border-red-200'
+                                        }`}>
+                                            {Math.abs(pctBatchSum - 100) <= 1 ? '✓' : '⚠'} Suma: {pctBatchSum.toFixed(1)}% {Math.abs(pctBatchSum - 100) <= 1 ? '' : '≠ 100%'}
+                                        </span>
+                                    )}
+                                    {!isBatchFormula && (
+                                        <span className="text-[10px] text-slate-400 font-bold italic">Gramos calculados automáticamente desde lote mínimo</span>
+                                    )}
+                                </div>
                                 <div className="border border-slate-200 rounded-lg overflow-hidden bg-white shadow-sm">
                                     <table className="w-full text-left">
                                         <thead className="bg-slate-900 text-white text-[9px] uppercase tracking-widest">
@@ -265,13 +313,14 @@ export default function EngineeringView({ recipes, ingredients, setRecipes, setI
                                                 <th className="px-3 py-1.5">Componente</th>
                                                 <th className={`px-3 py-1.5 w-28 text-center ${!isBatchFormula ? 'bg-orange-700' : 'opacity-40'}`}>% Panadero</th>
                                                 <th className={`px-3 py-1.5 w-28 text-center ${isBatchFormula ? 'bg-emerald-700' : 'opacity-40'}`}>% T. Batch</th>
-                                                <th className="px-3 py-1.5 w-24 text-center">Gramos</th>
+                                                <th className={`px-3 py-1.5 w-24 text-center ${!isBatchFormula ? 'bg-orange-900/40' : ''}`}>Gramos {!isBatchFormula && <span className="opacity-60">(calc)</span>}</th>
                                                 <th className="px-3 py-1.5 w-10"></th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-slate-100 bg-white">
                                             {form.details.map((l, i) => {
-                                                const pctBatch = pesoCrudo > 0 ? ((Number(l.gramos || 0) / pesoCrudo) * 100).toFixed(1) : '0.0';
+                                                const computedGramos = detailsConGramos[i]?.gramos || 0;
+                                                const pctBatch = pesoCrudo > 0 ? ((computedGramos / pesoCrudo) * 100).toFixed(1) : '0.0';
                                                 const ing = ingredients.find(x => x.id === l.ingredientId);
                                                 return (
                                                     <tr key={i} className="hover:bg-slate-50 transition-colors group">
@@ -308,12 +357,21 @@ export default function EngineeringView({ recipes, ingredients, setRecipes, setI
                                                             )}
                                                         </td>
                                                         <td className="px-2 py-1 border-r border-slate-100">
-                                                            <div className="flex items-center justify-center bg-slate-100 rounded border border-slate-200 px-1 py-0.5">
-                                                                <input type="number" className="w-full bg-transparent text-xs font-black text-center outline-none text-slate-800" placeholder="0"
-                                                                    value={l.gramos}
-                                                                    onChange={e => { const v = e.target.value; const nd = [...form.details]; nd[i].gramos = v; if (isBatchFormula) nd[i].pctBatchInput = ''; setForm({ ...form, details: nd }); }} />
-                                                                <span className="text-[9px] text-slate-400 font-bold ml-1">g</span>
-                                                            </div>
+                                                            {isBatchFormula ? (
+                                                                // % Batch: editable por el usuario
+                                                                <div className="flex items-center justify-center bg-slate-100 rounded border border-slate-200 px-1 py-0.5">
+                                                                    <input type="number" className="w-full bg-transparent text-xs font-black text-center outline-none text-slate-800" placeholder="0"
+                                                                        value={l.gramos}
+                                                                        onChange={e => { const v = e.target.value; const nd = [...form.details]; nd[i].gramos = v; nd[i].pctBatchInput = ''; setForm({ ...form, details: nd }); }} />
+                                                                    <span className="text-[9px] text-slate-400 font-bold ml-1">g</span>
+                                                                </div>
+                                                            ) : (
+                                                                // % Panadero: READONLY — calculado automáticamente desde lote mínimo
+                                                                <div className="flex items-center justify-center bg-orange-50 rounded border border-orange-200 px-1 py-0.5">
+                                                                    <span className="text-xs font-black text-orange-800 text-center w-full">{computedGramos.toLocaleString('es-AR')}</span>
+                                                                    <span className="text-[9px] text-orange-400 font-bold ml-1">g</span>
+                                                                </div>
+                                                            )}
                                                         </td>
                                                         <td className="px-2 py-1 text-center">
                                                             <button type="button" onClick={() => { const nd = [...form.details]; nd.splice(i, 1); setForm({ ...form, details: nd }); }} className="text-slate-300 hover:text-red-500 hover:bg-red-50 p-1 rounded transition-all opacity-0 group-hover:opacity-100"><Trash2 size={12} /></button>

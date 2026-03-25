@@ -8,23 +8,50 @@ import { supabase } from '../../lib/supabase';
    HELPER: Calcula árbol de costos de una receta
    ================================================================ */
 function calcCostos(receta, ingredients, config) {
-    const costo_mp = receta.details?.reduce((acc, d) => {
-        const ing = ingredients.find(i => i.id === d.ingredientId);
-        return acc + (Number(d.gramos || 0) * (ing?.costo_estandar || 0));
-    }, 0) || 0;
+    const isBatch = receta.logica_formula === 'batch';
+    const merma = Number(receta.merma || 0);
+    const mermaFactor = 1 - merma / 100;
+
+    // kgLoteFinal: peso terminado objetivo
+    let kgLoteFinal;
+    if (receta.formato_venta === 'Unidad') {
+        kgLoteFinal = (Number(receta.lote_minimo || 1) * Number(receta.peso_unidad || 0)) / 1000;
+    } else {
+        kgLoteFinal = Number(receta.lote_minimo || 1);
+    }
+
+    // kgLoteBruto: masa cruda necesaria (mismo cálculo que EngineeringView)
+    const kgLoteBruto = mermaFactor > 0 ? kgLoteFinal / mermaFactor : kgLoteFinal;
+
+    // Gramos por ingrediente según lógica (espejo de EngineeringView)
+    const details = receta.details || [];
+    let gramosMap;
+    if (isBatch) {
+        gramosMap = details.map(d => Number(d.gramos || 0));
+    } else {
+        const sumPct = details.reduce((acc, d) => acc + Number(d.porcentaje || 0), 0);
+        const masaBruta = kgLoteBruto * 1000;
+        const baseHarina = sumPct > 0 ? masaBruta / (sumPct / 100) : 0;
+        gramosMap = details.map(d => Number(d.porcentaje || 0) > 0
+            ? Math.round((Number(d.porcentaje) / 100) * baseHarina) : 0);
+    }
+
+    const costo_mp = details.reduce((acc, d, i) => {
+        const ing = ingredients.find(x => x.id === d.ingredientId);
+        return acc + (gramosMap[i] * (ing?.costo_estandar || 0));
+    }, 0);
 
     const costo_mo = (Number(receta.horas_hombre) || 0) * (config?.finanzas?.costoHoraHombre || 4500);
     const costo_cif = costo_mp * ((config?.finanzas?.costosIndirectosPct || 20) / 100);
 
-    let unidades_rinde = 1;
-    if (receta.formato_venta === 'Unidad' && receta.peso_unidad > 0) {
-        unidades_rinde = Math.floor(Number(receta.peso_final) / Number(receta.peso_unidad));
-    } else {
-        unidades_rinde = Number(receta.peso_final) / 1000;
-    }
+    // unidades_rinde desde lote_minimo (no desde peso_final en BD que puede estar desactualizado)
+    const unidades_rinde = receta.formato_venta === 'Unidad'
+        ? Number(receta.lote_minimo || 1)
+        : kgLoteFinal;
 
-    return { costo_mp, costo_mo, costo_cif, unidades_rinde: unidades_rinde || 1 };
+    return { costo_mp, costo_mo, costo_cif, costo_empaque_total: 0, unidades_rinde: unidades_rinde || 1 };
 }
+
 
 /* ================================================================
    COMPONENTE PRINCIPAL
