@@ -268,7 +268,7 @@ export default function MasterDataView({ ingredients, setIngredients, providers,
                                         <td className="px-4 py-1.5 text-right font-mono text-emerald-600">${i.costo_estandar || 0}</td>
                                         <td className="px-4 py-1.5 text-center">
                                             {!i.es_subensamble && (
-                                                <button onClick={() => { setIngForm({ id: i.id, codigo: i.codigo, name: i.name, unidad_compra: i.unidad_compra, familia: i.familia || 'Harinas y Polvos', almacen: i.almacen || 'Almacén Secos Principal', alergeno: i.alergeno, costo_estandar: i.costo_estandar }); setShowAddIng(true); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="p-1 text-slate-400 hover:text-slate-800 hover:bg-slate-200 rounded transition-colors opacity-0 group-hover:opacity-100"><Wrench size={12} /></button>
+                                                <button onClick={() => { setIngForm({ id: i.id, codigo: i.codigo, name: i.name, unidad_compra: i.unidad_compra, factor_conversion: i.factor_conversion ?? 25000, familia: i.familia || 'Harinas y Polvos', almacen: i.almacen || 'Almacén Secos Principal', alergeno: i.alergeno || '', costo_estandar: i.costo_estandar, tipo: i.tipo || 'insumo' }); setShowAddIng(true); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="p-1 text-slate-400 hover:text-slate-800 hover:bg-slate-200 rounded transition-colors opacity-0 group-hover:opacity-100"><Wrench size={12} /></button>
                                             )}
                                         </td>
                                     </tr>

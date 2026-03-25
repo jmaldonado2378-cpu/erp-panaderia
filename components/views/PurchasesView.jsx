@@ -29,7 +29,8 @@ export default function PurchasesView({ providers, ingredients, setIngredients, 
             unit: ing.unidad_compra,
             unidad_base: ing.unidad_base || 'g',
             factor_conversion: factor,
-            subtotal: Number(currentItem.amount) * Number(currentItem.unitPrice) 
+            subtotal: Number(currentItem.amount) * Number(currentItem.unitPrice),
+            costo_interno: Number(currentItem.unitPrice) / factor
         }]);
         setCurrentItem({ ingredientId: '', amount: '', expiry: '', unitPrice: '' });
     };
@@ -200,8 +201,8 @@ export default function PurchasesView({ providers, ingredients, setIngredients, 
                                             <td className="px-4 py-3 text-right text-blue-600 font-mono">{item.amount} {item.unit}</td>
                                             <td className="px-4 py-3 text-right text-slate-500 font-mono">${Number(item.unitPrice).toLocaleString('es-AR', {minimumFractionDigits: 2})}</td>
                                             <td className="px-4 py-3 text-right font-mono text-purple-600">
-                                                ${(Number(item.unitPrice) / Number(item.factor_conversion)).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 4})}
-                                                <span className="text-[10px] text-slate-400">/{item.unidad_base || 'g'}</span>
+                                                <span className="block">${(item.costo_interno ?? (Number(item.unitPrice) / Number(item.factor_conversion || 1))).toLocaleString('es-AR', {minimumFractionDigits: 4, maximumFractionDigits: 6})}</span>
+                                                <span className="text-[10px] text-slate-400 font-bold">por {item.unidad_base || 'g'} · factor {Number(item.factor_conversion || 1).toLocaleString('es-AR')}</span>
                                             </td>
                                             <td className="px-4 py-3 text-right text-emerald-600 font-mono font-black border-l">${item.subtotal.toLocaleString('es-AR', {minimumFractionDigits: 2})}</td>
                                             <td className="px-4 py-3 text-center">
