@@ -179,6 +179,9 @@ export const GlobalProvider = ({ children }) => {
                         ingredientId: l.ingrediente_id,
                         providerId: l.proveedor_id,
                         amount: l.cantidad_actual,
+                        unitPrice: l.costo_unitario,
+                        codigo_lote: l.codigo_lote,
+                        unidad: l.unidad,
                         expiry: l.fecha_vencimiento,
                         ingreso: l.fecha_ingreso
                     })));
