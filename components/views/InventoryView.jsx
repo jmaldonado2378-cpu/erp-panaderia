@@ -148,6 +148,7 @@ export default function InventoryView({ ingredients, lots, providers, setLots, s
 
     const toggleRow = (ingId) => {
         setExpandedRows(prev => ({ ...prev, [ingId]: !prev[ingId] }));
+    };
 
     // Cargar historial persistente desde BD al abrir el modal
     const cargarHistorial = async () => {
