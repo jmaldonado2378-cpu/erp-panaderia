@@ -95,11 +95,41 @@ export default function EngineeringView({ recipes, ingredients, setRecipes, setI
         ? form.details.reduce((a, d) => a + Number(d.pctBatchInput || 0), 0)
         : 0;
 
+    // Función recursiva para calcular el costo por gramo de un ingrediente (soporta sub-BOMs / WIPs)
+    const getIngredientCost = React.useCallback((ing, visited = new Set()) => {
+        if (!ing) return 0;
+        if (visited.has(ing.id)) return 0; // Evitar referencias circulares
+
+        if (!ing.es_subensamble) {
+            return Number(ing.costo_estandar || 0);
+        }
+
+        // Buscar receta del WIP por código o nombre
+        const recipe = recipes.find(r => r.codigo === ing.codigo || r.nombre_producto === ing.name?.replace('[WIP] ', ''));
+        if (!recipe) return Number(ing.costo_estandar || 0);
+
+        const visitedNext = new Set(visited);
+        visitedNext.add(ing.id);
+
+        const costo_mp = recipe.details?.reduce((acc, d) => {
+            const detailIng = ingredients.find(i => i.id === d.ingredientId);
+            const costPerGram = getIngredientCost(detailIng, visitedNext);
+            return acc + (Number(d.gramos || 0) * costPerGram);
+        }, 0) || 0;
+
+        const costo_mo = (Number(recipe.horas_hombre) || 0) * (config?.finanzas?.costoHoraHombre || 4500);
+        const costo_cif = costo_mp * ((config?.finanzas?.costosIndirectosPct || 20) / 100);
+        const costo_total = costo_mp + costo_mo + costo_cif;
+
+        const pesoFinalG = Number(recipe.peso_final) || 1;
+        return costo_total / pesoFinalG;
+    }, [recipes, ingredients, config]);
+
     // Panel de costos en tiempo real (Opción A) — usa detailsConGramos
     const panelCostos = useMemo(() => {
         const costo_mp = detailsConGramos.reduce((acc, d) => {
             const ing = ingredients.find(i => i.id === d.ingredientId);
-            return acc + (d.gramos * (ing?.costo_estandar || 0));
+            return acc + (d.gramos * getIngredientCost(ing));
         }, 0);
         const costo_mo = (Number(form.horas_hombre) || 0) * (config?.finanzas?.costoHoraHombre || 4500);
         const costo_cif = costo_mp * ((config?.finanzas?.costosIndirectosPct || 20) / 100);
@@ -109,7 +139,7 @@ export default function EngineeringView({ recipes, ingredients, setRecipes, setI
             : pesoFinal / 1000;
         unidades = unidades || 1;
         return { costo_mp, costo_mo, costo_cif, costo_total, costo_unitario: costo_total / unidades, unidades };
-    }, [detailsConGramos, form.horas_hombre, form.formato_venta, form.peso_unidad, pesoFinal, ingredients, config]);
+    }, [detailsConGramos, form.horas_hombre, form.formato_venta, form.peso_unidad, pesoFinal, ingredients, config, getIngredientCost]);
 
     const save = async () => {
         if (!canSave) return;
@@ -205,7 +235,7 @@ export default function EngineeringView({ recipes, ingredients, setRecipes, setI
 
                     {/* COLUMNA IZQUIERDA: FORMULARIO */}
                     <div className="lg:col-span-7">
-                        <Card className="fall-target p-8 border-[4px] border-slate-900 bg-white shadow-2xl">
+                        <Card className="fall-target p-8 border border-slate-200 bg-white shadow-2xl rounded-2xl">
 
                             {/* DATOS DE IDENTIFICACIÓN */}
                             <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 mb-6 space-y-4">
@@ -496,7 +526,7 @@ export default function EngineeringView({ recipes, ingredients, setRecipes, setI
                             {filteredRecipes.map(r => {
                                 const familiaData = FAMILIAS[r.familia] || FAMILIAS.F;
                                 const isExpanded = !!expandedRows[r.id];
-                                const costo_mp = r.details?.reduce((acc, d) => acc + (Number(d.gramos) * (ingredients.find(i => i.id === d.ingredientId)?.costo_estandar || 0)), 0) || 0;
+                                const costo_mp = r.details?.reduce((acc, d) => acc + (Number(d.gramos) * getIngredientCost(ingredients.find(i => i.id === d.ingredientId))), 0) || 0;
                                 const costo_mo = (Number(r.horas_hombre) || 0) * config.finanzas.costoHoraHombre;
                                 const costo_cif = costo_mp * (config.finanzas.costosIndirectosPct / 100);
                                 const costo_total_batch = costo_mp + costo_mo + costo_cif;

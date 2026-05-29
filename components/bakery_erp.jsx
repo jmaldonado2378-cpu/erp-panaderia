@@ -9,7 +9,7 @@ import {
     Clock, ClipboardList, Printer, QrCode, Square, MapPin,
     AlertTriangle, Hash, Search, Calendar, Wrench, Building,
     Store, CheckCircle2, XCircle, Calculator, DollarSign, PieChart,
-    RotateCcw, ChevronDown, ChevronUp, Eye, Users, UserCircle, HandCoins, Building2, Tag
+    RotateCcw, ChevronDown, ChevronUp, Eye, Users, UserCircle, HandCoins, Building2, Tag, Scale
 } from 'lucide-react';
 import { useGlobalContext } from './context/GlobalContext';
 import AntigravitySystem from './AntigravitySystem';
@@ -37,8 +37,8 @@ export const ETAPAS_KANBAN = [
     { id: 'TERMINADO', nombre: 'Stock Planta', icon: <Warehouse size={16} /> }
 ];
 
-export const CATEGORIAS_INSUMO = ['Harinas y Polvos', 'Lácteos y Derivados', 'Grasas y Aceites', 'Azúcares y Dulces', 'Fermentos', 'Aditivos y Esencias', 'Huevos', 'Empaque', 'WIP (Producción)', 'Otros'];
-export const UBICACIONES_ALMACEN = ['Almacén Secos Principal', 'Harinera', 'Cámara de Frío 1 (Insumos)', 'Cámara de Frío 2 (WIP)', 'Heladera de Tránsito', 'Depósito Empaque'];
+export const CATEGORIAS_INSUMO = ['Harinas y Polvos', 'Lácteos y Derivados', 'Grasas y Aceites', 'Azúcares y Dulces', 'Fermentos', 'Aditivos y Esencias', 'Huevos', 'Carnes y Chacinados', 'Especias y Semillas', 'Empaque', 'WIP (Producción)', 'Otros'];
+export const UBICACIONES_ALMACEN = ['Almacén Secos Principal', 'Harinera', 'Cámara de Frío 1 (Insumos)', 'Cámara de Frío 2 (WIP)', 'Heladera de Tránsito', 'Depósito Empaque', 'Cámara de Curing (Charcutería)'];
 
 // Catálogo de presentaciones de compra con su factor de conversión a unidad base
 // factor_base: cuántas unidades base (g / ml / u) contiene UNA presentación
@@ -130,10 +130,14 @@ export default function ERPLayout({ children }) {
         { id: '/dashboard', label: 'Monitor Central', icon: <TrendingDown size={18} /> },
         { id: '/cuentas-pagar', label: 'Cuentas Proveedores', icon: <Building2 size={18} /> },
         { id: '/cuentas-cobrar', label: 'Facturación y Cobros', icon: <HandCoins size={18} /> },
+        { id: '/egresos', label: 'Egresos y Flujo Caja', icon: <TrendingDown size={18} /> },
         { id: '/inventario', label: 'Inventario (Lotes)', icon: <Package size={18} /> },
         { id: '/compras', label: 'Ingreso Insumos', icon: <ShoppingBag size={18} /> },
         { id: '/ordenes', label: 'Órdenes Producción', icon: <ClipboardList size={18} /> },
         { id: '/kanban', label: 'Kanban WIP (Planta)', icon: <Layout size={18} /> },
+        { id: '/charcuteria', label: 'Charcutería (Cámaras)', icon: <ThermometerSun size={18} /> },
+        { id: '/fraccionamiento', label: 'Fraccionamiento', icon: <Scale size={18} /> },
+        { id: '/reventa', label: 'Artículos Reventa', icon: <Store size={18} /> },
         { id: '/ingenieria', label: 'Ingeniería y Costos', icon: <Layers size={18} /> },
         { id: '/precios', label: 'Lista de Precios', icon: <Tag size={18} /> },
         { id: '/logistica', label: 'Pedidos y despachos', icon: <Truck size={18} /> },

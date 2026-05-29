@@ -6,7 +6,8 @@ export default function DashboardPage() {
     const {
         recipes, ingredients, lots, orders, logistics, qualityLogs,
         config, lotesPT, pedidos, clientes, ventas, providers,
-        pagosProveedores, dashboardConfig, setDashboardConfig
+        pagosProveedores, dashboardConfig, setDashboardConfig,
+        expenses
     } = useGlobalContext();
 
     return (
@@ -26,6 +27,7 @@ export default function DashboardPage() {
             pagosProveedores={pagosProveedores || []}
             dashboardConfig={dashboardConfig}
             setDashboardConfig={setDashboardConfig}
+            expenses={expenses || []}
         />
     );
 }

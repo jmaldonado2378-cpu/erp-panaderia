@@ -174,7 +174,7 @@ function QuickEditPanel({ dashboardConfig, setDashboardConfig, onClose }) {
 export default function DashboardView({
     recipes = [], ingredients = [], lots = [], orders = [], logistics = [], qualityLogs = [],
     config, lotesPT = [], pedidos = [], clientes = [], ventas = [], providers = [],
-    pagosProveedores = [], dashboardConfig, setDashboardConfig
+    pagosProveedores = [], dashboardConfig, setDashboardConfig, expenses = []
 }) {
     const [showEditor, setShowEditor] = useState(false);
 
@@ -202,6 +202,19 @@ export default function DashboardView({
         return d.toDateString() === today.toDateString();
     }).reduce((acc, v) => acc + Number(v.montoTotal || v.monto || 0), 0);
 
+    // ── CÁLCULOS FINANCIEROS (FLUJO DE CAJA) ──
+    const cobranzasReales = ventas
+        .filter(v => Number(v.montoTotal || v.monto || 0) < 0)
+        .reduce((acc, v) => acc + Math.abs(Number(v.montoTotal || v.monto || 0)), 0);
+
+    const pagosAProveedores = pagosProveedores
+        .filter(p => Number(p.monto || 0) < 0)
+        .reduce((acc, p) => acc + Math.abs(Number(p.monto || 0)), 0);
+
+    const egresosGenerales = expenses.reduce((acc, e) => acc + Number(e.monto || 0), 0);
+    const egresosTotales = pagosAProveedores + egresosGenerales;
+    const flujoCajaNeto = cobranzasReales - egresosTotales;
+
     // Stock crítico: lotes de insumos con menos de 10kg o vencen en < 7 días
     const stockCritico = stockMetrics.filter(ing => ing.stock < 10000).slice(0, 8);
 
@@ -218,6 +231,8 @@ export default function DashboardView({
         { id: 'kpi_ventas_hoy', label: 'Ventas del Día', value: `$${ventasHoy.toLocaleString('es-AR', { maximumFractionDigits: 0 })}`, sub: `${ventas.filter(v => { const d = new Date(v.fecha || v.created_at); const t = new Date(); return d.toDateString() === t.toDateString(); }).length} facturas hoy`, icon: DollarSign, color: 'bg-orange-600' },
         { id: 'kpi_recetas', label: 'Fichas Técnicas', value: recipes.filter(r => !r.es_subensamble).length, sub: `${recipes.filter(r => r.es_subensamble).length} WIPs registrados`, icon: Factory, color: 'bg-teal-700' },
         { id: 'kpi_clientes', label: 'Clientes Activos', value: clientes.length, sub: `en el maestro`, icon: Users, color: 'bg-indigo-700' },
+        { id: 'kpi_flujo_caja', label: 'Flujo de Caja Real', value: `$${flujoCajaNeto.toLocaleString('es-AR', { maximumFractionDigits: 0 })}`, sub: `Cobrado vs Pagado`, icon: Coins, color: flujoCajaNeto >= 0 ? 'bg-emerald-600' : 'bg-rose-600' },
+        { id: 'kpi_egresos', label: 'Egresos Totales', value: `$${egresosTotales.toLocaleString('es-AR', { maximumFractionDigits: 0 })}`, sub: `${expenses.length} egres. fijos + prov`, icon: TrendingUp, color: 'bg-rose-700' },
     ];
 
     const visibleKpis = kpiWidgets.filter(kpi => isVisible(kpi.id));

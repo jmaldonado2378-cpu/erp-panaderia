@@ -82,6 +82,24 @@ export const WIDGET_CATALOG = [
         presets: ['ejecutivo']
     },
     {
+        id: 'kpi_flujo_caja',
+        label: 'Flujo de Caja Real',
+        description: 'Cobros recibidos menos egresos totales',
+        category: 'finanzas',
+        icon: Coins,
+        color: 'bg-emerald-600',
+        presets: ['ejecutivo', 'control']
+    },
+    {
+        id: 'kpi_egresos',
+        label: 'Egresos Totales',
+        description: 'Suma de egresos fijos y pagos a proveedores',
+        category: 'finanzas',
+        icon: TrendingUp,
+        color: 'bg-rose-600',
+        presets: ['ejecutivo', 'control']
+    },
+    {
         id: 'tabla_mermas',
         label: 'Auditoría de Mermas',
         description: 'Tabla comparativa Consumo Teórico vs Real',
@@ -150,9 +168,11 @@ export const DEFAULT_DASHBOARD_CONFIG = {
         { id: 'kpi_ventas_hoy', visible: false, order: 5 },
         { id: 'kpi_recetas', visible: false, order: 6 },
         { id: 'kpi_clientes', visible: false, order: 7 },
-        { id: 'tabla_mermas', visible: true, order: 8 },
-        { id: 'tabla_ordenes_activas', visible: true, order: 9 },
-        { id: 'tabla_pedidos_pendientes', visible: false, order: 10 },
-        { id: 'tabla_stock_critico', visible: false, order: 11 }
+        { id: 'kpi_flujo_caja', visible: true, order: 8 },
+        { id: 'kpi_egresos', visible: true, order: 9 },
+        { id: 'tabla_mermas', visible: true, order: 10 },
+        { id: 'tabla_ordenes_activas', visible: true, order: 11 },
+        { id: 'tabla_pedidos_pendientes', visible: false, order: 12 },
+        { id: 'tabla_stock_critico', visible: false, order: 13 }
     ]
 };

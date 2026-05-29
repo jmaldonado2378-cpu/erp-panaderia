@@ -7,7 +7,56 @@ import { supabase } from '../../lib/supabase';
 /* ================================================================
    HELPER: Calcula árbol de costos de una receta
    ================================================================ */
-function calcCostos(receta, ingredients, config) {
+function getIngredientCost(ing, recipes, ingredients, config, visited = new Set()) {
+    if (!ing) return 0;
+    if (visited.has(ing.id)) return 0;
+
+    if (!ing.es_subensamble) {
+        return Number(ing.costo_estandar || 0);
+    }
+
+    const recipe = recipes.find(r => r.codigo === ing.codigo || r.nombre_producto === ing.name?.replace('[WIP] ', ''));
+    if (!recipe) return Number(ing.costo_estandar || 0);
+
+    const visitedNext = new Set(visited);
+    visitedNext.add(ing.id);
+
+    let kgLoteFinal;
+    if (recipe.formato_venta === 'Unidad') {
+        kgLoteFinal = (Number(recipe.lote_minimo || 1) * Number(recipe.peso_unidad || 0)) / 1000;
+    } else {
+        kgLoteFinal = Number(recipe.lote_minimo || 1);
+    }
+    const mermaFactor = 1 - Number(recipe.merma || 0) / 100;
+    const kgLoteBruto = mermaFactor > 0 ? kgLoteFinal / mermaFactor : kgLoteFinal;
+
+    const details = recipe.details || [];
+    let gramosMap;
+    if (recipe.logica_formula === 'batch') {
+        gramosMap = details.map(d => Number(d.gramos || 0));
+    } else {
+        const sumPct = details.reduce((acc, d) => acc + Number(d.porcentaje || 0), 0);
+        const masaBruta = kgLoteBruto * 1000;
+        const baseHarina = sumPct > 0 ? masaBruta / (sumPct / 100) : 0;
+        gramosMap = details.map(d => Number(d.porcentaje || 0) > 0
+            ? Math.round((Number(d.porcentaje) / 100) * baseHarina) : 0);
+    }
+
+    const costo_mp = details.reduce((acc, d, i) => {
+        const detailIng = ingredients.find(x => x.id === d.ingredientId);
+        const costPerGram = getIngredientCost(detailIng, recipes, ingredients, config, visitedNext);
+        return acc + (gramosMap[i] * costPerGram);
+    }, 0);
+
+    const costo_mo = (Number(recipe.horas_hombre) || 0) * (config?.finanzas?.costoHoraHombre || 4500);
+    const costo_cif = costo_mp * ((config?.finanzas?.costosIndirectosPct || 20) / 100);
+    const costo_total = costo_mp + costo_mo + costo_cif;
+
+    const pesoFinalG = Number(recipe.peso_final) || 1;
+    return costo_total / pesoFinalG;
+}
+
+function calcCostos(receta, recipes, ingredients, config) {
     const isBatch = receta.logica_formula === 'batch';
     const merma = Number(receta.merma || 0);
     const mermaFactor = 1 - merma / 100;
@@ -38,7 +87,7 @@ function calcCostos(receta, ingredients, config) {
 
     const costo_mp = details.reduce((acc, d, i) => {
         const ing = ingredients.find(x => x.id === d.ingredientId);
-        return acc + (gramosMap[i] * (ing?.costo_estandar || 0));
+        return acc + (gramosMap[i] * getIngredientCost(ing, recipes, ingredients, config));
     }, 0);
 
     const costo_mo = (Number(receta.horas_hombre) || 0) * (config?.finanzas?.costoHoraHombre || 4500);
@@ -52,6 +101,17 @@ function calcCostos(receta, ingredients, config) {
     return { costo_mp, costo_mo, costo_cif, costo_empaque_total: 0, unidades_rinde: unidades_rinde || 1 };
 }
 
+function checkIsDesactualizado(receta, lp, recipes, ingredients, config) {
+    if (!lp || !lp.precio_publicado) return false;
+    const { costo_mp, costo_mo, costo_cif, unidades_rinde } = calcCostos(receta, recipes, ingredients, config);
+    const costoEmpaque = Number(lp.costo_empaque_total || 0);
+    const currentUnitCost = (costo_mp + costo_mo + costo_cif) / unidades_rinde + costoEmpaque;
+    if (currentUnitCost <= 0) return false;
+    
+    // Si el precio publicado no cubre el costo o si el margen actual está por debajo del margen deseado (margen_pct) con una tolerancia del 2%
+    const currentMarginPct = ((lp.precio_publicado - currentUnitCost) / currentUnitCost) * 100;
+    return lp.precio_publicado < currentUnitCost || currentMarginPct < Number(lp.margen_pct || 50) - 2;
+}
 
 /* ================================================================
    COMPONENTE PRINCIPAL
@@ -87,7 +147,7 @@ export default function PricingView({ recipes, ingredients, config, showToast })
     useEffect(() => {
         if (!selectedReceta) { setLocalPricing(null); return; }
         const existing = listaPreciosMap[selectedReceta.id];
-        const { costo_mp, costo_mo, costo_cif, unidades_rinde } = calcCostos(selectedReceta, ingredients, config);
+        const { costo_mp, costo_mo, costo_cif, unidades_rinde } = calcCostos(selectedReceta, recipes, ingredients, config);
         const baseForm = {
             receta_id: selectedReceta.id,
             estado: 'BORRADOR',
@@ -106,7 +166,7 @@ export default function PricingView({ recipes, ingredients, config, showToast })
     /* ── Costos calculados del producto seleccionado ─────────── */
     const costos = useMemo(() => {
         if (!selectedReceta) return null;
-        const { costo_mp, costo_mo, costo_cif, unidades_rinde } = calcCostos(selectedReceta, ingredients, config);
+        const { costo_mp, costo_mo, costo_cif, unidades_rinde } = calcCostos(selectedReceta, recipes, ingredients, config);
         const costo_empaque_total = localPricing?.empaques?.reduce((acc, e) => acc + (Number(e.cantidad || 1) * Number(e.costo_unitario || 0)), 0) || 0;
         const costo_produccion = (costo_mp + costo_mo + costo_cif) / unidades_rinde;
         const costo_unitario_total = costo_produccion + costo_empaque_total;
@@ -118,6 +178,20 @@ export default function PricingView({ recipes, ingredients, config, showToast })
         if (!costos || !localPricing) return 0;
         return costos.costo_unitario_total * (1 + (Number(localPricing.margen_pct) / 100));
     }, [costos, localPricing?.margen_pct]);
+
+    const actualMarginPct = useMemo(() => {
+        if (!costos || !localPricing) return 0;
+        const canalKey = `precio_${localPricing.canal_principal}`;
+        const currentPrice = Number(localPricing[canalKey]) || Number(localPricing.precio_publicado) || precioSugerido;
+        const currentUnitCost = costos.costo_unitario_total;
+        if (currentUnitCost <= 0) return 0;
+        return ((currentPrice - currentUnitCost) / currentUnitCost) * 100;
+    }, [costos, localPricing, precioSugerido]);
+
+    const isMarginCompromised = useMemo(() => {
+        if (!costos || !localPricing) return false;
+        return actualMarginPct < Number(localPricing.margen_pct || 50) - 0.5;
+    }, [costos, localPricing, actualMarginPct]);
 
     /* ── Agregar empaque a la lista local ───────────────────── */
     const addEmpaque = (ingredienteId) => {
@@ -227,6 +301,7 @@ export default function PricingView({ recipes, ingredients, config, showToast })
                         <div className="space-y-1 max-h-[60vh] overflow-y-auto pr-1">
                             {filteredRecipes.map(r => {
                                 const lp = listaPreciosMap[r.id];
+                                const isDesactualizado = checkIsDesactualizado(r, lp, recipes, ingredients, config);
                                 const estado = lp?.estado || 'SIN_PRECIO';
                                 const estadoColor = estado === 'PUBLICADO' ? 'bg-emerald-100 text-emerald-700' : estado === 'BORRADOR' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500';
                                 const isSelected = selectedReceta?.id === r.id;
@@ -242,7 +317,12 @@ export default function PricingView({ recipes, ingredients, config, showToast })
                                                 <p className="text-[9px] font-mono text-slate-400">{r.codigo}</p>
                                             </div>
                                         </div>
-                                        <div className="flex items-center gap-1 flex-shrink-0">
+                                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                                            {isDesactualizado && (
+                                                <span className="animate-pulse bg-amber-500 text-white px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider">
+                                                    DESACTUALIZADO
+                                                </span>
+                                            )}
                                             {lp?.precio_publicado && <span className="text-[9px] font-black text-emerald-600 font-mono">{fmt(lp.precio_publicado)}</span>}
                                             <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase ${estadoColor}`}>{estado.replace('_', ' ')}</span>
                                             <ChevronRight size={12} className="text-slate-300" />
@@ -345,6 +425,20 @@ export default function PricingView({ recipes, ingredients, config, showToast })
                                         {localPricing.estado}
                                     </span>
                                 </div>
+
+                                {/* Warning Banner */}
+                                {isMarginCompromised && (
+                                    <div className="bg-amber-50 border-l-4 border-amber-500 p-4 rounded-xl text-amber-800 text-xs flex flex-col gap-1 mb-4 animate-in slide-in-from-top-2">
+                                        <div className="flex items-center gap-2 font-black uppercase text-[10px] tracking-widest text-amber-700">
+                                            <Info className="text-amber-600" size={14} />
+                                            <span>Margen de Ganancia Comprometido</span>
+                                        </div>
+                                        <p className="font-medium mt-1">
+                                            El costo actual de producción con empaque ({fmt(costos.costo_unitario_total)}) compromete tu margen objetivo. 
+                                            El margen actual con el precio fijado para el canal principal ({localPricing.canal_principal}) es del <strong>{actualMarginPct.toFixed(1)}%</strong>, el cual es inferior a tu objetivo del <strong>{localPricing.margen_pct}%</strong>.
+                                        </p>
+                                    </div>
+                                )}
 
                                 {/* Margen slider */}
                                 <div className="mb-4 p-3 bg-slate-50 rounded-xl border">

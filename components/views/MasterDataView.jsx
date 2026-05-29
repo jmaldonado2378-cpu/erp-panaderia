@@ -165,7 +165,7 @@ export default function MasterDataView({ ingredients, setIngredients, providers,
                     </div>
 
                     {showAdd && (
-                        <Card className="fall-target p-6 border-4 border-slate-900 bg-white mb-6">
+                        <Card className="fall-target p-6 border border-slate-200 shadow-xl rounded-2xl bg-white mb-6">
                             <h4 className="text-xs font-black uppercase mb-4 italic">{form.id ? 'Editar Proveedor' : 'Alta Proveedor'}</h4>
                             <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
                                 <div className="md:col-span-1"><Input label="Cod. Prov. (Auto)" value={form.codigo} disabled required /></div>
@@ -205,7 +205,7 @@ export default function MasterDataView({ ingredients, setIngredients, providers,
                     </div>
 
                     {showAddIng && (
-                        <Card className="p-6 border-4 border-slate-900 bg-white mb-6">
+                        <Card className="p-6 border border-slate-200 shadow-xl rounded-2xl bg-white mb-6">
                             <h4 className="text-xs font-black uppercase mb-4 italic">{ingForm.id ? 'Editar Insumo' : 'Alta de Insumo (RAW)'}</h4>
                             <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
                                 <div className="md:col-span-1"><Input label="SKU (Auto)" value={ingForm.codigo} disabled required /></div>
@@ -297,7 +297,7 @@ export default function MasterDataView({ ingredients, setIngredients, providers,
                     </div>
 
                     {showAddCli && (
-                        <Card className="fall-target p-6 border-4 border-slate-900 bg-white mb-6">
+                        <Card className="fall-target p-6 border border-slate-200 shadow-xl rounded-2xl bg-white mb-6">
                             <h4 className="text-xs font-black uppercase mb-4 italic">{cliForm.id ? 'Editar Cliente' : 'Alta Cliente'}</h4>
                             <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
                                 <div className="md:col-span-1"><Input label="Cod. Cliente" value={cliForm.codigo} disabled required /></div>
@@ -350,7 +350,7 @@ export default function MasterDataView({ ingredients, setIngredients, providers,
                     </div>
 
                     {showAddIng && (
-                        <Card className="p-6 border-4 border-emerald-600 bg-white mb-6">
+                        <Card className="p-6 border border-emerald-200 shadow-xl rounded-2xl bg-white mb-6">
                             <h4 className="text-xs font-black uppercase mb-4 italic text-emerald-700">{ingForm.id ? 'Editar Material de Empaque' : 'Alta de Material de Empaque'}</h4>
                             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                                 <div className="md:col-span-1"><Input label="SKU (Auto)" value={ingForm.codigo} disabled required /></div>

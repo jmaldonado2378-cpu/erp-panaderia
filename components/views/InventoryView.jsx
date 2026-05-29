@@ -1,5 +1,10 @@
-import React, { useState } from 'react';
-import { Search, RotateCcw, Printer, Layers, Calendar, XCircle, DollarSign, AlertTriangle, Trash2, ChevronDown, ChevronRight } from 'lucide-react';
+'use client';
+import React, { useState, useMemo } from 'react';
+import { 
+    Search, RotateCcw, Printer, Layers, Calendar, XCircle, 
+    DollarSign, AlertTriangle, Trash2, ChevronDown, ChevronRight, 
+    Tag, Package, Award, QrCode 
+} from 'lucide-react';
 import { Card, Button, Input } from '../bakery_erp';
 import { supabase } from '../../lib/supabase';
 
@@ -11,7 +16,11 @@ const fmtCantidad = (cantidad, unidad_base = 'g') => {
     return `${n.toLocaleString('es-AR')} ${unidad_base}`;
 };
 
-export default function InventoryView({ ingredients, lots, providers, setLots, showToast, inventoryLogs, setInventoryLogs }) {
+export default function InventoryView({ 
+    ingredients, lots, providers, setLots, showToast, inventoryLogs, setInventoryLogs,
+    lotesPT = [], recipes = [], charcLotes = [], charcRecetas = [], reventaLotes = [], reventaArticulos = []
+}) {
+    const [activeTab, setActiveTab] = useState('insumos'); // 'insumos', 'productos'
     const [searchTerm, setSearchTerm] = useState('');
     const [providerFilter, setProviderFilter] = useState('');
     const [adjustModal, setAdjustModal] = useState(null);
@@ -19,7 +28,104 @@ export default function InventoryView({ ingredients, lots, providers, setLots, s
     const [newStock, setNewStock] = useState('');
     const [showLogs, setShowLogs] = useState(false);
     const [expandedRows, setExpandedRows] = useState({});
+    const [expandedPTRows, setExpandedPTRows] = useState({});
+    const [printedLabel, setPrintedLabel] = useState(null);
 
+    // ── CONFIGURACIÓN DE COSTO HORA HOMBRE ──
+    const COSTO_HORA_HOMBRE = 4500;
+    const CIF_PCT = 0.20;
+
+    // ── CALCULO RECURSIVO DE COSTOS (MULTI-BOM) ──
+    const getIngredientCost = React.useCallback((ing, visited = new Set()) => {
+        if (!ing) return 0;
+        if (visited.has(ing.id)) return 0; // Evitar referencias circulares
+
+        if (!ing.es_subensamble) {
+            return Number(ing.costo_estandar || 0);
+        }
+
+        // Buscar receta del WIP por código o nombre
+        const recipe = recipes.find(r => r.codigo === ing.codigo || r.nombre_producto === ing.name?.replace('[WIP] ', ''));
+        if (!recipe) return Number(ing.costo_estandar || 0);
+
+        const visitedNext = new Set(visited);
+        visitedNext.add(ing.id);
+
+        let kgLoteFinal;
+        if (recipe.formato_venta === 'Unidad') {
+            kgLoteFinal = (Number(recipe.lote_minimo || 1) * Number(recipe.peso_unidad || 0)) / 1000;
+        } else {
+            kgLoteFinal = Number(recipe.lote_minimo || 1);
+        }
+        const mermaFactor = 1 - Number(recipe.merma || 0) / 100;
+        const kgLoteBruto = mermaFactor > 0 ? kgLoteFinal / mermaFactor : kgLoteFinal;
+
+        const details = recipe.details || [];
+        let gramosMap;
+        if (recipe.logica_formula === 'batch') {
+            gramosMap = details.map(d => Number(d.gramos || 0));
+        } else {
+            const sumPct = details.reduce((acc, d) => acc + Number(d.porcentaje || 0), 0);
+            const masaBruta = kgLoteBruto * 1000;
+            const baseHarina = sumPct > 0 ? masaBruta / (sumPct / 100) : 0;
+            gramosMap = details.map(d => Number(d.porcentaje || 0) > 0
+                ? Math.round((Number(d.porcentaje) / 100) * baseHarina) : 0);
+        }
+
+        const costo_mp = details.reduce((acc, d, i) => {
+            const detailIng = ingredients.find(x => x.id === d.ingredientId);
+            const costPerGram = getIngredientCost(detailIng, visitedNext);
+            return acc + (gramosMap[i] * costPerGram);
+        }, 0);
+
+        const costo_mo = (Number(recipe.horas_hombre) || 0) * COSTO_HORA_HOMBRE;
+        const costo_cif = costo_mp * CIF_PCT;
+        const costo_total = costo_mp + costo_mo + costo_cif;
+
+        const pesoFinalG = Number(recipe.peso_final) || 1;
+        return costo_total / pesoFinalG;
+    }, [recipes, ingredients]);
+
+    const getRecipeUnitCost = React.useCallback((recipe) => {
+        let kgLoteFinal;
+        if (recipe.formato_venta === 'Unidad') {
+            kgLoteFinal = (Number(recipe.lote_minimo || 1) * Number(recipe.peso_unidad || 0)) / 1000;
+        } else {
+            kgLoteFinal = Number(recipe.lote_minimo || 1);
+        }
+        const mermaFactor = 1 - Number(recipe.merma || 0) / 100;
+        const kgLoteBruto = mermaFactor > 0 ? kgLoteFinal / mermaFactor : kgLoteFinal;
+
+        const details = recipe.details || [];
+        let gramosMap;
+        if (recipe.logica_formula === 'batch') {
+            gramosMap = details.map(d => Number(d.gramos || 0));
+        } else {
+            const sumPct = details.reduce((acc, d) => acc + Number(d.porcentaje || 0), 0);
+            const masaBruta = kgLoteBruto * 1000;
+            const baseHarina = sumPct > 0 ? masaBruta / (sumPct / 100) : 0;
+            gramosMap = details.map(d => Number(d.porcentaje || 0) > 0
+                ? Math.round((Number(d.porcentaje) / 100) * baseHarina) : 0);
+        }
+
+        const costo_mp = details.reduce((acc, d, i) => {
+            const ing = ingredients.find(x => x.id === d.ingredientId);
+            return acc + (gramosMap[i] * getIngredientCost(ing));
+        }, 0);
+
+        const costo_mo = (Number(recipe.horas_hombre) || 0) * COSTO_HORA_HOMBRE;
+        const costo_cif = costo_mp * CIF_PCT;
+        const costo_total = costo_mp + costo_mo + costo_cif;
+
+        const unidades_rinde = recipe.formato_venta === 'Unidad'
+            ? Number(recipe.lote_minimo || 1)
+            : kgLoteFinal;
+
+        return costo_total / (unidades_rinde || 1);
+    }, [ingredients, getIngredientCost]);
+
+
+    // ── PROCESAMIENTO DE STOCK DE INSUMOS ──
     const detailedLots = lots.filter(l => l.amount > 0).map(lot => {
         const ing = ingredients.find(i => i.id === lot.ingredientId);
         const prov = providers.find(p => p.id === lot.providerId);
@@ -29,12 +135,10 @@ export default function InventoryView({ ingredients, lots, providers, setLots, s
             unidad_base: ing?.unidad_base || lot.unidad || 'g',
             es_subensamble: ing?.es_subensamble || false,
             providerName: lot.providerId === 'interno' ? 'Producción Interna' : (prov?.nombre || 'S/D'),
-            // Valorización: cantidad × costo unitario
             valorLote: Number(lot.amount) * Number(lot.unitPrice || 0)
         };
     }).sort((a, b) => new Date(a.expiry) - new Date(b.expiry));
 
-    // [MODIFICADO] Refactor para consolidar lotes por Insumo (Master-Detail)
     const groupedLots = Object.values(detailedLots.reduce((acc, lot) => {
         if (!acc[lot.ingredientId]) {
             acc[lot.ingredientId] = {
@@ -53,7 +157,6 @@ export default function InventoryView({ ingredients, lots, providers, setLots, s
         return acc;
     }, {})).filter(group => {
         const term = searchTerm.toLowerCase();
-        // Busca en nombre de insumo o en cualquier dato de lote derivado
         const matchSearch = group.ingredientName.toLowerCase().includes(term) ||
             group.lots.some(l => (l.codigo_lote || '').toLowerCase().includes(term) ||
                 l.providerName.toLowerCase().includes(term));
@@ -61,10 +164,125 @@ export default function InventoryView({ ingredients, lots, providers, setLots, s
         return matchSearch && matchProvider;
     }).sort((a, b) => a.ingredientName.localeCompare(b.ingredientName));
 
-    // Valorización total del stock visible
-    const valorTotalStock = groupedLots.reduce((acc, g) => acc + g.totalValue, 0);
+    const valorTotalInsumos = groupedLots.reduce((acc, g) => acc + g.totalValue, 0);
 
-    // [CRIT-1 + WARN-4] Ajuste persistente: actualiza BD y guarda log en ajustes_inventario
+
+    // ── PROCESAMIENTO DE PRODUCTOS TERMINADOS (UNIFICADO) ──
+    const detailedPT = useMemo(() => {
+        const list = [];
+
+        // 1. Panificados (lotesPT)
+        lotesPT.filter(l => Number(l.cantidadActual || l.cantidad_actual || 0) > 0).forEach(l => {
+            const rec = recipes.find(r => r.id === l.recipeId || r.id === l.receta_id);
+            if (!rec) return;
+            const qty = Number(l.cantidadActual || l.cantidad_actual);
+            const unitCost = getRecipeUnitCost(rec);
+            list.push({
+                id: l.id,
+                tipo: 'Panadería',
+                productoId: rec.id,
+                productoNombre: rec.nombre_producto,
+                codigo: rec.codigo,
+                codigoLote: l.codigo_lote || l.id.slice(0, 8).toUpperCase(),
+                cantidad: qty,
+                unidad: rec.formato_venta === 'Kg' ? 'Kg' : 'U',
+                vencimiento: l.vencimiento || l.fecha_vencimiento,
+                costoUnitario: unitCost,
+                valorTotal: qty * unitCost
+            });
+        });
+
+        // 2. Charcutería (Solo lotes en estado CURADO_LISTO)
+        charcLotes.filter(l => l.estado === 'CURADO_LISTO' && Number(l.peso_actual_g || 0) > 0).forEach(l => {
+            const rec = charcRecetas.find(r => r.id === l.receta_id);
+            if (!rec) return;
+            const qtyKg = Number(l.peso_actual_g) / 1000;
+            
+            // Calcular costo de materias primas de la receta por gramo crudo
+            const totalIngG = rec.details?.reduce((acc, d) => {
+                const ing = ingredients.find(i => i.id === d.ingredientId);
+                if (ing && ing.tipo === 'insumo') return acc + Number(d.gramos || 0);
+                return acc;
+            }, 0) || 1;
+            const costIngredients = rec.details?.reduce((acc, d) => {
+                const ing = ingredients.find(i => i.id === d.ingredientId);
+                return acc + (Number(d.gramos || 0) * getIngredientCost(ing));
+            }, 0) || 0;
+            
+            const costPerGram = costIngredients / totalIngG;
+            const unitCostKg = costPerGram * 1000; // costo por Kilo
+            
+            list.push({
+                id: l.id,
+                tipo: 'Charcutería',
+                productoId: rec.id,
+                productoNombre: rec.nombre,
+                codigo: rec.codigo,
+                codigoLote: l.codigo_lote,
+                cantidad: qtyKg,
+                unidad: 'Kg',
+                vencimiento: l.fecha_vencimiento,
+                costoUnitario: unitCostKg,
+                valorTotal: qtyKg * unitCostKg
+            });
+        });
+
+        // 3. Reventa
+        reventaLotes.filter(l => Number(l.cantidad_actual || 0) > 0).forEach(l => {
+            const art = reventaArticulos.find(a => a.id === l.articulo_id);
+            if (!art) return;
+            const qty = Number(l.cantidad_actual);
+            const unitCost = Number(art.costo_compra || 0);
+            list.push({
+                id: l.id,
+                tipo: 'Reventa',
+                productoId: art.id,
+                productoNombre: art.nombre,
+                codigo: art.codigo,
+                codigoLote: l.codigo_lote,
+                cantidad: qty,
+                unidad: 'U',
+                vencimiento: l.fecha_vencimiento,
+                costoUnitario: unitCost,
+                valorTotal: qty * unitCost
+            });
+        });
+
+        return list.sort((a, b) => new Date(a.vencimiento) - new Date(b.vencimiento));
+    }, [lotesPT, recipes, charcLotes, charcRecetas, reventaLotes, reventaArticulos, ingredients, getRecipeUnitCost, getIngredientCost]);
+
+    const groupedPT = useMemo(() => {
+        return Object.values(detailedPT.reduce((acc, pt) => {
+            if (!acc[pt.productoId]) {
+                acc[pt.productoId] = {
+                    productoId: pt.productoId,
+                    productoNombre: pt.productoNombre,
+                    codigo: pt.codigo,
+                    tipo: pt.tipo,
+                    unidad: pt.unidad,
+                    totalCantidad: 0,
+                    totalValue: 0,
+                    lots: []
+                };
+            }
+            acc[pt.productoId].totalCantidad += pt.cantidad;
+            acc[pt.productoId].totalValue += pt.valorTotal;
+            acc[pt.productoId].lots.push(pt);
+            return acc;
+        }, {})).filter(group => {
+            const term = searchTerm.toLowerCase();
+            return group.productoNombre.toLowerCase().includes(term) ||
+                group.codigo.toLowerCase().includes(term) ||
+                group.tipo.toLowerCase().includes(term) ||
+                group.lots.some(l => l.codigoLote.toLowerCase().includes(term));
+        }).sort((a, b) => a.productoNombre.localeCompare(b.productoNombre));
+    }, [detailedPT, searchTerm]);
+
+    const valorTotalPT = groupedPT.reduce((acc, g) => acc + g.totalValue, 0);
+
+    const valorTotalStock = activeTab === 'insumos' ? valorTotalInsumos : valorTotalPT;
+
+    // ── MANEJADORES DE AJUSTE DE STOCK DE INSUMOS ──
     const handleAdjustStock = async () => {
         if (!adjustModal || newStock === '') return;
 
@@ -72,14 +290,12 @@ export default function InventoryView({ ingredients, lots, providers, setLots, s
         const newAmount = Number(newStock);
 
         try {
-            // CRIT-1: persistir en lotes_insumos
             const { error } = await supabase
                 .from('lotes_insumos')
                 .update({ cantidad_actual: newAmount })
                 .eq('id', adjustModal.id);
             if (error) throw error;
 
-            // WARN-4: persistir log en ajustes_inventario
             await supabase.from('ajustes_inventario').insert([{
                 lote_id: adjustModal.id,
                 ingrediente_id: adjustModal.ingredientId,
@@ -90,7 +306,6 @@ export default function InventoryView({ ingredients, lots, providers, setLots, s
                 usuario: 'operador'
             }]);
 
-            // Actualizar log local también (para la sesión actual)
             const logEntry = {
                 id: `adj-${Date.now()}`,
                 date: new Date().toISOString(),
@@ -102,13 +317,12 @@ export default function InventoryView({ ingredients, lots, providers, setLots, s
 
             setLots(lots.map(l => l.id === adjustModal.id ? { ...l, amount: newAmount } : l));
             setAdjustModal(null); setNewStock('');
-            showToast(`✅ Lote ${adjustModal.codigo_lote || adjustModal.id} actualizado a ${fmtCantidad(newAmount, adjustModal.unidad_base)} y guardado en BD.`);
+            showToast(`✅ Lote ${adjustModal.codigo_lote || adjustModal.id} ajustado a ${fmtCantidad(newAmount, adjustModal.unidad_base)} y guardado.`);
         } catch (err) {
             showToast('❌ Error al ajustar: ' + err.message, 'error');
         }
     };
 
-    // Nueva función para dar de baja lotes enteramente (ej. cargas de prueba)
     const handleDeleteLot = async () => {
         if (!deleteModal) return;
 
@@ -150,7 +364,10 @@ export default function InventoryView({ ingredients, lots, providers, setLots, s
         setExpandedRows(prev => ({ ...prev, [ingId]: !prev[ingId] }));
     };
 
-    // Cargar historial persistente desde BD al abrir el modal
+    const togglePTRow = (prodId) => {
+        setExpandedPTRows(prev => ({ ...prev, [prodId]: !prev[prodId] }));
+    };
+
     const cargarHistorial = async () => {
         setShowLogs(true);
         const { data } = await supabase
@@ -176,138 +393,276 @@ export default function InventoryView({ ingredients, lots, providers, setLots, s
         return 'bg-emerald-50 text-emerald-700 border-emerald-100';
     };
 
+    const triggerPrintPT = (lot) => {
+        setPrintedLabel({
+            title: lot.productoNombre,
+            sku: lot.codigo,
+            lote: lot.codigoLote,
+            peso: lot.unidad === 'Kg' ? `${lot.cantidad.toLocaleString('es-AR', { maximumFractionDigits: 3 })} Kg` : `${lot.cantidad.toLocaleString('es-AR')} U`,
+            vencimiento: new Date(lot.vencimiento).toLocaleDateString('es-AR'),
+            sector: lot.tipo
+        });
+    };
+
     return (
         <div className="space-y-6 animate-in fade-in">
+            {/* HEADER CARD */}
             <div className="flex flex-col xl:flex-row justify-between items-start xl:items-end bg-white p-4 rounded-xl border shadow-sm print:hidden gap-4">
                 <div>
                     <h3 className="text-xl font-black uppercase italic text-slate-800">Libro Mayor de Lotes</h3>
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Trazabilidad FEFO por Insumo y Proveedor</p>
                 </div>
-                {/* [MED-2] Valorización total visible */}
+                
+                {/* Valorización total visible */}
                 <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-2 flex items-center gap-2">
                     <DollarSign size={16} className="text-emerald-600" />
                     <div>
-                        <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">Valor Stock Visible</p>
+                        <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">
+                            {activeTab === 'insumos' ? 'Valor Stock Insumos' : 'Valor Stock Productos'}
+                        </p>
                         <p className="text-lg font-black text-emerald-800 font-mono">${valorTotalStock.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</p>
                     </div>
                 </div>
+
                 <div className="flex items-center gap-3 w-full xl:w-auto flex-wrap">
-                    <select
-                        className="border border-slate-200 rounded-lg p-1.5 text-xs font-bold text-slate-600 outline-none focus:border-blue-500 bg-slate-50 cursor-pointer"
-                        value={providerFilter} onChange={e => setProviderFilter(e.target.value)}
-                    >
-                        <option value="">Filtrar: Todos los Proveedores</option>
-                        <option value="interno">Producción Interna (WIP)</option>
-                        {providers.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
-                    </select>
+                    {activeTab === 'insumos' && (
+                        <select
+                            className="border border-slate-200 rounded-lg p-1.5 text-xs font-bold text-slate-600 outline-none focus:border-blue-500 bg-slate-50 cursor-pointer"
+                            value={providerFilter} onChange={e => setProviderFilter(e.target.value)}
+                        >
+                            <option value="">Filtrar: Todos los Proveedores</option>
+                            <option value="interno">Producción Interna (WIP)</option>
+                            {providers.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+                        </select>
+                    )}
                     <div className="relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-                        <input type="text" placeholder="Buscar lote, insumo..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-9 pr-4 py-1.5 border border-slate-200 rounded-lg text-xs font-bold w-48 outline-none focus:border-blue-500 bg-slate-50 focus:bg-white transition-all" />
+                        <input 
+                            type="text" 
+                            placeholder={activeTab === 'insumos' ? "Buscar lote, insumo..." : "Buscar lote, producto..."}
+                            value={searchTerm} 
+                            onChange={e => setSearchTerm(e.target.value)} 
+                            className="pl-9 pr-4 py-1.5 border border-slate-200 rounded-lg text-xs font-bold w-48 outline-none focus:border-blue-500 bg-slate-50 focus:bg-white transition-all" 
+                        />
                     </div>
-                    <Button variant="secondary" onClick={cargarHistorial}><RotateCcw size={14} /> Historial</Button>
+                    {activeTab === 'insumos' && (
+                        <Button variant="secondary" onClick={cargarHistorial}><RotateCcw size={14} /> Historial</Button>
+                    )}
                     <Button variant="primary" onClick={() => window.print()}><Printer size={14} /> Planilla Control</Button>
                 </div>
             </div>
 
-            <Card className="overflow-hidden border-2 print:border-none print:shadow-none bg-white">
-                <div className="hidden print:block mb-6 border-b-2 border-slate-900 pb-2">
-                    <h2 className="text-2xl font-black uppercase italic text-slate-900 leading-none">Planilla de Control Físico de Inventario</h2>
-                    <p className="text-xs font-bold uppercase tracking-widest text-slate-500 mt-2">Fecha: {new Date().toLocaleDateString('es-AR')} | Turno: _______ | Firma Auditor: ______________</p>
-                </div>
-                <table className="w-full text-left print:mt-4">
-                    <thead className="bg-slate-900 text-white text-[9px] uppercase tracking-widest print:bg-transparent print:text-slate-800 print:border-b-2 print:border-slate-800">
-                        <tr>
-                            <th className="px-4 py-2 w-10"></th>
-                            <th className="px-4 py-2">SKU / Componente</th>
-                            <th className="px-4 py-2">Proveedor Origen / Código Lote</th>
-                            <th className="px-4 py-2 text-center print:hidden">Vencimiento</th>
-                            {/* [MED-2] Columna costo unitario */}
-                            <th className="px-4 py-2 text-right print:hidden">Costo / Und. Base</th>
-                            <th className="px-4 py-2 text-right">Existencia Sistema</th>
-                            {/* [MED-2] Valor del lote */}
-                            <th className="px-4 py-2 text-right print:hidden">Valor Total</th>
-                            <th className="px-4 py-2 text-center print:hidden">Acciones</th>
-                            <th className="px-4 py-2 text-right hidden print:table-cell w-32 italic">Conteo Real</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 text-xs font-bold text-slate-700 bg-white">
-                        {groupedLots.map(group => (
-                            <React.Fragment key={group.ingredientId}>
-                                {/* Fila Maestro: Insumo */}
-                                <tr className="hover:bg-slate-50 border-t border-slate-200 bg-white group/master cursor-pointer transition-colors"
-                                    onClick={() => toggleRow(group.ingredientId)}>
-                                    <td className="px-4 py-3 text-slate-400">
-                                        {expandedRows[group.ingredientId] ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
-                                    </td>
-                                    <td className="px-4 py-3 font-black uppercase text-[12px] text-slate-800 flex items-center gap-2">
-                                        {group.es_subensamble && <Layers size={14} className="text-orange-500 print:hidden" />}
-                                        {group.ingredientName}
-                                        <span className="text-[10px] font-normal text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-md ml-2 border border-slate-200">{group.lots.length} lote{group.lots.length !== 1 ? 's' : ''}</span>
-                                    </td>
-                                    <td className="px-4 py-3 text-[10px] text-slate-400 uppercase tracking-widest">— Varios Lotes —</td>
-                                    <td className="px-4 py-3 text-center print:hidden"></td>
-                                    <td className="px-4 py-3 text-right print:hidden"></td>
-                                    <td className="px-4 py-3 text-right font-mono font-black text-slate-900 text-[13px] bg-slate-50/50">
-                                        {fmtCantidad(group.totalAmount, group.unidad_base)}
-                                    </td>
-                                    <td className="px-4 py-3 text-right font-mono font-black text-emerald-700 text-[13px] bg-emerald-50/30 print:hidden">
-                                        ${group.totalValue.toLocaleString('es-AR', { minimumFractionDigits: 0 })}
-                                    </td>
-                                    <td className="px-4 py-3 text-center print:hidden"></td>
-                                    <td className="px-4 py-3 text-right hidden print:table-cell text-slate-300 font-mono">................ {group.unidad_base || 'Kg'}</td>
-                                </tr>
+            {/* TAB SELECTOR */}
+            <div className="flex gap-3 border-b border-slate-200 pb-3 print:hidden">
+                <button 
+                    onClick={() => { setActiveTab('insumos'); setSearchTerm(''); }} 
+                    className={`px-5 py-1.5 rounded-md font-black uppercase text-[9px] transition-all flex items-center gap-1.5 ${activeTab === 'insumos' ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-100'}`}
+                >
+                    <Package size={12} /> Materias Primas e Insumos ({groupedLots.length})
+                </button>
+                <button 
+                    onClick={() => { setActiveTab('productos'); setSearchTerm(''); }} 
+                    className={`px-5 py-1.5 rounded-md font-black uppercase text-[9px] transition-all flex items-center gap-1.5 ${activeTab === 'productos' ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-100'}`}
+                >
+                    <Tag size={12} /> Productos Terminados ({groupedPT.length})
+                </button>
+            </div>
 
-                                {/* Filas Detalle: Lotes (solo si está expandido) */}
-                                {expandedRows[group.ingredientId] && group.lots.map(lot => (
-                                    <tr key={lot.id} className="bg-slate-50/80 hover:bg-slate-100 transition-colors group/lot print:border-b print:border-slate-300 shadow-[inset_4px_0_0_#cbd5e1]">
-                                        <td className="px-4 py-1.5"></td>
-                                        <td className="px-4 py-1.5 pl-8">
-                                            <span className="font-mono font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100 text-[10px]">
-                                                {lot.codigo_lote || lot.id.slice(0, 8).toUpperCase()}
-                                            </span>
+            {/* TABLE CARD - TAB INSUMOS */}
+            {activeTab === 'insumos' && (
+                <Card className="overflow-hidden border-2 print:border-none print:shadow-none bg-white">
+                    <div className="hidden print:block mb-6 border-b-2 border-slate-900 pb-2">
+                        <h2 className="text-2xl font-black uppercase italic text-slate-900 leading-none">Planilla de Control Físico de Inventario - Insumos</h2>
+                        <p className="text-xs font-bold uppercase tracking-widest text-slate-500 mt-2">Fecha: {new Date().toLocaleDateString('es-AR')} | Turno: _______ | Firma Auditor: ______________</p>
+                    </div>
+                    <table className="w-full text-left print:mt-4">
+                        <thead className="bg-slate-900 text-white text-[9px] uppercase tracking-widest print:bg-transparent print:text-slate-800 print:border-b-2 print:border-slate-800">
+                            <tr>
+                                <th className="px-4 py-2 w-10"></th>
+                                <th className="px-4 py-2">SKU / Componente</th>
+                                <th className="px-4 py-2">Proveedor Origen / Código Lote</th>
+                                <th className="px-4 py-2 text-center print:hidden">Vencimiento</th>
+                                <th className="px-4 py-2 text-right print:hidden">Costo / Und. Base</th>
+                                <th className="px-4 py-2 text-right">Existencia Sistema</th>
+                                <th className="px-4 py-2 text-right print:hidden">Valor Total</th>
+                                <th className="px-4 py-2 text-center print:hidden">Acciones</th>
+                                <th className="px-4 py-2 text-right hidden print:table-cell w-32 italic">Conteo Real</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 text-xs font-bold text-slate-700 bg-white">
+                            {groupedLots.map(group => (
+                                <React.Fragment key={group.ingredientId}>
+                                    <tr className="hover:bg-slate-50 border-t border-slate-200 bg-white group/master cursor-pointer transition-colors"
+                                        onClick={() => toggleRow(group.ingredientId)}>
+                                        <td className="px-4 py-3 text-slate-400">
+                                            {expandedRows[group.ingredientId] ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
                                         </td>
-                                        <td className="px-4 py-1.5 text-[10px] text-slate-600 font-bold uppercase">{lot.providerName}</td>
-                                        <td className="px-4 py-1.5 text-center print:hidden">
-                                            <span className={`px-2 py-0.5 rounded border text-[9px] font-bold flex items-center justify-center gap-1 w-max mx-auto ${getStatusColor(lot.expiry)}`}>
-                                                <Calendar size={10} /> {new Date(lot.expiry).toLocaleDateString('es-AR')}
-                                            </span>
+                                        <td className="px-4 py-3 font-black uppercase text-[12px] text-slate-800 flex items-center gap-2">
+                                            {group.es_subensamble && <Layers size={14} className="text-orange-500 print:hidden" />}
+                                            {group.ingredientName}
+                                            <span className="text-[10px] font-normal text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-md ml-2 border border-slate-200">{group.lots.length} lote{group.lots.length !== 1 ? 's' : ''}</span>
                                         </td>
-                                        <td className="px-4 py-1.5 text-right font-mono text-slate-500 font-bold text-[11px] print:hidden">
-                                            {lot.unitPrice ? (
-                                                (lot.unidad_base === 'g' || lot.unidad_base === 'ml')
-                                                    ? `$${(Number(lot.unitPrice) * 1000).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} / ${lot.unidad_base === 'g' ? 'Kg' : 'L'}`
-                                                    : `$${Number(lot.unitPrice).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })} / ${lot.unidad_base}`
-                                            ) : '—'}
+                                        <td className="px-4 py-3 text-[10px] text-slate-400 uppercase tracking-widest">— Varios Lotes —</td>
+                                        <td className="px-4 py-3 text-center print:hidden"></td>
+                                        <td className="px-4 py-3 text-right print:hidden"></td>
+                                        <td className="px-4 py-3 text-right font-mono font-black text-slate-900 text-[13px] bg-slate-50/50">
+                                            {fmtCantidad(group.totalAmount, group.unidad_base)}
                                         </td>
-                                        <td className="px-4 py-1.5 text-right font-mono text-slate-700 text-[12px]">
-                                            {fmtCantidad(lot.amount, lot.unidad_base)}
+                                        <td className="px-4 py-3 text-right font-mono font-black text-emerald-700 text-[13px] bg-emerald-50/30 print:hidden">
+                                            ${group.totalValue.toLocaleString('es-AR', { minimumFractionDigits: 0 })}
                                         </td>
-                                        <td className="px-4 py-1.5 text-right font-mono text-emerald-600 font-bold text-[11px] print:hidden">
-                                            {lot.valorLote > 0 ? `$${lot.valorLote.toLocaleString('es-AR', { minimumFractionDigits: 0 })}` : <span className="text-slate-300">—</span>}
-                                        </td>
-                                        <td className="px-4 py-1.5 text-center print:hidden flex items-center justify-center gap-1 h-full min-h-[38px]">
-                                            <button onClick={(e) => { e.stopPropagation(); setAdjustModal(lot); }} title="Ajuste de Conteo Físico" className="px-2 py-1 h-[24px] bg-white border border-slate-200 hover:bg-slate-200 hover:border-slate-300 text-slate-600 rounded text-[9px] uppercase tracking-widest transition-colors opacity-0 group-hover/lot:opacity-100 flex items-center justify-center shadow-sm">Ajustar</button>
-                                            <button onClick={(e) => { e.stopPropagation(); setDeleteModal(lot); }} title="Dar de Baja (Borrar)" className="min-w-[28px] h-[24px] bg-white border border-rose-200 hover:bg-rose-500 hover:text-white text-rose-500 rounded transition-colors opacity-0 group-hover/lot:opacity-100 flex items-center justify-center shadow-sm"><Trash2 size={13} /></button>
-                                        </td>
-                                        <td className="px-4 py-1.5 text-right hidden print:table-cell text-slate-300 font-mono text-[10px]">............. {lot.unidad_base}</td>
+                                        <td className="px-4 py-3 text-center print:hidden"></td>
+                                        <td className="px-4 py-3 text-right hidden print:table-cell text-slate-300 font-mono">................ {group.unidad_base || 'Kg'}</td>
                                     </tr>
-                                ))}
-                            </React.Fragment>
-                        ))}
-                        {groupedLots.length === 0 && (
-                            <tr><td colSpan="9" className="p-8 text-center text-slate-400 italic bg-slate-50">No hay lotes que coincidan con la búsqueda.</td></tr>
-                        )}
-                    </tbody>
-                </table>
-            </Card>
 
-            {/* Modal Historial */}
+                                    {expandedRows[group.ingredientId] && group.lots.map(lot => (
+                                        <tr key={lot.id} className="bg-slate-50/80 hover:bg-slate-100 transition-colors group/lot print:border-b print:border-slate-300 shadow-[inset_4px_0_0_#cbd5e1]">
+                                            <td className="px-4 py-1.5"></td>
+                                            <td className="px-4 py-1.5 pl-8">
+                                                <span className="font-mono font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100 text-[10px]">
+                                                    {lot.codigo_lote || lot.id.slice(0, 8).toUpperCase()}
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-1.5 text-[10px] text-slate-600 font-bold uppercase">{lot.providerName}</td>
+                                            <td className="px-4 py-1.5 text-center print:hidden">
+                                                <span className={`px-2 py-0.5 rounded border text-[9px] font-bold flex items-center justify-center gap-1 w-max mx-auto ${getStatusColor(lot.expiry)}`}>
+                                                    <Calendar size={10} /> {new Date(lot.expiry).toLocaleDateString('es-AR')}
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-1.5 text-right font-mono text-slate-500 font-bold text-[11px] print:hidden">
+                                                {lot.unitPrice ? (
+                                                    (lot.unidad_base === 'g' || lot.unidad_base === 'ml')
+                                                        ? `$${(Number(lot.unitPrice) * 1000).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} / ${lot.unidad_base === 'g' ? 'Kg' : 'L'}`
+                                                        : `$${Number(lot.unitPrice).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })} / ${lot.unidad_base}`
+                                                ) : '—'}
+                                            </td>
+                                            <td className="px-4 py-1.5 text-right font-mono text-slate-700 text-[12px]">
+                                                {fmtCantidad(lot.amount, lot.unidad_base)}
+                                            </td>
+                                            <td className="px-4 py-1.5 text-right font-mono text-emerald-600 font-bold text-[11px] print:hidden">
+                                                {lot.valorLote > 0 ? `$${lot.valorLote.toLocaleString('es-AR', { minimumFractionDigits: 0 })}` : <span className="text-slate-300">—</span>}
+                                            </td>
+                                            <td className="px-4 py-1.5 text-center print:hidden flex items-center justify-center gap-1 h-full min-h-[38px]">
+                                                <button onClick={(e) => { e.stopPropagation(); setAdjustModal(lot); }} title="Ajuste de Conteo Físico" className="px-2 py-1 h-[24px] bg-white border border-slate-200 hover:bg-slate-200 hover:border-slate-300 text-slate-600 rounded text-[9px] uppercase tracking-widest transition-colors opacity-0 group-hover/lot:opacity-100 flex items-center justify-center shadow-sm">Ajustar</button>
+                                                <button onClick={(e) => { e.stopPropagation(); setDeleteModal(lot); }} title="Dar de Baja (Borrar)" className="min-w-[28px] h-[24px] bg-white border border-rose-200 hover:bg-rose-500 hover:text-white text-rose-500 rounded transition-colors opacity-0 group-hover/lot:opacity-100 flex items-center justify-center shadow-sm"><Trash2 size={13} /></button>
+                                            </td>
+                                            <td className="px-4 py-1.5 text-right hidden print:table-cell text-slate-300 font-mono text-[10px]">............. {lot.unidad_base}</td>
+                                        </tr>
+                                    ))}
+                                </React.Fragment>
+                            ))}
+                            {groupedLots.length === 0 && (
+                                <tr><td colSpan="9" className="p-8 text-center text-slate-400 italic bg-slate-50">No hay lotes que coincidan con la búsqueda.</td></tr>
+                            )}
+                        </tbody>
+                    </table>
+                </Card>
+            )}
+
+            {/* TABLE CARD - TAB PRODUCTOS TERMINADOS */}
+            {activeTab === 'productos' && (
+                <Card className="overflow-hidden border-2 print:border-none print:shadow-none bg-white">
+                    <div className="hidden print:block mb-6 border-b-2 border-slate-900 pb-2">
+                        <h2 className="text-2xl font-black uppercase italic text-slate-900 leading-none">Planilla de Control Físico - Productos Terminados</h2>
+                        <p className="text-xs font-bold uppercase tracking-widest text-slate-500 mt-2">Fecha: {new Date().toLocaleDateString('es-AR')} | Turno: _______ | Firma Auditor: ______________</p>
+                    </div>
+                    <table className="w-full text-left print:mt-4">
+                        <thead className="bg-slate-900 text-white text-[9px] uppercase tracking-widest print:bg-transparent print:text-slate-800 print:border-b-2 print:border-slate-800">
+                            <tr>
+                                <th className="px-4 py-2 w-10"></th>
+                                <th className="px-4 py-2">Código / Producto</th>
+                                <th className="px-4 py-2">Sector / Lote PT</th>
+                                <th className="px-4 py-2 text-center print:hidden">Vencimiento</th>
+                                <th className="px-4 py-2 text-right print:hidden">Costo Est. Unitario</th>
+                                <th className="px-4 py-2 text-right">Existencia Sistema</th>
+                                <th className="px-4 py-2 text-right print:hidden">Valorización</th>
+                                <th className="px-4 py-2 text-center print:hidden">Etiquetas</th>
+                                <th className="px-4 py-2 text-right hidden print:table-cell w-32 italic">Conteo Real</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 text-xs font-bold text-slate-700 bg-white">
+                            {groupedPT.map(group => (
+                                <React.Fragment key={group.productoId}>
+                                    <tr className="hover:bg-slate-50 border-t border-slate-200 bg-white group/master cursor-pointer transition-colors"
+                                        onClick={() => togglePTRow(group.productoId)}>
+                                        <td className="px-4 py-3 text-slate-400">
+                                            {expandedPTRows[group.productoId] ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                                        </td>
+                                        <td className="px-4 py-3 font-black uppercase text-[12px] text-slate-800 flex items-center gap-2">
+                                            {group.productoNombre}
+                                            <span className="text-[10px] font-mono text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">{group.codigo}</span>
+                                        </td>
+                                        <td className="px-4 py-3 text-[9px]">
+                                            <span className={`px-2 py-0.5 rounded-full font-black uppercase ${
+                                                group.tipo === 'Panadería' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
+                                                group.tipo === 'Charcutería' ? 'bg-purple-50 text-purple-700 border border-purple-200' :
+                                                'bg-orange-50 text-orange-700 border border-orange-200'
+                                            }`}>{group.tipo}</span>
+                                        </td>
+                                        <td className="px-4 py-3 text-center print:hidden"></td>
+                                        <td className="px-4 py-3 text-right print:hidden"></td>
+                                        <td className="px-4 py-3 text-right font-mono font-black text-slate-900 text-[13px] bg-slate-50/50">
+                                            {group.totalCantidad.toLocaleString('es-AR', { maximumFractionDigits: 2 })} {group.unidad}
+                                        </td>
+                                        <td className="px-4 py-3 text-right font-mono font-black text-emerald-700 text-[13px] bg-emerald-50/30 print:hidden">
+                                            ${group.totalValue.toLocaleString('es-AR', { minimumFractionDigits: 0 })}
+                                        </td>
+                                        <td className="px-4 py-3 text-center print:hidden"></td>
+                                        <td className="px-4 py-3 text-right hidden print:table-cell text-slate-300 font-mono">................ {group.unidad}</td>
+                                    </tr>
+
+                                    {expandedPTRows[group.productoId] && group.lots.map(lot => (
+                                        <tr key={lot.id} className="bg-slate-50/80 hover:bg-slate-100 transition-colors group/lot print:border-b print:border-slate-300 shadow-[inset_4px_0_0_#cbd5e1]">
+                                            <td className="px-4 py-1.5"></td>
+                                            <td className="px-4 py-1.5 pl-8">
+                                                <span className="font-mono font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100 text-[10px]">
+                                                    {lot.codigoLote}
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-1.5 text-[9px] uppercase tracking-wider text-slate-400">Lote Interno PT</td>
+                                            <td className="px-4 py-1.5 text-center print:hidden">
+                                                <span className={`px-2 py-0.5 rounded border text-[9px] font-bold flex items-center justify-center gap-1 w-max mx-auto ${getStatusColor(lot.vencimiento)}`}>
+                                                    <Calendar size={10} /> {new Date(lot.vencimiento).toLocaleDateString('es-AR')}
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-1.5 text-right font-mono text-slate-500 font-bold text-[11px] print:hidden">
+                                                ${lot.costoUnitario.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} / {lot.unidad}
+                                            </td>
+                                            <td className="px-4 py-1.5 text-right font-mono text-slate-700 text-[12px]">
+                                                {lot.cantidad.toLocaleString('es-AR', { maximumFractionDigits: 3 })} {lot.unidad}
+                                            </td>
+                                            <td className="px-4 py-1.5 text-right font-mono text-emerald-600 font-bold text-[11px] print:hidden">
+                                                ${lot.valorTotal.toLocaleString('es-AR', { minimumFractionDigits: 0 })}
+                                            </td>
+                                            <td className="px-4 py-1.5 text-center print:hidden flex items-center justify-center gap-1 h-full min-h-[38px]">
+                                                <button 
+                                                    onClick={(e) => { e.stopPropagation(); triggerPrintPT(lot); }} 
+                                                    title="Imprimir Etiqueta con Lote" 
+                                                    className="px-2 py-1 h-[24px] bg-white border border-slate-200 hover:bg-slate-900 hover:text-white hover:border-slate-900 text-slate-600 rounded text-[9px] uppercase tracking-widest transition-colors opacity-0 group-hover/lot:opacity-100 flex items-center justify-center gap-1 shadow-sm font-black"
+                                                >
+                                                    <QrCode size={10} /> Etiqueta
+                                                </button>
+                                            </td>
+                                            <td className="px-4 py-1.5 text-right hidden print:table-cell text-slate-300 font-mono text-[10px]">............. {lot.unidad}</td>
+                                        </tr>
+                                    ))}
+                                </React.Fragment>
+                            ))}
+                            {groupedPT.length === 0 && (
+                                <tr><td colSpan="9" className="p-8 text-center text-slate-400 italic bg-slate-50">No hay productos terminados en stock.</td></tr>
+                            )}
+                        </tbody>
+                    </table>
+                </Card>
+            )}
+
+            {/* Modal Historial Insumos */}
             {showLogs && (
                 <div className="fixed inset-0 bg-slate-950/80 flex items-center justify-center p-8 z-50 animate-in fade-in">
-                    <Card className="max-w-3xl w-full p-6 border-4 border-slate-900 max-h-[85vh] flex flex-col bg-white">
+                    <Card className="max-w-3xl w-full p-6 border border-slate-200 shadow-2xl rounded-2xl max-h-[85vh] flex flex-col bg-white">
                         <div className="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
                             <div>
-                                <h3 className="text-xl font-black uppercase italic text-slate-800 flex items-center gap-2"><RotateCcw size={20} /> Registro Auditoría (Ajustes Físicos)</h3>
+                                <h3 className="text-xl font-black uppercase italic text-slate-800 flex items-center gap-2"><RotateCcw size={20} /> Registro Auditoría (Ajustes Insumos)</h3>
                                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Histórico persistente — guardado en BD</p>
                             </div>
                             <button onClick={() => setShowLogs(false)} className="p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-800 rounded-lg"><XCircle size={24} /></button>
@@ -349,10 +704,10 @@ export default function InventoryView({ ingredients, lots, providers, setLots, s
                 </div>
             )}
 
-            {/* Modal Ajuste de Lote */}
+            {/* Modal Ajuste de Lote Insumos */}
             {adjustModal && (
                 <div className="fixed inset-0 bg-slate-950/80 flex items-center justify-center p-8 z-50 animate-in fade-in">
-                    <Card className="max-w-md w-full p-8 border-4 border-slate-900">
+                    <Card className="max-w-md w-full p-8 border border-slate-200 shadow-2xl rounded-2xl bg-white">
                         <h3 className="text-lg font-black uppercase italic mb-4">Ajuste de Lote Específico</h3>
                         <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 mb-6 space-y-2 text-xs">
                             <div className="flex justify-between"><span className="text-slate-400 font-bold uppercase">Código Lote:</span> <span className="font-mono font-black">{adjustModal.codigo_lote || '—'}</span></div>
@@ -368,10 +723,10 @@ export default function InventoryView({ ingredients, lots, providers, setLots, s
                 </div>
             )}
 
-            {/* Modal Baja Lote de Prueba */}
+            {/* Modal Anular Lote Insumos */}
             {deleteModal && (
                 <div className="fixed inset-0 bg-slate-950/80 flex items-center justify-center p-8 z-50 animate-in fade-in">
-                    <Card className="max-w-md w-full p-8 border-4 border-rose-500 relative bg-white">
+                    <Card className="max-w-md w-full p-8 border border-rose-200 shadow-2xl rounded-2xl relative bg-white">
                         <div className="absolute top-4 right-4 text-rose-200">
                             <AlertTriangle size={48} className="opacity-20" />
                         </div>
@@ -391,6 +746,53 @@ export default function InventoryView({ ingredients, lots, providers, setLots, s
                             <Button onClick={() => setDeleteModal(null)} variant="secondary" className="px-6">Cancelar</Button>
                         </div>
                     </Card>
+                </div>
+            )}
+
+            {/* VISTA DE ETIQUETA IMPRIMIBLE DE PRODUCTOS TERMINADOS (MODAL FLOTANTE) */}
+            {printedLabel && (
+                <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex justify-center items-center p-4 print:p-0 print:static print:bg-white print:z-auto">
+                    <div className="bg-white border-[12px] border-slate-900 rounded-[2.5rem] p-10 max-w-sm w-full text-center shadow-2xl print:border-none print:shadow-none print:rounded-none print:p-0">
+                        <div className="border-b-[6px] border-slate-900 pb-4 mb-6">
+                            <h2 className="text-2xl font-black uppercase tracking-tight text-slate-900 leading-tight">{printedLabel.title}</h2>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">PRODUCTO LISTO PARA DESPACHO DSD</p>
+                        </div>
+
+                        <div className="space-y-3 text-left border-b border-dashed pb-6 mb-6">
+                            <div className="flex justify-between text-xs">
+                                <span className="text-slate-400 font-bold uppercase">Sector:</span>
+                                <span className="font-black text-slate-800 uppercase text-[10px]">{printedLabel.sector}</span>
+                            </div>
+                            <div className="flex justify-between text-xs">
+                                <span className="text-slate-400 font-bold uppercase">SKU:</span>
+                                <span className="font-mono font-black text-slate-800">{printedLabel.sku}</span>
+                            </div>
+                            <div className="flex justify-between text-xs">
+                                <span className="text-slate-400 font-bold uppercase">Lote PT:</span>
+                                <span className="font-mono font-black text-blue-700">{printedLabel.lote}</span>
+                            </div>
+                            <div className="flex justify-between text-xs">
+                                <span className="text-slate-400 font-bold uppercase">Existencia:</span>
+                                <span className="font-mono font-black text-slate-900">{printedLabel.peso}</span>
+                            </div>
+                            <div className="flex justify-between text-xs">
+                                <span className="text-slate-400 font-bold uppercase">Vencimiento:</span>
+                                <span className="font-mono font-black text-red-600">{printedLabel.vencimiento}</span>
+                            </div>
+                        </div>
+
+                        <div className="flex flex-col items-center justify-center gap-3">
+                            <div className="border border-slate-200 p-3 rounded-2xl bg-slate-50 flex items-center justify-center">
+                                <QrCode size={120} className="text-slate-800" />
+                            </div>
+                            <p className="text-[8px] font-mono text-slate-400 uppercase">Escanear para Picking FEFO</p>
+                        </div>
+
+                        <div className="flex gap-3 justify-end mt-8 pt-4 border-t print:hidden">
+                            <Button onClick={() => window.print()} variant="success">Imprimir</Button>
+                            <Button onClick={() => setPrintedLabel(null)} variant="secondary">Cerrar</Button>
+                        </div>
+                    </div>
                 </div>
             )}
         </div>
