@@ -242,6 +242,7 @@ export default function EngineeringView({
                 <CharcuteriaView 
                     charcRecetas={charcRecetas} 
                     addCharcReceta={addCharcReceta} 
+                    setCharcRecetas={setCharcRecetas}
                     ingredients={ingredients} 
                     showToast={showToast} 
                     initialTab="recetas"

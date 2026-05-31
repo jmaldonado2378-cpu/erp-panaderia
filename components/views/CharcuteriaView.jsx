@@ -6,6 +6,7 @@ import {
     Trash2, Wrench, Info, Clock, ArrowRight, ChevronRight, Coins, AlertTriangle, Check, RotateCcw
 } from 'lucide-react';
 import { Card, Button, Input, Select } from '../bakery_erp';
+import BulkImportModal from '../BulkImportModal';
 
 const FAMILIAS_CHARC = {
     fermentado_seco: { id: 'fermentado_seco', nombre: 'Fermentados Secos (Madurados)', color: 'bg-red-700', text: 'text-red-700', border: 'border-red-700' },
@@ -27,7 +28,7 @@ const CATEGORIAS_TECNOLOGICAS = {
 const fmtCost = (n) => `$${Number(n || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 export default function CharcuteriaView({ 
-    charcRecetas = [], addCharcReceta, 
+    charcRecetas = [], addCharcReceta, setCharcRecetas,
     charcLotes = [], addCharcLote, 
     charcLogs = [], addCharcLog, 
     updateCharcLoteEstado,
@@ -37,6 +38,7 @@ export default function CharcuteriaView({
 }) {
     const [tab, setTab] = useState(initialTab);
     const [showAddReceta, setShowAddReceta] = useState(false);
+    const [showBulkImport, setShowBulkImport] = useState(false);
 
     useEffect(() => {
         if (hideMaduracionTab) {
@@ -642,22 +644,25 @@ export default function CharcuteriaView({
                             <h3 className="text-2xl font-black uppercase italic text-slate-800 tracking-tighter">Recetas y Dosificación Industrial</h3>
                             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Definición de fichas técnicas en base cárnica, aditivos y tiempos de curing.</p>
                         </div>
-                        <Button onClick={() => {
-                            setShowAddReceta(!showAddReceta);
-                            if (!showAddReceta) {
-                                setRecetaForm({
-                                    codigo: '',
-                                    nombre: '',
-                                    familia_tecnologica: 'fermentado_seco',
-                                    porcentaje_inyeccion: '',
-                                    lead_time_dias: 30,
-                                    merma_secado_objetivo: 35,
-                                    details: [{ ingredientId: '', categoria_tecnologica: 'magro', porcentaje_base: '', secuencia_mezcla: 1 }]
-                                });
-                            }
-                        }} variant={showAddReceta ? "secondary" : "accent"} className="py-3 px-6 rounded-xl italic">
-                            {showAddReceta ? "Cancelar" : <><Plus size={16} /> Nueva Ficha Charcutería</>}
-                        </Button>
+                        <div className="flex gap-2">
+                            <Button onClick={() => setShowBulkImport(true)} variant="secondary"><Plus size={16} /> Carga Masiva</Button>
+                            <Button onClick={() => {
+                                setShowAddReceta(!showAddReceta);
+                                if (!showAddReceta) {
+                                    setRecetaForm({
+                                        codigo: '',
+                                        nombre: '',
+                                        familia_tecnologica: 'fermentado_seco',
+                                        porcentaje_inyeccion: '',
+                                        lead_time_dias: 30,
+                                        merma_secado_objetivo: 35,
+                                        details: [{ ingredientId: '', categoria_tecnologica: 'magro', porcentaje_base: '', secuencia_mezcla: 1 }]
+                                    });
+                                }
+                            }} variant={showAddReceta ? "secondary" : "accent"} className="py-3 px-6 rounded-xl italic">
+                                {showAddReceta ? "Cancelar" : <><Plus size={16} /> Nueva Ficha Charcutería</>}
+                            </Button>
+                        </div>
                     </div>
 
                     {/* FORMULARIO DE ALTA DE RECETA DE CHARCUTERÍA */}
@@ -1271,6 +1276,16 @@ export default function CharcuteriaView({
                     </div>
                 </div>
             )}
+
+            <BulkImportModal
+                isOpen={showBulkImport}
+                onClose={() => setShowBulkImport(false)}
+                type="charc_recetas"
+                ingredients={ingredients}
+                charcRecetas={charcRecetas}
+                showToast={showToast}
+                onSuccess={{ setCharcRecetas }}
+            />
         </div>
     );
 }

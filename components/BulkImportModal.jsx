@@ -7,10 +7,11 @@ import { CATEGORIAS_INSUMO, UBICACIONES_ALMACEN } from './bakery_erp';
 export default function BulkImportModal({
     isOpen,
     onClose,
-    type, // 'ingredientes' | 'proveedores' | 'clientes' | 'recetas'
+    type, // 'ingredientes' | 'proveedores' | 'clientes' | 'recetas' | 'charc_recetas'
     onSuccess, // callback to refresh state in parent
     ingredients = [], // current ingredients for reference
     recipes = [], // current recipes for reference
+    charcRecetas = [], // charcuteria recipes
     showToast
 }) {
     const [activeTab, setActiveTab] = useState('url'); // 'url' | 'file' | 'paste'
@@ -138,6 +139,7 @@ export default function BulkImportModal({
 
         // Object holding max index for ingredients by prefix to avoid duplicates inside the imported file
         const ingCounters = {};
+        const charcCounters = {};
 
         rows.forEach((row, rowIndex) => {
             const rowNum = rowIndex + 2; // +1 for 1-based index, +1 for header row
@@ -306,6 +308,67 @@ export default function BulkImportModal({
                     originalRow: rowNum
                 });
             }
+            
+            else if (type === 'charc_recetas') {
+                const receta_codigo = record.recetacodigo || record.recetasku || record.sku || '';
+                const receta_nombre = record.recetanombre || record.producto || record.nombre || '';
+                const familia_tecnologica = record.familiatecnologica || record.familia || 'fermentado_seco';
+                const lead_time_dias = Number(record.leadtimedias || record.leadtime || 30);
+                const merma_secado_objetivo = Number(record.mermasecadoobjetivo || record.mermasecado || record.merma || 35);
+                const porcentaje_inyeccion = record.porcentajeinyeccion ? Number(record.porcentajeinyeccion) : null;
+                const ingrediente_ident = record.ingredientecodigo || record.ingredientesku || record.ingrediente || '';
+                const porcentaje_base = record.porcentaje || record.porcentajebase || record.pct || '';
+                const categoria_tecnologica = record.categoriatecnologica || record.categoria || 'aditivo';
+                const secuencia_mezcla = Number(record.secuenciamezcla || record.secuencia || 1);
+
+                if (!receta_nombre) {
+                    errors.push(`Fila ${rowNum}: Nombre del chacinado es requerido.`);
+                }
+                if (!ingrediente_ident) {
+                    errors.push(`Fila ${rowNum}: Insumo es requerido.`);
+                }
+
+                // Check ingredient reference
+                const ing = ingredients.find(i => i.codigo === ingrediente_ident || i.name?.toLowerCase() === ingrediente_ident.toString().toLowerCase());
+                if (!ing) {
+                    errors.push(`Fila ${rowNum}: El ingrediente "${ingrediente_ident}" no existe en el catálogo.`);
+                }
+
+                let codigo = receta_codigo || '';
+                if (!codigo && receta_nombre) {
+                    const famKey = familia_tecnologica.toLowerCase();
+                    const famPrefix = famKey === 'fermentado_seco' ? 'SEC' :
+                                      famKey === 'salazon_cruda' ? 'SLZ' :
+                                      famKey === 'emulsion_fina' ? 'EMU' : 'INY';
+                    const prefix = `CH-${famPrefix}-`;
+                    
+                    if (!charcCounters[prefix]) {
+                        const numbers = charcRecetas
+                            .filter(r => r.codigo?.startsWith(prefix))
+                            .map(r => parseInt(r.codigo.split('-').pop()))
+                            .filter(n => !isNaN(n));
+                        charcCounters[prefix] = numbers.length > 0 ? Math.max(...numbers) : 0;
+                    }
+                    charcCounters[prefix]++;
+                    codigo = `${prefix}${String(charcCounters[prefix]).padStart(3, '0')}`;
+                }
+
+                processed.push({
+                    receta_codigo: codigo.toUpperCase(),
+                    receta_nombre,
+                    familia_tecnologica: familia_tecnologica.toLowerCase(),
+                    lead_time_dias,
+                    merma_secado_objetivo,
+                    porcentaje_inyeccion,
+                    ingrediente_id: ing ? ing.id : null,
+                    ingrediente_codigo: ing ? ing.codigo : ingrediente_ident,
+                    ingrediente_nombre: ing ? ing.name : 'No Encontrado',
+                    porcentaje_base: porcentaje_base !== '' ? Number(porcentaje_base) : null,
+                    categoria_tecnologica: categoria_tecnologica.toLowerCase(),
+                    secuencia_mezcla,
+                    originalRow: rowNum
+                });
+            }
         });
 
         // Unique validation for recipes grouping
@@ -335,6 +398,44 @@ export default function BulkImportModal({
                     if (Math.abs(totalBatchPct - 100) > 1) {
                         errors.push(`Receta ${g.codigo} (${g.nombre}): En la lógica "% Batch", la suma de porcentajes debe ser exactamente 100% (Suma actual: ${totalBatchPct.toFixed(1)}%).`);
                     }
+                }
+            });
+        }
+
+        if (type === 'charc_recetas' && errors.length === 0) {
+            const groups = {};
+            processed.forEach(p => {
+                if (!groups[p.receta_codigo]) {
+                    groups[p.receta_codigo] = {
+                        codigo: p.receta_codigo,
+                        nombre: p.receta_nombre,
+                        familia: p.familia_tecnologica,
+                        items: []
+                    };
+                }
+                groups[p.receta_codigo].items.push(p);
+            });
+
+            Object.values(groups).forEach(g => {
+                if (g.familia === 'fermentado_seco' || g.familia === 'emulsion_fina') {
+                    const sumMeatBase = g.items
+                        .filter(it => it.categoria_tecnologica === 'magro' || it.categoria_tecnologica === 'grasa')
+                        .reduce((sum, it) => sum + (it.porcentaje_base || 0), 0);
+                    if (Math.abs(sumMeatBase - 100) > 0.01) {
+                        errors.push(`Receta ${g.codigo} (${g.nombre}): La suma de base cárnica (Magro y Grasa) debe ser exactamente 100% (Actual: ${sumMeatBase.toFixed(1)}%).`);
+                    }
+                }
+
+                const salCuraPct = g.items
+                    .filter(it => it.categoria_tecnologica === 'aditivo')
+                    .reduce((sum, it) => {
+                        if (it.ingrediente_nombre?.toLowerCase().includes('cura') || it.ingrediente_codigo?.toLowerCase().includes('nitri')) {
+                            return sum + (it.porcentaje_base || 0);
+                        }
+                        return sum;
+                    }, 0);
+                if (salCuraPct > 2.50) {
+                    errors.push(`Receta ${g.codigo} (${g.nombre}): PCC Crítico - Sal de cura superior al 2.5% legal (${(salCuraPct * 60).toFixed(0)} ppm residual), excede límites de inocuidad.`);
                 }
             });
         }
@@ -623,6 +724,95 @@ export default function BulkImportModal({
 
                 showToast(`Se cargaron/actualizaron ${Object.keys(groups).length} recetas exitosamente.`);
             }
+            
+            else if (type === 'charc_recetas') {
+                // Group by recipe code
+                const groups = {};
+                parsedData.forEach(r => {
+                    if (!groups[r.receta_codigo]) {
+                        groups[r.receta_codigo] = {
+                            codigo: r.receta_codigo,
+                            nombre: r.receta_nombre,
+                            familia_tecnologica: r.familia_tecnologica,
+                            lead_time_dias: r.lead_time_dias,
+                            merma_secado_objetivo: r.merma_secado_objetivo,
+                            porcentaje_inyeccion: r.porcentaje_inyeccion,
+                            version: 1,
+                            details: []
+                        };
+                    }
+                    groups[r.receta_codigo].details.push({
+                        ingredientId: r.ingrediente_id,
+                        porcentaje_base: r.porcentaje_base,
+                        categoria_tecnologica: r.categoria_tecnologica,
+                        secuencia_mezcla: r.secuencia_mezcla
+                    });
+                });
+
+                const newCharcRecipesList = [];
+
+                for (const g of Object.values(groups)) {
+                    // Compute grams based on family technology
+                    const baseRef = (g.familia_tecnologica === 'fermentado_seco' || g.familia_tecnologica === 'emulsion_fina') ? 10000 : 1000;
+                    
+                    const detailsMapped = g.details.map(d => ({
+                        ...d,
+                        gramos: Number(((Number(d.porcentaje_base || 0) / 100) * baseRef).toFixed(2))
+                    }));
+
+                    const recipeHeaderData = {
+                        codigo: g.codigo,
+                        nombre: g.nombre,
+                        lead_time_dias: g.lead_time_dias,
+                        merma_secado_objetivo: g.merma_secado_objetivo,
+                        familia_tecnologica: g.familia_tecnologica,
+                        porcentaje_inyeccion: g.familia_tecnologica === 'salazon_inyectada' ? g.porcentaje_inyeccion : null,
+                        version: g.version
+                    };
+
+                    // Check if exists
+                    const existingRec = charcRecetas.find(r => r.codigo === g.codigo);
+                    let recipeId;
+
+                    if (existingRec) {
+                        recipeId = existingRec.id;
+                        const { error } = await supabase.from('charc_recetas').update(recipeHeaderData).eq('id', recipeId);
+                        if (error) throw error;
+                        await supabase.from('charc_receta_ingredientes').delete().eq('receta_id', recipeId);
+                    } else {
+                        const { data, error } = await supabase.from('charc_recetas').insert([recipeHeaderData]).select();
+                        if (error) throw error;
+                        recipeId = data[0].id;
+                    }
+
+                    // Save details
+                    const detailsToInsert = detailsMapped.map(d => ({
+                        receta_id: recipeId,
+                        ingrediente_id: d.ingredientId,
+                        porcentaje_base: d.porcentaje_base,
+                        categoria_tecnologica: d.categoria_tecnologica,
+                        secuencia_mezcla: d.secuencia_mezcla,
+                        gramos: d.gramos
+                    }));
+
+                    const { error: detError } = await supabase.from('charc_receta_ingredientes').insert(detailsToInsert);
+                    if (detError) throw detError;
+
+                    newCharcRecipesList.push({
+                        id: recipeId,
+                        ...recipeHeaderData,
+                        details: detailsMapped
+                    });
+                }
+
+                // Update Charcuteria state
+                onSuccess.setCharcRecetas(prev => {
+                    const filtered = prev.filter(p => !newCharcRecipesList.some(n => n.id === p.id));
+                    return [...newCharcRecipesList, ...filtered];
+                });
+
+                showToast(`Se cargaron/actualizaron ${Object.keys(groups).length} recetas de charcutería exitosamente.`);
+            }
 
             setSuccessMessage("¡Carga masiva completada con éxito!");
             setParsedData([]);
@@ -670,6 +860,17 @@ export default function BulkImportModal({
                 ['FG-F-050', 'Pan de Centeno 400g', 'F', 'false', 'panadero', 'Unidad', '400', '15', '1.5', '50', 'Sal Fina', '2', ''],
                 ['FG-F-050', 'Pan de Centeno 400g', 'F', 'false', 'panadero', 'Unidad', '400', '15', '1.5', '50', 'Levadura Fresca', '2', '']
             ];
+        } else if (type === 'charc_recetas') {
+            headers = ['Receta_Codigo', 'Receta_Nombre', 'Familia_Tecnologica', 'Lead_Time_Dias', 'Merma_Secado_Objetivo', 'Porcentaje_Inyeccion', 'Ingrediente_Codigo_o_Nombre', 'Porcentaje_Base', 'Categoria_Tecnologica', 'Secuencia_Mezcla'];
+            rows = [
+                ['', 'Salame Milán Especial', 'fermentado_seco', '45', '35', '', 'Paleta Cerdo deshuesada', '65', 'magro', '1'],
+                ['', 'Salame Milán Especial', 'fermentado_seco', '45', '35', '', 'Tocino de Cerdo (Grasa)', '35', 'grasa', '1'],
+                ['', 'Salame Milán Especial', 'fermentado_seco', '45', '35', '', 'Sal Fina', '2.6', 'aditivo', '2'],
+                ['', 'Salame Milán Especial', 'fermentado_seco', '45', '35', '', 'Sal de Cura (0.6% Nitrito)', '0.3', 'aditivo', '2'],
+                ['', 'Salame Milán Especial', 'fermentado_seco', '45', '35', '', 'Dextrosa Monohidratada', '0.4', 'saborizante', '3'],
+                ['CH-BND-002', 'Bondiola Casera Premium', 'salazon_cruda', '60', '38', '', 'Paleta Cerdo deshuesada', '100', 'magro', '1'],
+                ['CH-BND-002', 'Bondiola Casera Premium', 'salazon_cruda', '60', '38', '', 'Sal Fina', '3', 'aditivo', '2']
+            ];
         }
 
         const csvContent = "data:text/csv;charset=utf-8," 
@@ -689,6 +890,7 @@ export default function BulkImportModal({
             case 'clientes': return 'Carga Masiva de Clientes';
             case 'ingredientes': return 'Carga Masiva de Insumos y Packaging';
             case 'recetas': return 'Carga Masiva de Recetas (BOMs)';
+            case 'charc_recetas': return 'Carga Masiva de Fichas de Charcutería';
             default: return 'Carga Masiva';
         }
     };
@@ -869,6 +1071,16 @@ export default function BulkImportModal({
                                                 <th className="px-4 py-2.5 text-right">Gramos (Batch)</th>
                                             </tr>
                                         )}
+                                        {type === 'charc_recetas' && (
+                                            <tr>
+                                                <th className="px-4 py-2.5">Receta Cód.</th>
+                                                <th className="px-4 py-2.5">Chacinado</th>
+                                                <th className="px-4 py-2.5">Familia Tecnológica</th>
+                                                <th className="px-4 py-2.5">Ingrediente</th>
+                                                <th className="px-4 py-2.5">Categoría</th>
+                                                <th className="px-4 py-2.5 text-right">% Base</th>
+                                            </tr>
+                                        )}
                                     </thead>
                                     <tbody className="divide-y divide-slate-100 bg-white">
                                         {parsedData.map((row, i) => (
@@ -910,6 +1122,16 @@ export default function BulkImportModal({
                                                         <td className="px-4 py-2 font-sans font-normal lowercase">{row.ingrediente_nombre} <span className="text-[8px] font-mono text-blue-500">({row.ingrediente_codigo})</span></td>
                                                         <td className="px-4 py-2 text-right font-mono">{row.porcentaje !== null ? `${row.porcentaje}%` : '-'}</td>
                                                         <td className="px-4 py-2 text-right font-mono">{row.gramos > 0 ? `${row.gramos} g` : '-'}</td>
+                                                    </>
+                                                )}
+                                                {type === 'charc_recetas' && (
+                                                    <>
+                                                        <td className="px-4 py-2 font-mono text-slate-500 font-black">{row.receta_codigo}</td>
+                                                        <td className="px-4 py-2 text-slate-800">{row.receta_nombre}</td>
+                                                        <td className="px-4 py-2 capitalize"><span className="bg-red-50 text-red-700 px-1.5 rounded text-[8px] font-black">{row.familia_tecnologica.replace('_', ' ')}</span></td>
+                                                        <td className="px-4 py-2 font-sans font-normal lowercase">{row.ingrediente_nombre} <span className="text-[8px] font-mono text-blue-500">({row.ingrediente_codigo})</span></td>
+                                                        <td className="px-4 py-2"><span className="bg-slate-100 px-1.5 rounded text-[8px]">{row.categoria_tecnologica}</span></td>
+                                                        <td className="px-4 py-2 text-right font-mono">{row.porcentaje_base !== null ? `${row.porcentaje_base}%` : '-'}</td>
                                                     </>
                                                 )}
                                             </tr>
