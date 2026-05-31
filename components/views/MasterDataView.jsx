@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Briefcase, Wrench, Layers, Building, Store } from 'lucide-react';
 import { Card, Button, Input, Select, CATEGORIAS_INSUMO, UBICACIONES_ALMACEN, PRESENTACIONES_COMPRA } from '../bakery_erp';
 import { supabase } from '../../lib/supabase';
+import BulkImportModal from '../BulkImportModal';
 
 export default function MasterDataView({ ingredients, setIngredients, providers, setProviders, clientes, setClientes, showToast }) {
     const [tab, setTab] = useState('prov');
@@ -13,6 +14,10 @@ export default function MasterDataView({ ingredients, setIngredients, providers,
 
     const [cliForm, setCliForm] = useState({ id: null, codigo: '', nombre: '', cuit: '', tipo: 'Mayorista', direccion: '' });
     const [showAddCli, setShowAddCli] = useState(false);
+
+    const [showBulkImport, setShowBulkImport] = useState(false);
+    const [bulkImportType, setBulkImportType] = useState('proveedores'); // 'ingredientes' | 'proveedores' | 'clientes'
+
 
     useEffect(() => {
         if (!form.id && showAdd) {
@@ -161,7 +166,10 @@ export default function MasterDataView({ ingredients, setIngredients, providers,
                 <Card className="fall-target p-6 bg-slate-50">
                     <div className="flex justify-between items-center mb-5">
                         <h4 className="text-base font-black uppercase italic text-slate-800">Directorio de Proveedores</h4>
-                        <Button onClick={() => { setShowAdd(!showAdd); setForm({ id: null, codigo: '', nombre: '', cuit: '', rubro: '' }); }} variant={showAdd ? "secondary" : "accent"}>{showAdd ? "Cancelar" : <><Plus size={14} /> Nuevo Proveedor</>}</Button>
+                        <div className="flex gap-2">
+                            <Button onClick={() => { setBulkImportType('proveedores'); setShowBulkImport(true); }} variant="secondary"><Plus size={14} /> Carga Masiva</Button>
+                            <Button onClick={() => { setShowAdd(!showAdd); setForm({ id: null, codigo: '', nombre: '', cuit: '', rubro: '' }); }} variant={showAdd ? "secondary" : "accent"}>{showAdd ? "Cancelar" : <><Plus size={14} /> Nuevo Proveedor</>}</Button>
+                        </div>
                     </div>
 
                     {showAdd && (
@@ -201,7 +209,10 @@ export default function MasterDataView({ ingredients, setIngredients, providers,
                 <Card className="p-6 bg-slate-50">
                     <div className="flex justify-between items-center mb-5">
                         <h4 className="text-base font-black uppercase italic text-slate-800">Catálogo de Insumos</h4>
-                        <Button onClick={() => { setShowAddIng(!showAddIng); setIngForm({ id: null, codigo: '', name: '', unidad_compra: 'Bolsa 25kg', familia: 'Harinas y Polvos', almacen: 'Almacén Secos Principal', alergeno: '', costo_estandar: '' }); }} variant={showAddIng ? "secondary" : "accent"}>{showAddIng ? "Cancelar" : <><Plus size={14} /> Nuevo Insumo</>}</Button>
+                        <div className="flex gap-2">
+                            <Button onClick={() => { setBulkImportType('ingredientes'); setShowBulkImport(true); }} variant="secondary"><Plus size={14} /> Carga Masiva</Button>
+                            <Button onClick={() => { setShowAddIng(!showAddIng); setIngForm({ id: null, codigo: '', name: '', unidad_compra: 'Bolsa 25kg', familia: 'Harinas y Polvos', almacen: 'Almacén Secos Principal', alergeno: '', costo_estandar: '' }); }} variant={showAddIng ? "secondary" : "accent"}>{showAddIng ? "Cancelar" : <><Plus size={14} /> Nuevo Insumo</>}</Button>
+                        </div>
                     </div>
 
                     {showAddIng && (
@@ -293,7 +304,10 @@ export default function MasterDataView({ ingredients, setIngredients, providers,
                 <Card className="fall-target p-6 bg-slate-50">
                     <div className="flex justify-between items-center mb-5">
                         <h4 className="text-base font-black uppercase italic text-slate-800">Directorio de Clientes</h4>
-                        <Button onClick={() => { setShowAddCli(!showAddCli); setCliForm({ id: null, codigo: '', nombre: '', cuit: '', tipo: 'Mayorista', direccion: '' }); }} variant={showAddCli ? "secondary" : "accent"}>{showAddCli ? "Cancelar" : <><Plus size={14} /> Nuevo Cliente</>}</Button>
+                        <div className="flex gap-2">
+                            <Button onClick={() => { setBulkImportType('clientes'); setShowBulkImport(true); }} variant="secondary"><Plus size={14} /> Carga Masiva</Button>
+                            <Button onClick={() => { setShowAddCli(!showAddCli); setCliForm({ id: null, codigo: '', nombre: '', cuit: '', tipo: 'Mayorista', direccion: '' }); }} variant={showAddCli ? "secondary" : "accent"}>{showAddCli ? "Cancelar" : <><Plus size={14} /> Nuevo Cliente</>}</Button>
+                        </div>
                     </div>
 
                     {showAddCli && (
@@ -344,9 +358,12 @@ export default function MasterDataView({ ingredients, setIngredients, providers,
                             <h4 className="text-base font-black uppercase italic text-slate-800">Empaques y Materiales de Packaging</h4>
                             <p className="text-[10px] text-slate-400 mt-0.5 font-bold uppercase tracking-widest">Estos materiales se compran por Ingreso Insumos y figuran en el Inventario de Lotes.</p>
                         </div>
-                        <Button onClick={() => { setIngForm({ id: null, codigo: '', name: '', unidad_compra: 'unidad', familia: 'Empaques', almacen: 'Almacén Empaques', alergeno: '', costo_estandar: '', tipo: 'empaque' }); setShowAddIng(!showAddIng); }} variant={showAddIng ? 'secondary' : 'accent'}>
-                            {showAddIng ? 'Cancelar' : <><Plus size={14} /> Nuevo Empaque</>}
-                        </Button>
+                        <div className="flex gap-2 shrink-0">
+                            <Button onClick={() => { setBulkImportType('ingredientes'); setShowBulkImport(true); }} variant="secondary"><Plus size={14} /> Carga Masiva</Button>
+                            <Button onClick={() => { setIngForm({ id: null, codigo: '', name: '', unidad_compra: 'unidad', familia: 'Empaques', almacen: 'Almacén Empaques', alergeno: '', costo_estandar: '', tipo: 'empaque' }); setShowAddIng(!showAddIng); }} variant={showAddIng ? 'secondary' : 'accent'}>
+                                {showAddIng ? 'Cancelar' : <><Plus size={14} /> Nuevo Empaque</>}
+                            </Button>
+                        </div>
                     </div>
 
                     {showAddIng && (
@@ -396,6 +413,15 @@ export default function MasterDataView({ ingredients, setIngredients, providers,
                     </div>
                 </Card>
             )}
+
+            <BulkImportModal
+                isOpen={showBulkImport}
+                onClose={() => setShowBulkImport(false)}
+                type={bulkImportType}
+                ingredients={ingredients}
+                showToast={showToast}
+                onSuccess={{ setProviders, setClientes, setIngredients }}
+            />
         </div>
     );
 }

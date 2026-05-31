@@ -4,6 +4,7 @@ import { Card, Button, Input, Select, FAMILIAS } from '../bakery_erp';
 import { supabase } from '../../lib/supabase';
 import Link from 'next/link';
 import CharcuteriaView from './CharcuteriaView';
+import BulkImportModal from '../BulkImportModal';
 
 const fmt = (n) => `$${Number(n || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -23,6 +24,8 @@ export default function EngineeringView({
     const [expandedRows, setExpandedRows] = useState({});
     const [publishedPrice, setPublishedPrice] = useState(null);
     const [form, setForm] = useState(EMPTY_FORM);
+    const [showBulkImport, setShowBulkImport] = useState(false);
+
 
     const toggleRow = (id) => setExpandedRows(prev => ({ ...prev, [id]: !prev[id] }));
 
@@ -256,9 +259,12 @@ export default function EngineeringView({
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                     <input type="text" placeholder="Buscar por código o nombre..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg text-xs font-bold outline-none focus:border-orange-500 bg-slate-50 focus:bg-white transition-all" />
                 </div>
-                <Button onClick={() => { setShowAdd(!showAdd); if (!showAdd) setForm(EMPTY_FORM); }} variant={showAdd ? "secondary" : "accent"}>
-                    {showAdd ? "Cancelar Edición" : <><Plus size={16} /> Nueva Ficha</>}
-                </Button>
+                <div className="flex gap-2">
+                    <Button onClick={() => setShowBulkImport(true)} variant="secondary"><Plus size={16} /> Carga Masiva</Button>
+                    <Button onClick={() => { setShowAdd(!showAdd); if (!showAdd) setForm(EMPTY_FORM); }} variant={showAdd ? "secondary" : "accent"}>
+                        {showAdd ? "Cancelar Edición" : <><Plus size={16} /> Nueva Ficha</>}
+                    </Button>
+                </div>
             </div>
 
             {/* FORMULARIO + PANEL OPCIÓN A */}
@@ -651,6 +657,16 @@ export default function EngineeringView({
             </Card>
                 </>
             )}
+
+            <BulkImportModal
+                isOpen={showBulkImport}
+                onClose={() => setShowBulkImport(false)}
+                type="recetas"
+                ingredients={ingredients}
+                recipes={recipes}
+                showToast={showToast}
+                onSuccess={{ setRecipes, setIngredients }}
+            />
         </div>
     );
 }
