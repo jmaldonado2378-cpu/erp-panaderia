@@ -192,7 +192,10 @@ export default function PricingView({
         regimen: 'Monotributo', // Monotributo vs Responsable Inscripto
         iibb_pct: 3.5, // Ingresos Brutos
         comision_canal: 5.0, // MercadoPago/Tiendanube promedio
-        costo_envio: 0 // Envío bonificado unitario
+        costo_envio: 0, // Envío bonificado unitario
+        desc_mostrador: 0,
+        desc_distribuidor: 15,
+        desc_cadena: 25
     });
 
     useEffect(() => {
@@ -208,7 +211,20 @@ export default function PricingView({
                 setFixedCosts(prev => ({ ...prev, costosIndirectosPct: config?.finanzas?.costosIndirectosPct ?? 20 }));
             }
             const savedTaxes = localStorage.getItem('pricing_tax_settings');
-            if (savedTaxes) setTaxSettings(JSON.parse(savedTaxes));
+            if (savedTaxes) {
+                const parsed = JSON.parse(savedTaxes);
+                if (parsed.desc_mostrador === undefined) parsed.desc_mostrador = 0;
+                if (parsed.desc_distribuidor === undefined) parsed.desc_distribuidor = 15;
+                if (parsed.desc_cadena === undefined) parsed.desc_cadena = 25;
+                setTaxSettings(parsed);
+            } else {
+                setTaxSettings(prev => ({
+                    ...prev,
+                    desc_mostrador: 0,
+                    desc_distribuidor: 15,
+                    desc_cadena: 25
+                }));
+            }
         }
     }, [config]);
 
@@ -470,7 +486,10 @@ export default function PricingView({
 
         // Precios fijados por canal (o sugerido si está vacío)
         const activeCanalKey = `precio_${localPricing.canal_principal}`;
-        const precioCanalFijado = Number(localPricing[activeCanalKey]) || precioNetoSugerido;
+        const activeDescKey = localPricing.canal_principal === 'mostrador' ? 'desc_mostrador' : localPricing.canal_principal === 'distribuidor' ? 'desc_distribuidor' : 'desc_cadena';
+        const activeDesc = Number(taxSettings[activeDescKey] || 0);
+        const canalSugeridoConDescuento = precioNetoSugerido * (1 - activeDesc / 100);
+        const precioCanalFijado = Number(localPricing[activeCanalKey]) || canalSugeridoConDescuento;
 
         // Distribución del precio fijado en pesos
         const comisionesP = precioCanalFijado * (comisionesPct / 100);
@@ -745,6 +764,22 @@ export default function PricingView({
                 <Input 
                     label="Costo de Envío Incluido ($)" type="number" value={taxSettings.costo_envio}
                     onChange={v => saveTaxSettings({ ...taxSettings, costo_envio: Number(v) })}
+                />
+                
+                <div className="col-span-1 md:col-span-4 border-b border-t pt-3 mt-1 pb-2 flex justify-between items-center">
+                    <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Descuentos por Canal (sobre Sugerido Base)</h4>
+                </div>
+                <Input 
+                    label="Descuento Mostrador (%)" type="number" suffix="%" value={taxSettings.desc_mostrador ?? 0}
+                    onChange={v => saveTaxSettings({ ...taxSettings, desc_mostrador: Number(v) })}
+                />
+                <Input 
+                    label="Descuento Distribuidor (%)" type="number" suffix="%" value={taxSettings.desc_distribuidor ?? 15}
+                    onChange={v => saveTaxSettings({ ...taxSettings, desc_distribuidor: Number(v) })}
+                />
+                <Input 
+                    label="Descuento Cadenas (%)" type="number" suffix="%" value={taxSettings.desc_cadena ?? 25}
+                    onChange={v => saveTaxSettings({ ...taxSettings, desc_cadena: Number(v) })}
                 />
                 <div className="text-xs bg-slate-50 border p-3 rounded-xl flex items-center gap-2">
                     <Info className="text-blue-500 flex-shrink-0" size={16} />
@@ -1248,11 +1283,14 @@ export default function PricingView({
 
                                 <div className="space-y-3 mb-4">
                                     {[
-                                        { key: 'precio_mostrador', label: 'Mostrador / Venta Directa', Icon: Store, color: 'blue' },
-                                        { key: 'precio_distribuidor', label: 'Distribuidor / Mayorista', Icon: Truck, color: 'orange' },
-                                        { key: 'precio_cadena', label: 'Cadenas / Supermercados', Icon: ShoppingCart, color: 'purple' },
-                                    ].map(({ key, label, Icon, color }) => {
+                                        { key: 'precio_mostrador', label: 'Mostrador / Venta Directa', Icon: Store, color: 'blue', descKey: 'desc_mostrador' },
+                                        { key: 'precio_distribuidor', label: 'Distribuidor / Mayorista', Icon: Truck, color: 'orange', descKey: 'desc_distribuidor' },
+                                        { key: 'precio_cadena', label: 'Cadenas / Supermercados', Icon: ShoppingCart, color: 'purple', descKey: 'desc_cadena' },
+                                    ].map(({ key, label, Icon, color, descKey }) => {
                                         const isPrincipal = localPricing.canal_principal === key.replace('precio_', '');
+                                        const discountVal = Number(taxSettings[descKey] ?? 0);
+                                        const canalSugerido = simulacionPrecio.precioNetoSugerido * (1 - discountVal / 100);
+
                                         return (
                                             <div key={key} className={`flex items-center gap-3 p-3 border rounded-xl hover:bg-slate-50 transition-colors ${
                                                 isPrincipal ? 'border-slate-800 bg-slate-50/50' : 'border-slate-200 bg-white'
@@ -1262,12 +1300,26 @@ export default function PricingView({
                                                     onChange={() => setLocalPricing(prev => ({ ...prev, canal_principal: key.replace('precio_', '') }))}
                                                     className="accent-slate-900 w-4 h-4 cursor-pointer" />
                                                 <Icon size={16} className={`text-${color}-600 flex-shrink-0`} />
-                                                <span className="text-xs font-bold text-slate-700 flex-1">{label}</span>
-                                                <div className="relative">
-                                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">$</span>
-                                                    <input type="number" step="0.01" placeholder={simulacionPrecio.precioNetoSugerido.toFixed(2)}
-                                                        value={localPricing[key] || ''} onChange={e => setLocalPricing(prev => ({ ...prev, [key]: e.target.value }))}
-                                                        className="border border-slate-200 rounded-lg pl-6 pr-3 py-2 text-sm font-black font-mono w-36 outline-none focus:border-slate-500 text-right" />
+                                                <div className="flex-1 min-w-0">
+                                                    <span className="text-xs font-bold text-slate-700 block">{label}</span>
+                                                    <span className="text-[9px] text-slate-400 font-medium">
+                                                        Sugerido: <strong className="font-mono text-emerald-600">{fmt(canalSugerido)}</strong> {discountVal > 0 && `(Desc. ${discountVal}%)`}
+                                                    </span>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <button 
+                                                        type="button" 
+                                                        onClick={() => setLocalPricing(prev => ({ ...prev, [key]: canalSugerido.toFixed(2) }))}
+                                                        className="text-[9px] bg-slate-100 hover:bg-slate-200 text-slate-600 px-2 py-1 rounded font-bold border transition-all active:scale-95"
+                                                    >
+                                                        Aplicar
+                                                    </button>
+                                                    <div className="relative">
+                                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">$</span>
+                                                        <input type="number" step="0.01" placeholder={canalSugerido.toFixed(2)}
+                                                            value={localPricing[key] || ''} onChange={e => setLocalPricing(prev => ({ ...prev, [key]: e.target.value }))}
+                                                            className="border border-slate-200 rounded-lg pl-6 pr-3 py-2 text-sm font-black font-mono w-36 outline-none focus:border-slate-500 text-right" />
+                                                    </div>
                                                 </div>
                                             </div>
                                         );
