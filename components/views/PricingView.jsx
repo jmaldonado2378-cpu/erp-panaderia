@@ -184,7 +184,8 @@ export default function PricingView({
         mano_obra: 1300000, // sueldos fijos de planta
         monotributo: 35000, // cuota monotributo fija
         volumen_mensual: 12000, // volumen producción estimado
-        usar_cif_fijo: true // false = usar el % MP estándar
+        usar_cif_fijo: true, // false = usar el % MP estándar
+        costosIndirectosPct: 20
     });
 
     const [taxSettings, setTaxSettings] = useState({
@@ -197,11 +198,19 @@ export default function PricingView({
     useEffect(() => {
         if (typeof window !== 'undefined') {
             const savedCosts = localStorage.getItem('pricing_fixed_costs');
-            if (savedCosts) setFixedCosts(JSON.parse(savedCosts));
+            if (savedCosts) {
+                const parsed = JSON.parse(savedCosts);
+                if (parsed.costosIndirectosPct === undefined) {
+                    parsed.costosIndirectosPct = config?.finanzas?.costosIndirectosPct ?? 20;
+                }
+                setFixedCosts(parsed);
+            } else {
+                setFixedCosts(prev => ({ ...prev, costosIndirectosPct: config?.finanzas?.costosIndirectosPct ?? 20 }));
+            }
             const savedTaxes = localStorage.getItem('pricing_tax_settings');
             if (savedTaxes) setTaxSettings(JSON.parse(savedTaxes));
         }
-    }, []);
+    }, [config]);
 
     const saveFixedCosts = (newCosts) => {
         setFixedCosts(newCosts);
@@ -425,7 +434,7 @@ export default function PricingView({
             cif_unitario = cifUnitarioPool;
         } else {
             // CIF como % de Materia Prima
-            cif_unitario = (costo_mp / unidades_rinde) * ((config?.finanzas?.costosIndirectosPct || 20) / 100);
+            cif_unitario = (costo_mp / unidades_rinde) * ((fixedCosts.costosIndirectosPct ?? config?.finanzas?.costosIndirectosPct ?? 20) / 100);
         }
 
         const costo_produccion_total = costo_produccion_directo + cif_unitario;
@@ -668,28 +677,32 @@ export default function PricingView({
                         <span className="text-[10px] bg-emerald-200 text-emerald-800 font-bold px-2.5 py-0.5 rounded-full">Costos en Planta</span>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-6 gap-4 items-end">
                         <Input 
                             label="Luz, Gas y Agua ($/Mes)" type="number" value={fixedCosts.servicios} 
                             onChange={v => saveFixedCosts({ ...fixedCosts, servicios: Number(v) })} 
                         />
                         <Input 
-                            label="Alquiler, Mantenimiento y Combustible ($/Mes)" type="number" value={fixedCosts.alquiler_logistica} 
+                            label="Alquiler y Combustible ($/Mes)" type="number" value={fixedCosts.alquiler_logistica} 
                             onChange={v => saveFixedCosts({ ...fixedCosts, alquiler_logistica: Number(v) })} 
                         />
                         <Input 
-                            label="Mano de Obra (Sueldos Planta $/Mes)" type="number" value={fixedCosts.mano_obra} 
+                            label="Mano de Obra ($/Mes)" type="number" value={fixedCosts.mano_obra} 
                             onChange={v => saveFixedCosts({ ...fixedCosts, mano_obra: Number(v) })} 
                         />
                         {taxSettings.regimen === 'Monotributo' && (
                             <Input 
-                                label="Cuota de Monotributo ($/Mes)" type="number" value={fixedCosts.monotributo} 
+                                label="Monotributo ($/Mes)" type="number" value={fixedCosts.monotributo} 
                                 onChange={v => saveFixedCosts({ ...fixedCosts, monotributo: Number(v) })} 
                             />
                         )}
                         <Input 
-                            label="Volumen Producción/Venta (Unidades/Mes)" type="number" value={fixedCosts.volumen_mensual} 
+                            label="Volumen (Unid/Mes)" type="number" value={fixedCosts.volumen_mensual} 
                             onChange={v => saveFixedCosts({ ...fixedCosts, volumen_mensual: Number(v) })} 
+                        />
+                        <Input 
+                            label="CIF (% sobre MP)" type="number" suffix="%" value={fixedCosts.costosIndirectosPct ?? 20} 
+                            onChange={v => saveFixedCosts({ ...fixedCosts, costosIndirectosPct: Number(v) })} 
                         />
                     </div>
 
