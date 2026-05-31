@@ -47,6 +47,18 @@ const MOCK_INGREDIENTS = [
     { id: 'i5', codigo: 'RAW-FER-001', name: 'Levadura Fresca', unidad_compra: 'Paquete 500g', factor_conversion: 500, unidad_base: 'g', familia: 'Fermentos', almacen: 'Cámara de Frío 1 (Insumos)', alergeno: '', costo_estandar: 0.006, tipo: 'insumo' },
     { id: 'i6', codigo: 'RAW-CAR-001', name: 'Paleta Cerdo deshuesada', unidad_compra: 'Kg suelto', factor_conversion: 1000, unidad_base: 'g', familia: 'Carnes y Chacinados', almacen: 'Cámara de Frío 1 (Insumos)', alergeno: '', costo_estandar: 0.0045, tipo: 'insumo' },
     { id: 'i7', codigo: 'RAW-ESP-001', name: 'Nuez Mariposa Granel', unidad_compra: 'Bolsa 10 kg', factor_conversion: 10000, unidad_base: 'g', familia: 'Especias y Semillas', almacen: 'Almacén Secos Principal', alergeno: 'Nuez', costo_estandar: 0.012, tipo: 'insumo' },
+    { id: 'i8', codigo: 'RAW-CAR-002', name: 'Tocino de Cerdo (Grasa)', unidad_compra: 'Kg suelto', factor_conversion: 1000, unidad_base: 'g', familia: 'Carnes y Chacinados', almacen: 'Cámara de Frío 1 (Insumos)', alergeno: '', costo_estandar: 0.0025, tipo: 'insumo' },
+    { id: 'i9', codigo: 'RAW-ADI-001', name: 'Sal de Cura (0.6% Nitrito)', unidad_compra: 'Pote 1kg', factor_conversion: 1000, unidad_base: 'g', familia: 'Aditivos y Esencias', almacen: 'Almacén Secos Principal', alergeno: '', costo_estandar: 0.0015, tipo: 'insumo' },
+    { id: 'i10', codigo: 'RAW-ADI-002', name: 'Nitrato de Potasio', unidad_compra: 'Pote 1kg', factor_conversion: 1000, unidad_base: 'g', familia: 'Aditivos y Esencias', almacen: 'Almacén Secos Principal', alergeno: '', costo_estandar: 0.0030, tipo: 'insumo' },
+    { id: 'i11', codigo: 'RAW-ADI-003', name: 'Eritorbato de Sodio', unidad_compra: 'Pote 1kg', factor_conversion: 1000, unidad_base: 'g', familia: 'Aditivos y Esencias', almacen: 'Almacén Secos Principal', alergeno: '', costo_estandar: 0.0040, tipo: 'insumo' },
+    { id: 'i12', codigo: 'RAW-ESP-002', name: 'Dextrosa Monohidratada', unidad_compra: 'Bolsa 1kg', factor_conversion: 1000, unidad_base: 'g', familia: 'Especias y Semillas', almacen: 'Almacén Secos Principal', alergeno: '', costo_estandar: 0.0020, tipo: 'insumo' },
+    { id: 'i13', codigo: 'RAW-ESP-003', name: 'Pimienta Negra Molida', unidad_compra: 'Bolsa 1kg', factor_conversion: 1000, unidad_base: 'g', familia: 'Especias y Semillas', almacen: 'Almacén Secos Principal', alergeno: '', costo_estandar: 0.0050, tipo: 'insumo' },
+    { id: 'i14', codigo: 'RAW-CAR-003', name: 'Papada de Cerdo', unidad_compra: 'Kg suelto', factor_conversion: 1000, unidad_base: 'g', familia: 'Carnes y Chacinados', almacen: 'Cámara de Frío 1 (Insumos)', alergeno: '', costo_estandar: 0.0030, tipo: 'insumo' },
+    { id: 'i15', codigo: 'RAW-CAR-004', name: 'Carne Vacuna Magra', unidad_compra: 'Kg suelto', factor_conversion: 1000, unidad_base: 'g', familia: 'Carnes y Chacinados', almacen: 'Cámara de Frío 1 (Insumos)', alergeno: '', costo_estandar: 0.0055, tipo: 'insumo' },
+    { id: 'i16', codigo: 'RAW-ESP-004', name: 'Almidón de Mandioca', unidad_compra: 'Bolsa 5kg', factor_conversion: 5000, unidad_base: 'g', familia: 'Harinas y Polvos', almacen: 'Almacén Secos Principal', alergeno: '', costo_estandar: 0.0012, tipo: 'insumo' },
+    { id: 'i17', codigo: 'RAW-ADI-004', name: 'Tripolifosfato de Sodio', unidad_compra: 'Pote 1kg', factor_conversion: 1000, unidad_base: 'g', familia: 'Aditivos y Esencias', almacen: 'Almacén Secos Principal', alergeno: '', costo_estandar: 0.0028, tipo: 'insumo' },
+    { id: 'i18', codigo: 'RAW-ADI-005', name: 'Ascorbato de Sodio', unidad_compra: 'Pote 1kg', factor_conversion: 1000, unidad_base: 'g', familia: 'Aditivos y Esencias', almacen: 'Almacén Secos Principal', alergeno: '', costo_estandar: 0.0042, tipo: 'insumo' },
+    { id: 'i19', codigo: 'RAW-ESP-005', name: 'Glutamato Monosódico', unidad_compra: 'Pote 1kg', factor_conversion: 1000, unidad_base: 'g', familia: 'Especias y Semillas', almacen: 'Almacén Secos Principal', alergeno: '', costo_estandar: 0.0035, tipo: 'insumo' },
     { id: 'emp1', codigo: 'EMP-FLW-001', name: 'Bolsa Flowpack 500g', unidad_compra: 'unidad', factor_conversion: 1, unidad_base: 'u', familia: 'Empaques', almacen: 'Depósito Empaque', alergeno: '', costo_estandar: 15.00, tipo: 'empaque' },
     { id: 'emp2', codigo: 'EMP-BND-002', name: 'Malla para Bondiola (Rollo 50m)', unidad_compra: 'Rollo', factor_conversion: 1, unidad_base: 'u', familia: 'Empaques', almacen: 'Depósito Empaque', alergeno: '', costo_estandar: 1200.00, tipo: 'empaque' }
 ];
@@ -76,8 +88,46 @@ const MOCK_PEDIDOS = [
 ];
 
 const MOCK_CHARC_RECETAS = [
-    { id: 'cr1', codigo: 'CH-SLM-001', nombre: 'Salame Milán Artesanal', lead_time_dias: 45, merma_secado_objetivo: 35.00, version: 1, details: [{ ingredientId: 'i6', gramos: 8000 }, { ingredientId: 'i4', gramos: 200 }, { ingredientId: 'emp2', gramos: 1 }] },
-    { id: 'cr2', codigo: 'CH-BND-002', nombre: 'Bondiola Casera', lead_time_dias: 60, merma_secado_objetivo: 38.00, version: 1, details: [{ ingredientId: 'i6', gramos: 3000 }, { ingredientId: 'i4', gramos: 100 }, { ingredientId: 'emp2', gramos: 1 }] }
+    { 
+        id: 'cr1', 
+        codigo: 'CH-SLM-001', 
+        nombre: 'Salame Milán Artesanal', 
+        lead_time_dias: 45, 
+        merma_secado_objetivo: 35.00, 
+        familia_tecnologica: 'fermentado_seco',
+        porcentaje_inyeccion: null,
+        version: 1, 
+        details: [
+            { ingredientId: 'i6', gramos: 6500, porcentaje_base: 65.00, categoria_tecnologica: 'magro', secuencia_mezcla: 1 },
+            { ingredientId: 'i8', gramos: 3500, porcentaje_base: 35.00, categoria_tecnologica: 'grasa', secuencia_mezcla: 1 },
+            { ingredientId: 'i4', gramos: 260, porcentaje_base: 2.60, categoria_tecnologica: 'aditivo', secuencia_mezcla: 2 },
+            { ingredientId: 'i9', gramos: 30, porcentaje_base: 0.30, categoria_tecnologica: 'aditivo', secuencia_mezcla: 2 },
+            { ingredientId: 'i10', gramos: 10, porcentaje_base: 0.10, categoria_tecnologica: 'aditivo', secuencia_mezcla: 2 },
+            { ingredientId: 'i11', gramos: 5, porcentaje_base: 0.05, categoria_tecnologica: 'aditivo', secuencia_mezcla: 2 },
+            { ingredientId: 'i12', gramos: 40, porcentaje_base: 0.40, categoria_tecnologica: 'saborizante', secuencia_mezcla: 3 },
+            { ingredientId: 'i13', gramos: 25, porcentaje_base: 0.25, categoria_tecnologica: 'saborizante', secuencia_mezcla: 3 },
+            { ingredientId: 'emp2', gramos: 1, porcentaje_base: null, categoria_tecnologica: 'empaque', secuencia_mezcla: 4 }
+        ] 
+    },
+    { 
+        id: 'cr2', 
+        codigo: 'CH-BND-002', 
+        nombre: 'Bondiola Casera', 
+        lead_time_dias: 60, 
+        merma_secado_objetivo: 38.00, 
+        familia_tecnologica: 'salazon_cruda',
+        porcentaje_inyeccion: null,
+        version: 1, 
+        details: [
+            { ingredientId: 'i6', gramos: 1000, porcentaje_base: 100.00, categoria_tecnologica: 'magro', secuencia_mezcla: 1 },
+            { ingredientId: 'i4', gramos: 30, porcentaje_base: 3.00, categoria_tecnologica: 'aditivo', secuencia_mezcla: 2 },
+            { ingredientId: 'i9', gramos: 4, porcentaje_base: 0.40, categoria_tecnologica: 'aditivo', secuencia_mezcla: 2 },
+            { ingredientId: 'i10', gramos: 1.5, porcentaje_base: 0.15, categoria_tecnologica: 'aditivo', secuencia_mezcla: 2 },
+            { ingredientId: 'i18', gramos: 0.6, porcentaje_base: 0.06, categoria_tecnologica: 'aditivo', secuencia_mezcla: 2 },
+            { ingredientId: 'i12', gramos: 10, porcentaje_base: 1.00, categoria_tecnologica: 'saborizante', secuencia_mezcla: 3 },
+            { ingredientId: 'emp2', gramos: 1, porcentaje_base: null, categoria_tecnologica: 'empaque', secuencia_mezcla: 4 }
+        ] 
+    }
 ];
 
 const MOCK_CHARC_LOTES = [
@@ -299,7 +349,10 @@ export const GlobalProvider = ({ children }) => {
                         ...r,
                         details: (r.charc_receta_ingredientes || []).map(d => ({
                             ingredientId: d.ingrediente_id,
-                            gramos: d.gramos
+                            gramos: d.gramos,
+                            porcentaje_base: d.porcentaje_base,
+                            categoria_tecnologica: d.categoria_tecnologica,
+                            secuencia_mezcla: d.secuencia_mezcla
                         }))
                     })));
                 } else setCharcRecetas(MOCK_CHARC_RECETAS);
@@ -372,7 +425,14 @@ export const GlobalProvider = ({ children }) => {
             const newId = data[0].id;
             
             // Guardar detalles
-            const detInserts = details.map(d => ({ receta_id: newId, ingrediente_id: d.ingredientId, gramos: Number(d.gramos) }));
+            const detInserts = details.map(d => ({ 
+                receta_id: newId, 
+                ingrediente_id: d.ingredientId, 
+                gramos: Number(d.gramos || 0),
+                porcentaje_base: d.porcentaje_base !== '' && d.porcentaje_base != null ? Number(d.porcentaje_base) : null,
+                categoria_tecnologica: d.categoria_tecnologica || 'aditivo',
+                secuencia_mezcla: d.secuencia_mezcla !== '' && d.secuencia_mezcla != null ? Number(d.secuencia_mezcla) : 1
+            }));
             await supabase.from('charc_receta_ingredientes').insert(detInserts);
 
             setCharcRecetas(prev => [{ ...data[0], details: details }, ...prev]);

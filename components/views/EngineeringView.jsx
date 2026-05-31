@@ -3,6 +3,7 @@ import { Search, Plus, Hash, Calculator, ChevronUp, Eye, Wrench, Layers, PieChar
 import { Card, Button, Input, Select, FAMILIAS } from '../bakery_erp';
 import { supabase } from '../../lib/supabase';
 import Link from 'next/link';
+import CharcuteriaView from './CharcuteriaView';
 
 const fmt = (n) => `$${Number(n || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -12,7 +13,11 @@ const EMPTY_FORM = {
     loteMinimo: 1, logica_formula: 'panadero', details: []
 };
 
-export default function EngineeringView({ recipes, ingredients, setRecipes, setIngredients, showToast, config }) {
+export default function EngineeringView({ 
+    recipes = [], ingredients = [], setRecipes, setIngredients, showToast, config,
+    charcRecetas = [], addCharcReceta, setCharcRecetas
+}) {
+    const [subTab, setSubTab] = useState('panaderia'); // 'panaderia' | 'charcuteria'
     const [showAdd, setShowAdd] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [expandedRows, setExpandedRows] = useState({});
@@ -214,8 +219,35 @@ export default function EngineeringView({ recipes, ingredients, setRecipes, setI
 
     return (
         <div className="space-y-8 animate-in fade-in">
-            {/* HEADER */}
-            <div className="fall-target bg-white p-6 rounded-2xl border shadow-sm flex justify-between items-center gap-6">
+            {/* SUB-TABS: PANADERÍA Y CHARCUTERÍA */}
+            <div className="flex gap-2 border-b border-slate-200 pb-2 print:hidden">
+                <button 
+                    onClick={() => { setSubTab('panaderia'); setShowAdd(false); }} 
+                    className={`px-4 py-2 text-xs font-black uppercase tracking-wider border-b-4 transition-all ${subTab === 'panaderia' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+                >
+                    Fichas Panadería
+                </button>
+                <button 
+                    onClick={() => { setSubTab('charcuteria'); setShowAdd(false); }} 
+                    className={`px-4 py-2 text-xs font-black uppercase tracking-wider border-b-4 transition-all ${subTab === 'charcuteria' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+                >
+                    Fichas Charcutería
+                </button>
+            </div>
+
+            {subTab === 'charcuteria' ? (
+                <CharcuteriaView 
+                    charcRecetas={charcRecetas} 
+                    addCharcReceta={addCharcReceta} 
+                    ingredients={ingredients} 
+                    showToast={showToast} 
+                    initialTab="recetas"
+                    hideMaduracionTab={true}
+                />
+            ) : (
+                <>
+                    {/* HEADER */}
+                    <div className="fall-target bg-white p-6 rounded-2xl border shadow-sm flex justify-between items-center gap-6">
                 <div>
                     <h3 className="text-xl font-black uppercase italic text-slate-800">Catálogo MultiBOM y Costos</h3>
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Total Fichas Activas: {recipes.length}</p>
@@ -617,6 +649,8 @@ export default function EngineeringView({ recipes, ingredients, setRecipes, setI
                     </table>
                 </div>
             </Card>
+                </>
+            )}
         </div>
     );
 }
