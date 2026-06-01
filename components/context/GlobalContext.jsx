@@ -236,6 +236,24 @@ export const GlobalProvider = ({ children }) => {
         setTimeout(() => setToastMsg(null), 4000);
     };
 
+    const [theme, setTheme] = useState('classic');
+
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const savedTheme = localStorage.getItem('erpTheme');
+            if (savedTheme) {
+                setTheme(savedTheme);
+                document.documentElement.setAttribute('data-theme', savedTheme);
+            }
+        }
+    }, []);
+
+    const changeTheme = (newTheme) => {
+        setTheme(newTheme);
+        localStorage.setItem('erpTheme', newTheme);
+        document.documentElement.setAttribute('data-theme', newTheme);
+    };
+
     /* ==============================================================
        FETCH INICIAL DESDE SUPABASE / FALLBACK MOCKS
        ============================================================== */
@@ -652,6 +670,7 @@ export const GlobalProvider = ({ children }) => {
             // UI
             toastMsg, showToast,
             dashboardConfig, setDashboardConfig,
+            theme, changeTheme
         }}>
             {children}
         </GlobalContext.Provider>

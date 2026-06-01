@@ -1,26 +1,173 @@
+@import url('https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@300;400;500;700;900&family=Inter:wght@300;400;600;800;900&family=Manrope:wght@300;400;600;800&family=Outfit:wght@300;400;600;800&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap');
+
 @import "tailwindcss";
 
+/* Theme Variables default values */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f8fafc;
+  --sidebar-bg: #0f172a;
+  --card-bg: #ffffff;
+  --card-border: #e2e8f0;
+  --card-blur: none;
+  --text-primary: #0f172a;
+  --text-secondary: #64748b;
+  --accent: #ea580c;
+  --border-radius: 12px;
+  --font-family: 'Inter', sans-serif;
+  --btn-text: #ffffff;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+/* Option 1: Artisan Industrial */
+[data-theme='artisan'] {
+  --background: #131313;
+  --sidebar-bg: #0e0e0e;
+  --card-bg: rgba(32, 31, 31, 0.8);
+  --card-border: rgba(255, 255, 255, 0.08);
+  --card-blur: blur(16px);
+  --text-primary: #e5e2e1;
+  --text-secondary: #a98a7e;
+  --accent: #e9590c;
+  --border-radius: 8px;
+  --font-family: 'Hanken Grotesk', sans-serif;
+  --btn-text: #ffffff;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* Option 2: Bakery OS Terminal */
+[data-theme='terminal'] {
+  --background: #0a0a0a;
+  --sidebar-bg: #000000;
+  --card-bg: #000000;
+  --card-border: #bef264;
+  --card-blur: none;
+  --text-primary: #bef264;
+  --text-secondary: #3f6212;
+  --accent: #bef264;
+  --border-radius: 0px;
+  --font-family: 'Space Mono', monospace;
+  --btn-text: #000000;
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* Option 3: Executive Neo-Dark */
+[data-theme='executive'] {
+  --background: #020617;
+  --sidebar-bg: #0b1326;
+  --card-bg: #0f172a;
+  --card-border: #1e293b;
+  --card-blur: none;
+  --text-primary: #dae2fd;
+  --text-secondary: #988d9f;
+  --accent: #a855f7;
+  --border-radius: 24px;
+  --font-family: 'Outfit', sans-serif;
+  --btn-text: #ffffff;
+}
+
+/* Option 4: ArtisanFlow Glassmorphic */
+[data-theme='artisanflow'] {
+  --background: #f8fafc;
+  --sidebar-bg: #e2e8f0;
+  --card-bg: rgba(255, 255, 255, 0.5);
+  --card-border: rgba(148, 163, 184, 0.15);
+  --card-blur: blur(20px);
+  --text-primary: #0f172a;
+  --text-secondary: #64748b;
+  --accent: #10b981;
+  --border-radius: 16px;
+  --font-family: 'Manrope', sans-serif;
+  --btn-text: #ffffff;
+}
+
+/* Style overrides to bind the theme variables across components */
+body, html {
+  background-color: var(--background) !important;
+  color: var(--text-primary) !important;
+  font-family: var(--font-family) !important;
+  transition: background-color 0.3s, color 0.3s;
+}
+
+/* Bind background and text colors to the layout elements when a non-classic theme is active */
+[data-theme]:not([data-theme='classic']) .bg-slate-50,
+[data-theme]:not([data-theme='classic']) main {
+  background-color: var(--background) !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme]:not([data-theme='classic']) .bg-white {
+  background-color: var(--card-bg) !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme]:not([data-theme='classic']) .border-slate-200,
+[data-theme]:not([data-theme='classic']) .border-slate-100,
+[data-theme]:not([data-theme='classic']) .border {
+  border-color: var(--card-border) !important;
+}
+
+[data-theme]:not([data-theme='classic']) .rounded-xl {
+  border-radius: var(--border-radius) !important;
+}
+
+[data-theme]:not([data-theme='classic']) .text-slate-900,
+[data-theme]:not([data-theme='classic']) .text-slate-800,
+[data-theme]:not([data-theme='classic']) .text-slate-700 {
+  color: var(--text-primary) !important;
+}
+
+[data-theme]:not([data-theme='classic']) .text-slate-500,
+[data-theme]:not([data-theme='classic']) .text-slate-400 {
+  color: var(--text-secondary) !important;
+}
+
+/* Input boxes overrides */
+[data-theme]:not([data-theme='classic']) input, 
+[data-theme]:not([data-theme='classic']) select,
+[data-theme]:not([data-theme='classic']) textarea {
+  background-color: var(--background) !important;
+  border-color: var(--card-border) !important;
+  color: var(--text-primary) !important;
+  border-radius: calc(var(--border-radius) / 1.5) !important;
+}
+
+/* Sidebar background and active link overrides */
+[data-theme]:not([data-theme='classic']) aside {
+  background-color: var(--sidebar-bg) !important;
+  border-color: var(--card-border) !important;
+}
+
+[data-theme]:not([data-theme='classic']) aside a {
+  border-radius: calc(var(--border-radius) / 1.2) !important;
+}
+
+[data-theme]:not([data-theme='classic']) aside a:hover {
+  background-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+[data-theme]:not([data-theme='classic']) aside a.bg-orange-600 {
+  background-color: var(--accent) !important;
+  color: var(--btn-text) !important;
+}
+
+/* Button overrides for primary and accent styles */
+[data-theme]:not([data-theme='classic']) button.bg-slate-900,
+[data-theme]:not([data-theme='classic']) button.bg-orange-600,
+[data-theme]:not([data-theme='classic']) button.bg-blue-600 {
+  background-color: var(--accent) !important;
+  color: var(--btn-text) !important;
+  border-radius: calc(var(--border-radius) / 1.5) !important;
+  transition: all 0.2s;
+}
+
+/* Card classes blur */
+[data-theme]:not([data-theme='classic']) .rounded-xl.shadow-sm.overflow-hidden {
+  background-color: var(--card-bg) !important;
+  border-color: var(--card-border) !important;
+  border-radius: var(--border-radius) !important;
+  backdrop-filter: var(--card-blur) !important;
+  -webkit-backdrop-filter: var(--card-blur) !important;
+}
+
+/* Text styles in Terminal Mode */
+[data-theme='terminal'] * {
+  font-family: 'Space Mono', monospace !important;
+  text-transform: uppercase !important;
 }

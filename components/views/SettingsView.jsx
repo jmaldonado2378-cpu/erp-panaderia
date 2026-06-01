@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
+import { useGlobalContext } from '../context/GlobalContext';
 import { Building, Calculator, Users, Store, Plus, LayoutDashboard, Eye, EyeOff, Trash2 } from 'lucide-react';
 import { Card, Button, Input, Select } from '../bakery_erp';
 import { WIDGET_CATALOG, PRESETS } from '../dashboard_config';
 
 export default function SettingsView({ config, setConfig, showToast, dashboardConfig, setDashboardConfig }) {
+    const { theme, changeTheme } = useGlobalContext();
     const [form, setForm] = useState(config);
     const [newBranch, setNewBranch] = useState('');
 
@@ -56,6 +58,36 @@ export default function SettingsView({ config, setConfig, showToast, dashboardCo
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
                     <Input label="Nombre de la Empresa / Marca" value={form.companyName} onChange={v => setForm({ ...form, companyName: v })} />
                     <Input label="Subtítulo / Versión del Sistema" value={form.appName} onChange={v => setForm({ ...form, appName: v })} />
+                </div>
+            </Card>
+
+            {/* Temas Visuales (Rediseño Estético) */}
+            <Card className="p-6 border-t-8 border-orange-600 bg-white shadow-md">
+                <div className="flex items-center gap-3 mb-5 border-b pb-3">
+                    <LayoutDashboard className="text-orange-600" size={24} />
+                    <h4 className="text-xl font-black uppercase italic text-slate-800">Tema Visual (Rediseño Estético)</h4>
+                </div>
+                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-4">
+                    Selecciona una dirección de rediseño para cambiar la estética completa de la aplicación en tiempo real
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                    {[
+                        { id: 'classic', label: 'Classic Light', desc: 'Tema claro estándar', color: 'border-slate-200 bg-slate-50 text-slate-900' },
+                        { id: 'artisan', label: 'Artisan Industrial', desc: 'Vidrio Oscuro & Naranja', color: 'border-orange-500 bg-slate-900 text-white' },
+                        { id: 'terminal', label: 'Bakery OS Terminal', desc: 'Negro & Verde Ácido', color: 'border-lime-400 bg-black text-lime-400 font-mono' },
+                        { id: 'executive', label: 'Executive Neo-Dark', desc: 'Navy & Púrpura', color: 'border-purple-500 bg-slate-950 text-indigo-200' },
+                        { id: 'artisanflow', label: 'ArtisanFlow Light', desc: 'Vidrio Suave & Esmeralda', color: 'border-emerald-500 bg-slate-50/50 text-emerald-900' }
+                    ].map(t => (
+                        <button
+                            key={t.id}
+                            type="button"
+                            onClick={() => changeTheme(t.id)}
+                            className={`p-4 rounded-xl text-left border-2 transition-all flex flex-col justify-between h-28 ${t.color} ${theme === t.id ? 'ring-4 ring-orange-500/30 scale-[1.02] shadow-md border-orange-500' : 'opacity-70 hover:opacity-100 hover:scale-[1.01]'}`}
+                        >
+                            <span className="text-xs font-black uppercase tracking-wider">{t.label}</span>
+                            <span className="text-[9px] font-bold leading-tight opacity-75 mt-2">{t.desc}</span>
+                        </button>
+                    ))}
                 </div>
             </Card>
 
