@@ -237,6 +237,46 @@ export const GlobalProvider = ({ children }) => {
     };
 
     const [theme, setTheme] = useState('classic');
+    const [stitchProjectId, setStitchProjectId] = useState('15115760904171156066');
+    const [stitchApiKey, setStitchApiKey] = useState('');
+    const [stitchDesignSystems, setStitchDesignSystems] = useState([]);
+    const [stitchThemeConfig, setStitchThemeConfig] = useState(null);
+
+    const applyStitchTheme = (themeConfig) => {
+        if (!themeConfig) return;
+        const root = document.documentElement;
+        
+        // namedColors mapping
+        const colors = themeConfig.namedColors || themeConfig.theme?.namedColors || {};
+        
+        root.style.setProperty('--background', colors.background || '#131313');
+        root.style.setProperty('--sidebar-bg', colors.surface_container_lowest || '#0e0e0e');
+        root.style.setProperty('--card-bg', colors.surface_container || '#201f1f');
+        root.style.setProperty('--card-border', colors.outline || 'rgba(255, 255, 255, 0.08)');
+        root.style.setProperty('--accent', themeConfig.customColor || themeConfig.theme?.customColor || '#e9590c');
+        root.style.setProperty('--text-primary', colors.on_surface || '#e5e2e1');
+        root.style.setProperty('--text-secondary', colors.on_surface_variant || '#a98a7e');
+        root.style.setProperty('--btn-text', colors.on_primary || '#ffffff');
+        
+        // Roundness
+        let radius = '8px';
+        const roundness = themeConfig.roundness || themeConfig.theme?.roundness;
+        if (roundness === 'ROUND_ZERO') radius = '0px';
+        else if (roundness === 'ROUND_FOUR') radius = '4px';
+        else if (roundness === 'ROUND_EIGHT') radius = '8px';
+        else if (roundness === 'ROUND_SIXTEEN') radius = '16px';
+        else if (roundness === 'ROUND_FULL') radius = '9999px';
+        root.style.setProperty('--border-radius', radius);
+        
+        // Font Family
+        let font = 'Inter, sans-serif';
+        const fontVal = themeConfig.font || themeConfig.theme?.font;
+        if (fontVal === 'SPACE_MONO') font = 'Space Mono, monospace';
+        else if (fontVal === 'HANKEN_GROTESK') font = 'Hanken Grotesk, sans-serif';
+        else if (fontVal === 'OUTFIT') font = 'Outfit, sans-serif';
+        else if (fontVal === 'MANROPE') font = 'Manrope, sans-serif';
+        root.style.setProperty('--font-family', font);
+    };
 
     useEffect(() => {
         if (typeof window !== 'undefined') {
@@ -244,9 +284,56 @@ export const GlobalProvider = ({ children }) => {
             if (savedTheme) {
                 setTheme(savedTheme);
                 document.documentElement.setAttribute('data-theme', savedTheme);
+                
+                if (savedTheme === 'stitch-custom') {
+                    const savedStitchConfig = localStorage.getItem('stitchThemeConfig');
+                    if (savedStitchConfig) {
+                        try {
+                            const parsed = JSON.parse(savedStitchConfig);
+                            setStitchThemeConfig(parsed);
+                            // Se ejecuta después de un breve delay para que la UI se monte
+                            setTimeout(() => applyStitchTheme(parsed), 50);
+                        } catch (e) {
+                            console.error("Error cargando el diseño guardado de Stitch", e);
+                        }
+                    }
+                }
+            }
+            
+            // Cargar datos persistidos de Stitch
+            const savedProjId = localStorage.getItem('stitchProjectId');
+            if (savedProjId) setStitchProjectId(savedProjId);
+            
+            const savedApiKey = localStorage.getItem('stitchApiKey');
+            if (savedApiKey) setStitchApiKey(savedApiKey);
+            
+            const savedSystems = localStorage.getItem('stitchDesignSystems');
+            if (savedSystems) {
+                try {
+                    setStitchDesignSystems(JSON.parse(savedSystems));
+                } catch (e) {}
             }
         }
     }, []);
+
+    // Effect to run when theme or stitchThemeConfig changes
+    useEffect(() => {
+        if (theme === 'stitch-custom' && stitchThemeConfig) {
+            applyStitchTheme(stitchThemeConfig);
+        } else {
+            const root = document.documentElement;
+            root.style.removeProperty('--background');
+            root.style.removeProperty('--sidebar-bg');
+            root.style.removeProperty('--card-bg');
+            root.style.removeProperty('--card-border');
+            root.style.removeProperty('--accent');
+            root.style.removeProperty('--text-primary');
+            root.style.removeProperty('--text-secondary');
+            root.style.removeProperty('--border-radius');
+            root.style.removeProperty('--font-family');
+            root.style.removeProperty('--btn-text');
+        }
+    }, [theme, stitchThemeConfig]);
 
     const changeTheme = (newTheme) => {
         setTheme(newTheme);
@@ -670,7 +757,12 @@ export const GlobalProvider = ({ children }) => {
             // UI
             toastMsg, showToast,
             dashboardConfig, setDashboardConfig,
-            theme, changeTheme
+            theme, changeTheme,
+            stitchProjectId, setStitchProjectId,
+            stitchApiKey, setStitchApiKey,
+            stitchDesignSystems, setStitchDesignSystems,
+            stitchThemeConfig, setStitchThemeConfig,
+            applyStitchTheme
         }}>
             {children}
         </GlobalContext.Provider>

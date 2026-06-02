@@ -77,6 +77,21 @@
   --btn-text: #ffffff;
 }
 
+/* Option 5: Stitch Custom Theme (Fallback overridden dynamically by JS) */
+[data-theme='stitch-custom'] {
+  --background: #131313;
+  --sidebar-bg: #0e0e0e;
+  --card-bg: #201f1f;
+  --card-border: rgba(255, 255, 255, 0.08);
+  --card-blur: blur(16px);
+  --text-primary: #e5e2e1;
+  --text-secondary: #a98a7e;
+  --accent: #e9590c;
+  --border-radius: 8px;
+  --font-family: 'Hanken Grotesk', sans-serif;
+  --btn-text: #ffffff;
+}
+
 /* Style overrides to bind the theme variables across components */
 body, html {
   background-color: var(--background) !important;

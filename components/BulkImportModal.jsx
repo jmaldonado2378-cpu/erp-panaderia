@@ -460,12 +460,13 @@ export default function BulkImportModal({
             const gidMatch = googleUrl.match(/[#&]gid=([0-9]+)/);
             const gid = gidMatch ? gidMatch[1] : '0';
 
-            // Google spreadsheets public CSV download link
-            const fetchUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}`;
-            const res = await fetch(fetchUrl);
+            // Google spreadsheets public CSV download link fetched through server proxy to bypass browser CORS
+            const proxyUrl = `/api/fetch-sheet?sheetId=${sheetId}&gid=${gid}`;
+            const res = await fetch(proxyUrl);
             
             if (!res.ok) {
-                throw new Error("No se pudo obtener el archivo de Google Sheets. Asegúrate de que el documento esté compartido como 'Cualquier persona con el enlace puede leer' (Lector).");
+                const errJson = await res.json().catch(() => ({}));
+                throw new Error(errJson.error || "No se pudo obtener el archivo de Google Sheets. Asegúrate de que el documento esté compartido como 'Cualquier persona con el enlace puede ver' (Lector).");
             }
             
             const csvText = await res.text();
