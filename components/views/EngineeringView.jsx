@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Search, Plus, Hash, Calculator, ChevronUp, Eye, Wrench, Layers, PieChart, Trash2, Tag, ArrowRight, DollarSign } from 'lucide-react';
+import { Search, Plus, Hash, Calculator, ChevronUp, Eye, Wrench, Layers, PieChart, Trash2, Tag, ArrowRight, DollarSign, Printer } from 'lucide-react';
 import { Card, Button, Input, Select, FAMILIAS } from '../bakery_erp';
 import { supabase } from '../../lib/supabase';
 import Link from 'next/link';
@@ -11,7 +11,8 @@ const fmt = (n) => `$${Number(n || 0).toLocaleString('es-AR', { minimumFractionD
 const EMPTY_FORM = {
     id: null, codigo: '', nombre: '', familia: 'F', ver: 1, wip: false, merma: 15,
     formato_venta: 'Unidad', peso_unidad: 100, horas_hombre: 1,
-    loteMinimo: 1, logica_formula: 'panadero', details: []
+    loteMinimo: 1, logica_formula: 'panadero', details: [],
+    tiempo_pesaje: 5, tiempo_amasado: 15, tiempo_armado: 20, tiempo_fermentacion: 60, tiempo_horneado: 25, capacidad_horno: 100
 };
 
 export default function EngineeringView({ 
@@ -26,6 +27,23 @@ export default function EngineeringView({
     const [form, setForm] = useState(EMPTY_FORM);
     const [showBulkImport, setShowBulkImport] = useState(false);
 
+    // Sorting states
+    const [sortKey, setSortKey] = useState('nombre_producto');
+    const [sortDesc, setSortDesc] = useState(false);
+
+    const handleSort = (key) => {
+        if (sortKey === key) {
+            setSortDesc(!sortDesc);
+        } else {
+            setSortKey(key);
+            setSortDesc(false);
+        }
+    };
+
+    const renderSortIndicator = (targetKey) => {
+        if (sortKey !== targetKey) return null;
+        return sortDesc ? ' ↓' : ' ↑';
+    };
 
     const toggleRow = (id) => setExpandedRows(prev => ({ ...prev, [id]: !prev[id] }));
 
@@ -52,10 +70,107 @@ export default function EngineeringView({
             .then(({ data }) => setPublishedPrice(data || null));
     }, [form.id]);
 
-    const filteredRecipes = recipes.filter(r =>
-        r.nombre_producto?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        r.codigo?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    // Recursive cost calculator helper
+    const getIngredientCost = React.useCallback((ing, visited = new Set()) => {
+        if (!ing) return 0;
+        if (visited.has(ing.id)) return 0; // Avoid circular refs
+
+        if (!ing.es_subensamble) {
+            return Number(ing.costo_estandar || 0);
+        }
+
+        // Find recipe for WIP by code or name
+        const recipe = recipes.find(r => r.codigo === ing.codigo || r.nombre_producto === ing.name?.replace('[WIP] ', ''));
+        if (!recipe) return Number(ing.costo_estandar || 0);
+
+        const visitedNext = new Set(visited);
+        visitedNext.add(ing.id);
+
+        const costo_mp = recipe.details?.reduce((acc, d) => {
+            const detailIng = ingredients.find(i => i.id === d.ingredientId);
+            const costPerGram = getIngredientCost(detailIng, visitedNext);
+            return acc + (Number(d.gramos || 0) * costPerGram);
+        }, 0) || 0;
+
+        const t_pesaje = Number(recipe.tiempo_pesaje || 5);
+        const t_amasado = Number(recipe.tiempo_amasado || 15);
+        const t_armado = Number(recipe.tiempo_armado || 20);
+        const t_horneado = Number(recipe.tiempo_horneado || 25);
+        const cap_horno = Number(recipe.capacidad_horno || 100);
+
+        const costo_mo = ((t_pesaje + t_amasado + t_armado + t_horneado) / 60) * (config?.finanzas?.costoHoraHombre || 4500);
+        const recipeLoteUnidades = recipe.formato_venta === 'Unidad' && Number(recipe.peso_unidad) > 0
+            ? Number(recipe.lote_minimo || 1)
+            : (Number(recipe.lote_minimo || 1) * 1000) / (Number(recipe.peso_unidad) || 1);
+        const recipeCiclosHorno = cap_horno > 0 ? (recipeLoteUnidades / cap_horno) : 1;
+        const costo_horno = (t_horneado / 60) * (config?.finanzas?.costoHoraHorno || 2500) * recipeCiclosHorno;
+
+        const costo_cif = costo_mp * ((config?.finanzas?.costosIndirectosPct || 20) / 100);
+        const costo_total = costo_mp + costo_mo + costo_horno + costo_cif;
+
+        const pesoFinalG = Number(recipe.peso_final) || 1;
+        return costo_total / pesoFinalG;
+    }, [recipes, ingredients, config]);
+
+    // Processed recipes with computed costs for filtering & sorting
+    const processedRecipes = useMemo(() => {
+        const list = recipes.map(r => {
+            const costo_mp = r.details?.reduce((acc, d) => {
+                const ing = ingredients.find(i => i.id === d.ingredientId);
+                return acc + (Number(d.gramos || 0) * getIngredientCost(ing));
+            }, 0) || 0;
+            const costo_mo = (Number(r.horas_hombre) || 0) * (config?.finanzas?.costoHoraHombre || 4500);
+            const costo_cif = costo_mp * ((config?.finanzas?.costosIndirectosPct || 20) / 100);
+            const costo_total_batch = costo_mp + costo_mo + costo_cif;
+            let unidades_rinde = r.formato_venta === 'Unidad' && Number(r.peso_unidad) > 0
+                ? Math.floor(Number(r.peso_final) / Number(r.peso_unidad))
+                : Number(r.peso_final) / 1000;
+            unidades_rinde = unidades_rinde || 1;
+            const costo_unitario = costo_total_batch / unidades_rinde;
+            const precio_sugerido = costo_unitario * (1 + ((config?.finanzas?.margenGanancia || 150) / 100));
+
+            return {
+                ...r,
+                costo_mp,
+                costo_mo,
+                costo_cif,
+                costo_total_batch,
+                unidades_rinde,
+                costo_unitario,
+                precio_sugerido
+            };
+        });
+
+        // Filter
+        let result = list;
+        if (searchTerm) {
+            const q = searchTerm.toLowerCase();
+            result = result.filter(r => 
+                r.nombre_producto?.toLowerCase().includes(q) ||
+                r.codigo?.toLowerCase().includes(q)
+            );
+        }
+
+        // Sort
+        if (sortKey) {
+            result.sort((a, b) => {
+                let valA = a[sortKey];
+                let valB = b[sortKey];
+
+                if (sortKey === 'costo_unitario' || sortKey === 'precio_sugerido' || sortKey === 'peso_final') {
+                    valA = Number(valA || 0);
+                    valB = Number(valB || 0);
+                    return sortDesc ? valB - valA : valA - valB;
+                }
+
+                valA = String(valA || '').toLowerCase();
+                valB = String(valB || '').toLowerCase();
+                return sortDesc ? valB.localeCompare(valA) : valA.localeCompare(valB);
+            });
+        }
+
+        return result;
+    }, [recipes, searchTerm, sortKey, sortDesc, ingredients, config, getIngredientCost]);
 
     // Derivados
     const isBatchFormula = form.logica_formula === 'batch';
@@ -103,35 +218,7 @@ export default function EngineeringView({
         ? form.details.reduce((a, d) => a + Number(d.pctBatchInput || 0), 0)
         : 0;
 
-    // Función recursiva para calcular el costo por gramo de un ingrediente (soporta sub-BOMs / WIPs)
-    const getIngredientCost = React.useCallback((ing, visited = new Set()) => {
-        if (!ing) return 0;
-        if (visited.has(ing.id)) return 0; // Evitar referencias circulares
 
-        if (!ing.es_subensamble) {
-            return Number(ing.costo_estandar || 0);
-        }
-
-        // Buscar receta del WIP por código o nombre
-        const recipe = recipes.find(r => r.codigo === ing.codigo || r.nombre_producto === ing.name?.replace('[WIP] ', ''));
-        if (!recipe) return Number(ing.costo_estandar || 0);
-
-        const visitedNext = new Set(visited);
-        visitedNext.add(ing.id);
-
-        const costo_mp = recipe.details?.reduce((acc, d) => {
-            const detailIng = ingredients.find(i => i.id === d.ingredientId);
-            const costPerGram = getIngredientCost(detailIng, visitedNext);
-            return acc + (Number(d.gramos || 0) * costPerGram);
-        }, 0) || 0;
-
-        const costo_mo = (Number(recipe.horas_hombre) || 0) * (config?.finanzas?.costoHoraHombre || 4500);
-        const costo_cif = costo_mp * ((config?.finanzas?.costosIndirectosPct || 20) / 100);
-        const costo_total = costo_mp + costo_mo + costo_cif;
-
-        const pesoFinalG = Number(recipe.peso_final) || 1;
-        return costo_total / pesoFinalG;
-    }, [recipes, ingredients, config]);
 
     // Panel de costos en tiempo real (Opción A) — usa detailsConGramos
     const panelCostos = useMemo(() => {
@@ -139,15 +226,29 @@ export default function EngineeringView({
             const ing = ingredients.find(i => i.id === d.ingredientId);
             return acc + (d.gramos * getIngredientCost(ing));
         }, 0);
-        const costo_mo = (Number(form.horas_hombre) || 0) * (config?.finanzas?.costoHoraHombre || 4500);
+        
+        const tiempo_pesaje = Number(form.tiempo_pesaje || 5);
+        const tiempo_amasado = Number(form.tiempo_amasado || 15);
+        const tiempo_armado = Number(form.tiempo_armado || 20);
+        const tiempo_horneado = Number(form.tiempo_horneado || 25);
+        const capacidad_horno = Number(form.capacidad_horno || 100);
+
+        const costo_mo = ((tiempo_pesaje + tiempo_amasado + tiempo_armado + tiempo_horneado) / 60) * (config?.finanzas?.costoHoraHombre || 4500);
+        
+        const loteUnidades = form.formato_venta === 'Unidad' && Number(form.peso_unidad) > 0
+            ? Number(form.loteMinimo)
+            : (Number(form.loteMinimo) * 1000) / (Number(form.peso_unidad) || 1);
+        const ciclosHorno = capacidad_horno > 0 ? (loteUnidades / capacidad_horno) : 1;
+        const costo_horno = (tiempo_horneado / 60) * (config?.finanzas?.costoHoraHorno || 2500) * ciclosHorno;
+
         const costo_cif = costo_mp * ((config?.finanzas?.costosIndirectosPct || 20) / 100);
-        const costo_total = costo_mp + costo_mo + costo_cif;
+        const costo_total = costo_mp + costo_mo + costo_horno + costo_cif;
         let unidades = form.formato_venta === 'Unidad' && Number(form.peso_unidad) > 0
             ? Math.floor(pesoFinal / Number(form.peso_unidad))
             : pesoFinal / 1000;
         unidades = unidades || 1;
-        return { costo_mp, costo_mo, costo_cif, costo_total, costo_unitario: costo_total / unidades, unidades };
-    }, [detailsConGramos, form.horas_hombre, form.formato_venta, form.peso_unidad, pesoFinal, ingredients, config, getIngredientCost]);
+        return { costo_mp, costo_mo, costo_horno, costo_cif, costo_total, costo_unitario: costo_total / unidades, unidades };
+    }, [detailsConGramos, form.tiempo_pesaje, form.tiempo_amasado, form.tiempo_armado, form.tiempo_horneado, form.capacidad_horno, form.formato_venta, form.peso_unidad, form.loteMinimo, pesoFinal, ingredients, config, getIngredientCost]);
 
     const save = async () => {
         if (!canSave) return;
@@ -160,9 +261,16 @@ export default function EngineeringView({
             formato_venta: form.formato_venta,
             peso_unidad: form.formato_venta === 'Unidad' ? Number(form.peso_unidad) : null,
             peso_crudo: pesoCrudo, peso_final: pesoFinal,
-            horas_hombre: Number(form.horas_hombre), costo_empaque: 0,
+            horas_hombre: (Number(form.tiempo_pesaje || 5) + Number(form.tiempo_amasado || 15) + Number(form.tiempo_armado || 20) + Number(form.tiempo_horneado || 25)) / 60, 
+            costo_empaque: 0,
             lote_minimo: Number(form.loteMinimo), unidad_lote: 'kg',
             logica_formula: form.logica_formula,
+            tiempo_pesaje: Number(form.tiempo_pesaje || 5),
+            tiempo_amasado: Number(form.tiempo_amasado || 15),
+            tiempo_armado: Number(form.tiempo_armado || 20),
+            tiempo_fermentacion: Number(form.tiempo_fermentacion || 60),
+            tiempo_horneado: Number(form.tiempo_horneado || 25),
+            capacidad_horno: Number(form.capacidad_horno || 100),
         };
         if (form.id && typeof form.id === 'string' && (form.id.includes('-') || form.id.length > 20)) {
             const { error: errRec } = await supabase.from('recetas').update(recipeData).eq('id', form.id);
@@ -205,10 +313,15 @@ export default function EngineeringView({
             horas_hombre: rec.horas_hombre || 1,
             loteMinimo: rec.loteMinimo || rec.lote_minimo || 1,
             logica_formula: rec.logica_formula || (['A', 'B', 'C'].includes(rec.familia) ? 'batch' : 'panadero'),
-            details: rec.details ? [...rec.details] : []
+            details: rec.details ? [...rec.details] : [],
+            tiempo_pesaje: rec.tiempo_pesaje || 5,
+            tiempo_amasado: rec.tiempo_amasado || 15,
+            tiempo_armado: rec.tiempo_armado || 20,
+            tiempo_fermentacion: rec.tiempo_fermentacion || 60,
+            tiempo_horneado: rec.tiempo_horneado || 25,
+            capacidad_horno: rec.capacidad_horno || 100
         });
         setShowAdd(true);
-        window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
     const handleDelete = async (id) => {
@@ -251,7 +364,7 @@ export default function EngineeringView({
             ) : (
                 <>
                     {/* HEADER */}
-                    <div className="fall-target bg-white p-6 rounded-2xl border shadow-sm flex justify-between items-center gap-6">
+                    <div className="fall-target bg-white p-6 rounded-2xl border shadow-sm flex justify-between items-center gap-6 print:hidden">
                 <div>
                     <h3 className="text-xl font-black uppercase italic text-slate-800">Catálogo MultiBOM y Costos</h3>
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Total Fichas Activas: {recipes.length}</p>
@@ -261,6 +374,7 @@ export default function EngineeringView({
                     <input type="text" placeholder="Buscar por código o nombre..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg text-xs font-bold outline-none focus:border-orange-500 bg-slate-50 focus:bg-white transition-all" />
                 </div>
                 <div className="flex gap-2">
+                    <Button onClick={() => window.print()} variant="secondary" className="flex items-center gap-1.5"><Printer size={16} /> Imprimir Listado</Button>
                     <Button onClick={() => setShowBulkImport(true)} variant="secondary"><Plus size={16} /> Carga Masiva</Button>
                     <Button onClick={() => { setShowAdd(!showAdd); if (!showAdd) setForm(EMPTY_FORM); }} variant={showAdd ? "secondary" : "accent"}>
                         {showAdd ? "Cancelar Edición" : <><Plus size={16} /> Nueva Ficha</>}
@@ -270,11 +384,23 @@ export default function EngineeringView({
 
             {/* FORMULARIO + PANEL OPCIÓN A */}
             {showAdd && (
-                <div className="grid grid-cols-1 lg:grid-cols-10 gap-6 items-start animate-in slide-in-from-top-4">
-
-                    {/* COLUMNA IZQUIERDA: FORMULARIO */}
-                    <div className="lg:col-span-7">
-                        <Card className="fall-target p-8 border border-slate-200 bg-white shadow-2xl rounded-2xl">
+                <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex justify-center items-center p-4 overflow-y-auto">
+                    <div className="bg-white border-[8px] border-slate-900 rounded-[2.5rem] p-8 max-w-7xl w-full shadow-2xl animate-in zoom-in-95 duration-200 overflow-y-auto max-h-[90vh]">
+                        <div className="flex justify-between items-center mb-6">
+                            <h4 className="text-lg font-black uppercase italic text-slate-800">
+                                {form.id ? "Editar Ficha Técnica" : "Alta de Ficha Técnica"}
+                            </h4>
+                            <button 
+                                onClick={() => setShowAdd(false)}
+                                className="text-slate-400 hover:text-slate-600 font-bold text-xs uppercase bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg transition-colors"
+                            >
+                                Cerrar
+                            </button>
+                        </div>
+                        <div className="grid grid-cols-1 lg:grid-cols-10 gap-6 items-start">
+                            {/* COLUMNA IZQUIERDA: FORMULARIO */}
+                            <div className="lg:col-span-7">
+                                <Card className="fall-target p-8 border border-slate-200 bg-white shadow-2xl rounded-2xl">
 
                             {/* DATOS DE IDENTIFICACIÓN */}
                             <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 mb-6 space-y-4">
@@ -350,10 +476,17 @@ export default function EngineeringView({
                             <div className="bg-emerald-50/50 p-4 rounded-xl border border-emerald-100 mb-6">
                                 <div className="flex items-center gap-2 border-b border-emerald-200 pb-2 mb-4">
                                     <Calculator size={16} className="text-emerald-500" />
-                                    <h4 className="text-[10px] font-black uppercase tracking-widest text-emerald-800">Costos Operativos</h4>
+                                    <h4 className="text-[10px] font-black uppercase tracking-widest text-emerald-800">Cronometría y Eficiencia de Elaboración</h4>
+                                </div>
+                                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4">
+                                    <Input label="Pesado y Prep. (min)" type="number" value={form.tiempo_pesaje} onChange={v => setForm({ ...form, tiempo_pesaje: Number(v) })} suffix="min" required />
+                                    <Input label="Amasado y Batido (min)" type="number" value={form.tiempo_amasado} onChange={v => setForm({ ...form, tiempo_amasado: Number(v) })} suffix="min" required />
+                                    <Input label="División y Armado (min)" type="number" value={form.tiempo_armado} onChange={v => setForm({ ...form, tiempo_armado: Number(v) })} suffix="min" required />
+                                    <Input label="Fermentación (min)" type="number" value={form.tiempo_fermentacion} onChange={v => setForm({ ...form, tiempo_fermentacion: Number(v) })} suffix="min" required />
+                                    <Input label="Cocción/Horneado (min)" type="number" value={form.tiempo_horneado} onChange={v => setForm({ ...form, tiempo_horneado: Number(v) })} suffix="min" required />
+                                    <Input label="Capacidad Horno (u/lote)" type="number" value={form.capacidad_horno} onChange={v => setForm({ ...form, capacidad_horno: Number(v) })} suffix="u" required />
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <Input label="Mano de Obra" type="number" placeholder="Ej. 1.5" value={form.horas_hombre} onChange={v => setForm({ ...form, horas_hombre: v })} suffix="Horas/Lote" required />
                                     <Input label="% Merma Horno" type="number" value={form.merma} onChange={v => setForm({ ...form, merma: v })} suffix="%" />
                                 </div>
                             </div>
@@ -380,9 +513,11 @@ export default function EngineeringView({
                                         <thead className="bg-slate-900 text-white text-[9px] uppercase tracking-widest">
                                             <tr>
                                                 <th className="px-3 py-1.5">Componente</th>
-                                                <th className={`px-3 py-1.5 w-28 text-center ${!isBatchFormula ? 'bg-orange-700' : 'opacity-40'}`}>% Panadero</th>
-                                                <th className={`px-3 py-1.5 w-28 text-center ${isBatchFormula ? 'bg-emerald-700' : 'opacity-40'}`}>% T. Batch</th>
+                                                <th className={`px-3 py-1.5 w-24 text-center ${!isBatchFormula ? 'bg-orange-700' : 'opacity-40'}`}>% Panadero</th>
+                                                <th className={`px-3 py-1.5 w-24 text-center ${isBatchFormula ? 'bg-emerald-700' : 'opacity-40'}`}>% T. Batch</th>
                                                 <th className={`px-3 py-1.5 w-24 text-center ${!isBatchFormula ? 'bg-orange-900/40' : ''}`}>Gramos {!isBatchFormula && <span className="opacity-60">(calc)</span>}</th>
+                                                <th className="px-3 py-1.5 w-24 text-right">Costo Insumo</th>
+                                                <th className="px-3 py-1.5 w-24 text-center">Incidencia %</th>
                                                 <th className="px-3 py-1.5 w-10"></th>
                                             </tr>
                                         </thead>
@@ -391,6 +526,9 @@ export default function EngineeringView({
                                                 const computedGramos = detailsConGramos[i]?.gramos || 0;
                                                 const pctBatch = pesoCrudo > 0 ? ((computedGramos / pesoCrudo) * 100).toFixed(1) : '0.0';
                                                 const ing = ingredients.find(x => x.id === l.ingredientId);
+                                                const costPerGram = getIngredientCost(ing);
+                                                const componentCost = computedGramos * costPerGram;
+                                                const incidencePct = panelCostos.costo_mp > 0 ? (componentCost / panelCostos.costo_mp) * 100 : 0;
                                                 return (
                                                     <tr key={i} className="hover:bg-slate-50 transition-colors group">
                                                         <td className="px-2 py-1 border-r border-slate-100">
@@ -442,13 +580,19 @@ export default function EngineeringView({
                                                                 </div>
                                                             )}
                                                         </td>
+                                                        <td className="px-2 py-1 border-r border-slate-100 text-right font-mono font-black text-slate-700 text-xs">
+                                                            {fmt(componentCost)}
+                                                        </td>
+                                                        <td className="px-2 py-1 border-r border-slate-100 text-center font-mono font-black text-slate-600 text-xs">
+                                                            {incidencePct.toFixed(1)}%
+                                                        </td>
                                                         <td className="px-2 py-1 text-center">
                                                             <button type="button" onClick={() => { const nd = [...form.details]; nd.splice(i, 1); setForm({ ...form, details: nd }); }} className="text-slate-300 hover:text-red-500 hover:bg-red-50 p-1 rounded transition-all opacity-0 group-hover:opacity-100"><Trash2 size={12} /></button>
                                                         </td>
                                                     </tr>
                                                 );
                                             })}
-                                            {form.details.length === 0 && <tr><td colSpan="5" className="p-8 text-center text-slate-400 text-xs italic">Hacé clic en "Añadir Insumo" para empezar.</td></tr>}
+                                            {form.details.length === 0 && <tr><td colSpan="7" className="p-8 text-center text-slate-400 text-xs italic">Hacé clic en "Añadir Insumo" para empezar.</td></tr>}
                                         </tbody>
                                     </table>
                                     <div className="p-1 bg-slate-50 border-t border-slate-200">
@@ -469,9 +613,14 @@ export default function EngineeringView({
                                         {form.formato_venta === 'Unidad' && form.peso_unidad > 0 && <p className="text-xs font-black text-slate-300 italic mb-0.5">≈ {Math.floor(pesoFinal / form.peso_unidad)} Unid.</p>}
                                     </div>
                                 </div>
-                                <Button onClick={save} variant="success" className="py-2.5 px-6" disabled={!canSave}>
-                                    {form.id ? "Actualizar Ficha" : "Guardar Ficha"}
-                                </Button>
+                                <div className="flex gap-2">
+                                    <Button onClick={() => setShowAdd(false)} variant="secondary" className="py-2.5 px-4 text-xs font-black uppercase text-slate-700 bg-white hover:bg-slate-100">
+                                        Cancelar
+                                    </Button>
+                                    <Button onClick={save} variant="success" className="py-2.5 px-6" disabled={!canSave}>
+                                        {form.id ? "Actualizar Ficha" : "Guardar Ficha"}
+                                    </Button>
+                                </div>
                             </div>
                         </Card>
                     </div>
@@ -489,6 +638,7 @@ export default function EngineeringView({
                                     {[
                                         { label: 'Materia Prima', val: panelCostos.costo_mp },
                                         { label: 'Mano de Obra', val: panelCostos.costo_mo },
+                                        { label: 'Costo Horno', val: panelCostos.costo_horno },
                                         { label: 'CIF', val: panelCostos.costo_cif },
                                     ].map(r => (
                                         <div key={r.label} className="flex justify-between items-center py-1 border-b border-dashed border-slate-100 text-xs">
@@ -543,38 +693,47 @@ export default function EngineeringView({
                                 </Card>
                             )}
                         </div>
+                        </div>
                     </div>
                 </div>
+            </div>
             )}
 
             {/* TABLA DE RECETAS */}
-            <Card className="fall-target overflow-hidden border-2 border-slate-200 shadow-sm bg-white">
+            <Card id="printable-list-container" className="fall-target overflow-hidden border-2 border-slate-200 shadow-sm bg-white">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left font-bold text-xs uppercase text-slate-700">
                         <thead className="bg-slate-900 text-white text-[9px] tracking-widest">
                             <tr>
-                                <th className="px-4 py-3">SKU / Producto</th>
-                                <th className="px-4 py-3 text-center">Familia</th>
-                                <th className="px-4 py-3 text-center">Rinde Final</th>
-                                <th className="px-4 py-3 text-right">Costo Unid.</th>
-                                <th className="px-4 py-3 text-right border-r border-slate-700">P. Sugerido</th>
-                                <th className="px-4 py-3 text-center w-28">Acciones</th>
+                                <th className="px-4 py-3 cursor-pointer select-none hover:bg-slate-800 transition-colors" onClick={() => handleSort('nombre_producto')}>
+                                    SKU / Producto {renderSortIndicator('nombre_producto')}
+                                </th>
+                                <th className="px-4 py-3 cursor-pointer select-none hover:bg-slate-800 transition-colors text-center" onClick={() => handleSort('familia')}>
+                                    Familia {renderSortIndicator('familia')}
+                                </th>
+                                <th className="px-4 py-3 cursor-pointer select-none hover:bg-slate-800 transition-colors text-center" onClick={() => handleSort('peso_final')}>
+                                    Rinde Final {renderSortIndicator('peso_final')}
+                                </th>
+                                <th className="px-4 py-3 cursor-pointer select-none hover:bg-slate-800 transition-colors text-right" onClick={() => handleSort('costo_unitario')}>
+                                    Costo Unid. {renderSortIndicator('costo_unitario')}
+                                </th>
+                                <th className="px-4 py-3 cursor-pointer select-none hover:bg-slate-800 transition-colors text-right border-r border-slate-700" onClick={() => handleSort('precio_sugerido')}>
+                                    P. Sugerido {renderSortIndicator('precio_sugerido')}
+                                </th>
+                                <th className="px-4 py-3 text-center w-28 print:hidden">Acciones</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 bg-white">
-                            {filteredRecipes.map(r => {
+                            {processedRecipes.map(r => {
                                 const familiaData = FAMILIAS[r.familia] || FAMILIAS.F;
                                 const isExpanded = !!expandedRows[r.id];
-                                const costo_mp = r.details?.reduce((acc, d) => acc + (Number(d.gramos) * getIngredientCost(ingredients.find(i => i.id === d.ingredientId))), 0) || 0;
-                                const costo_mo = (Number(r.horas_hombre) || 0) * config.finanzas.costoHoraHombre;
-                                const costo_cif = costo_mp * (config.finanzas.costosIndirectosPct / 100);
-                                const costo_total_batch = costo_mp + costo_mo + costo_cif;
-                                let unidades_rinde = r.formato_venta === 'Unidad' && r.peso_unidad > 0
-                                    ? Math.floor(Number(r.peso_final) / Number(r.peso_unidad))
-                                    : Number(r.peso_final) / 1000;
+                                const costo_mp = r.costo_mp;
+                                const costo_mo = r.costo_mo;
+                                const costo_cif = r.costo_cif;
+                                const costo_total_batch = r.costo_total_batch;
                                 const label_unidad = r.formato_venta === 'Unidad' ? 'Unid.' : 'Kg';
-                                const costo_unitario = unidades_rinde > 0 ? costo_total_batch / unidades_rinde : 0;
-                                const precio_sugerido = costo_unitario * (1 + (config.finanzas.margenGanancia / 100));
+                                const costo_unitario = r.costo_unitario;
+                                const precio_sugerido = r.precio_sugerido;
                                 return (
                                     <React.Fragment key={r.id}>
                                         <tr className={`hover:bg-slate-50 transition-colors group ${isExpanded ? 'bg-slate-50' : ''}`}>
@@ -594,13 +753,13 @@ export default function EngineeringView({
                                             </td>
                                             <td className="px-4 py-2 text-right font-mono font-bold text-slate-700">{fmt(costo_unitario)}</td>
                                             <td className="px-4 py-2 text-right font-mono font-black text-emerald-600 border-r border-slate-100">{fmt(precio_sugerido)}</td>
-                                            <td className="px-4 py-2 text-center">
+                                            <td className="px-4 py-2 text-center print:hidden">
                                                 <div className="flex justify-center gap-1">
                                                     <button onClick={() => toggleRow(r.id)} className={`p-1.5 rounded-md transition-colors ${isExpanded ? 'bg-slate-200 text-slate-800' : 'text-slate-400 hover:text-slate-800 hover:bg-slate-100'}`}>
                                                         {isExpanded ? <ChevronUp size={14} /> : <Eye size={14} />}
                                                     </button>
-                                                    <button onClick={() => handleEdit(r)} className="p-1.5 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-md transition-colors opacity-0 group-hover:opacity-100"><Wrench size={14} /></button>
-                                                    <button onClick={() => handleDelete(r.id)} className="p-1.5 text-red-300 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors opacity-0 group-hover:opacity-100"><Trash2 size={14} /></button>
+                                                    <button onClick={() => handleEdit(r)} className="p-1.5 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-md transition-colors" title="Editar"><Wrench size={14} /></button>
+                                                    <button onClick={() => handleDelete(r.id)} className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors" title="Eliminar"><Trash2 size={14} /></button>
                                                 </div>
                                             </td>
                                         </tr>
@@ -651,7 +810,7 @@ export default function EngineeringView({
                                     </React.Fragment>
                                 );
                             })}
-                            {filteredRecipes.length === 0 && <tr><td colSpan="6" className="p-10 text-center text-slate-400 italic text-[10px]">No hay fichas.</td></tr>}
+                            {processedRecipes.length === 0 && <tr><td colSpan="6" className="p-10 text-center text-slate-400 italic text-[10px]">No hay fichas.</td></tr>}
                         </tbody>
                     </table>
                 </div>
@@ -668,6 +827,31 @@ export default function EngineeringView({
                 showToast={showToast}
                 onSuccess={{ setRecipes, setIngredients }}
             />
+
+            {/* ESTILO DE IMPRESIÓN */}
+            <style>{`
+                @media print {
+                    body * {
+                        visibility: hidden;
+                    }
+                    #printable-list-container, #printable-list-container * {
+                        visibility: visible;
+                    }
+                    #printable-list-container {
+                        position: absolute;
+                        left: 0;
+                        top: 0;
+                        width: 100%;
+                        margin: 0;
+                        padding: 0;
+                        border: none !important;
+                        box-shadow: none !important;
+                    }
+                    .print\:hidden {
+                        display: none !important;
+                    }
+                }
+            `}</style>
         </div>
     );
 }

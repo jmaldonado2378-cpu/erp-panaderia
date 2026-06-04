@@ -13,12 +13,30 @@ const INITIAL_CONFIG = {
     branches: ['Morón Centro', 'Castelar'],
     finanzas: {
         costoHoraHombre: 4500,
+        costoHoraHorno: 2500,
+        costoDiaCamara: 150,
         margenGanancia: 120,
         costosIndirectosPct: 20
     },
     rrhh: {
         horaInicioPlanta: '05:00',
         horaFinPlanta: '23:00'
+    }
+};
+
+const DEFAULT_DARK_THEME = {
+    displayName: 'Artisan Industrial',
+    customColor: '#e9590c',
+    font: 'HANKEN_GROTESK',
+    roundness: 'ROUND_EIGHT',
+    namedColors: {
+        background: '#131313',
+        surface_container_lowest: '#0e0e0e',
+        surface_container: '#201f1f',
+        outline: 'rgba(255, 255, 255, 0.08)',
+        on_surface: '#e5e2e1',
+        on_surface_variant: '#a98a7e',
+        on_primary: '#ffffff'
     }
 };
 
@@ -172,7 +190,13 @@ export const useGlobalContext = () => useContext(GlobalContext);
 
 export const GlobalProvider = ({ children }) => {
     const [currentRole, setCurrentRole] = useState(ROLES.ADMIN);
-    const [config, setConfig] = useState(INITIAL_CONFIG);
+    const [config, setConfig] = useState(() => {
+        if (typeof window !== 'undefined') {
+            const saved = localStorage.getItem('erpConfig');
+            return saved ? JSON.parse(saved) : INITIAL_CONFIG;
+        }
+        return INITIAL_CONFIG;
+    });
     const [operatives, setOperatives] = useState(INITIAL_OPERATIVES);
 
     // ── Maestros (desde Supabase / Mocks) ─────────────────────────────
@@ -228,6 +252,12 @@ export const GlobalProvider = ({ children }) => {
         }
     }, [dashboardConfig]);
 
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('erpConfig', JSON.stringify(config));
+        }
+    }, [config]);
+
     const [toastMsg, setToastMsg] = useState(null);
     const [loading, setLoading] = useState(true);
 
@@ -240,7 +270,20 @@ export const GlobalProvider = ({ children }) => {
     const [stitchProjectId, setStitchProjectId] = useState('15115760904171156066');
     const [stitchApiKey, setStitchApiKey] = useState('');
     const [stitchDesignSystems, setStitchDesignSystems] = useState([]);
-    const [stitchThemeConfig, setStitchThemeConfig] = useState(null);
+    const [stitchThemeConfig, setStitchThemeConfig] = useState(() => {
+        if (typeof window !== 'undefined') {
+            const saved = localStorage.getItem('stitchThemeConfig');
+            return saved ? JSON.parse(saved) : DEFAULT_DARK_THEME;
+        }
+        return DEFAULT_DARK_THEME;
+    });
+    const [stitchActiveTheme, setStitchActiveTheme] = useState(() => {
+        if (typeof window !== 'undefined') {
+            const saved = localStorage.getItem('stitchActiveTheme');
+            return saved ? JSON.parse(saved) : DEFAULT_DARK_THEME;
+        }
+        return DEFAULT_DARK_THEME;
+    });
 
     const applyStitchTheme = (themeConfig) => {
         if (!themeConfig) return;
@@ -311,6 +354,13 @@ export const GlobalProvider = ({ children }) => {
             if (savedSystems) {
                 try {
                     setStitchDesignSystems(JSON.parse(savedSystems));
+                } catch (e) {}
+            }
+            
+            const savedActiveTheme = localStorage.getItem('stitchActiveTheme');
+            if (savedActiveTheme) {
+                try {
+                    setStitchActiveTheme(JSON.parse(savedActiveTheme));
                 } catch (e) {}
             }
         }
@@ -550,6 +600,46 @@ export const GlobalProvider = ({ children }) => {
         }
     };
 
+    const updateCharcReceta = async (id, receta, details) => {
+        try {
+            const { error } = await supabase.from('charc_recetas').update(receta).eq('id', id);
+            if (error) throw error;
+            
+            // Eliminar detalles viejos e insertar los nuevos
+            const { error: delError } = await supabase.from('charc_receta_ingredientes').delete().eq('receta_id', id);
+            if (delError) throw delError;
+
+            const detInserts = details.map(d => ({ 
+                receta_id: id, 
+                ingrediente_id: d.ingredientId, 
+                gramos: Number(d.gramos || 0),
+                porcentaje_base: d.porcentaje_base !== '' && d.porcentaje_base != null ? Number(d.porcentaje_base) : null,
+                categoria_tecnologica: d.categoria_tecnologica || 'aditivo',
+                secuencia_mezcla: d.secuencia_mezcla !== '' && d.secuencia_mezcla != null ? Number(d.secuencia_mezcla) : 1
+            }));
+            const { error: insError } = await supabase.from('charc_receta_ingredientes').insert(detInserts);
+            if (insError) throw insError;
+
+            setCharcRecetas(prev => prev.map(r => r.id === id ? { ...r, ...receta, details } : r));
+            showToast("Receta de charcutería actualizada.");
+        } catch (err) {
+            console.error("Error actualizando receta:", err.message);
+            showToast("Error BD: " + err.message, "error");
+        }
+    };
+
+    const deleteCharcReceta = async (id) => {
+        try {
+            const { error } = await supabase.from('charc_recetas').delete().eq('id', id);
+            if (error) throw error;
+            setCharcRecetas(prev => prev.filter(r => r.id !== id));
+            showToast("Ficha de charcutería eliminada.", "error");
+        } catch (err) {
+            console.error("Error eliminando receta:", err.message);
+            showToast("Error BD: " + err.message, "error");
+        }
+    };
+
     const addCharcLote = async (lote) => {
         try {
             const { data, error } = await supabase.from('charc_lotes_maduracion').insert([lote]).select();
@@ -735,7 +825,7 @@ export const GlobalProvider = ({ children }) => {
             pagosProveedores, setPagosProveedores,
 
             // Charcutería
-            charcRecetas, setCharcRecetas, addCharcReceta,
+            charcRecetas, setCharcRecetas, addCharcReceta, updateCharcReceta, deleteCharcReceta,
             charcLotes, setCharcLotes, addCharcLote,
             charcLogs, setCharcLogs, addCharcLog,
             updateCharcLoteEstado,
@@ -762,6 +852,7 @@ export const GlobalProvider = ({ children }) => {
             stitchApiKey, setStitchApiKey,
             stitchDesignSystems, setStitchDesignSystems,
             stitchThemeConfig, setStitchThemeConfig,
+            stitchActiveTheme, setStitchActiveTheme,
             applyStitchTheme
         }}>
             {children}

@@ -3,16 +3,19 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { 
     ThermometerSun, Plus, Scale, Calendar, User, ClipboardList, 
     Droplet, ShieldAlert, Award, FileText, CheckCircle2, QrCode, Play,
-    Trash2, Wrench, Info, Clock, ArrowRight, ChevronRight, Coins, AlertTriangle, Check, RotateCcw
+    Trash2, Wrench, Info, Clock, ArrowRight, ChevronRight, Coins, AlertTriangle, Check, RotateCcw,
+    Eye, ChevronUp, ChevronDown, Search, Printer
 } from 'lucide-react';
 import { Card, Button, Input, Select } from '../bakery_erp';
 import BulkImportModal from '../BulkImportModal';
+import { useGlobalContext } from '../context/GlobalContext';
 
 const FAMILIAS_CHARC = {
     fermentado_seco: { id: 'fermentado_seco', nombre: 'Fermentados Secos (Madurados)', color: 'bg-red-700', text: 'text-red-700', border: 'border-red-700' },
     salazon_cruda: { id: 'salazon_cruda', nombre: 'Salazones de Pieza Entera', color: 'bg-amber-600', text: 'text-amber-600', border: 'border-amber-600' },
     emulsion_fina: { id: 'emulsion_fina', nombre: 'Emulsiones Finas Escaldadas', color: 'bg-blue-600', text: 'text-blue-600', border: 'border-blue-600' },
-    salazon_inyectada: { id: 'salazon_inyectada', nombre: 'Salazones con Inyección (Cocidos)', color: 'bg-emerald-600', text: 'text-emerald-600', border: 'border-emerald-600' }
+    salazon_inyectada: { id: 'salazon_inyectada', nombre: 'Salazones con Inyección (Cocidos)', color: 'bg-emerald-600', text: 'text-emerald-600', border: 'border-emerald-600' },
+    embutido_fresco: { id: 'embutido_fresco', nombre: 'Embutidos Frescos (Sin Cámara)', color: 'bg-indigo-600', text: 'text-indigo-600', border: 'border-indigo-600' }
 };
 
 const CATEGORIAS_TECNOLOGICAS = {
@@ -28,7 +31,7 @@ const CATEGORIAS_TECNOLOGICAS = {
 const fmtCost = (n) => `$${Number(n || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 export default function CharcuteriaView({ 
-    charcRecetas = [], addCharcReceta, setCharcRecetas,
+    charcRecetas = [], addCharcReceta, setCharcRecetas, updateCharcReceta, deleteCharcReceta,
     charcLotes = [], addCharcLote, 
     charcLogs = [], addCharcLog, 
     updateCharcLoteEstado,
@@ -36,9 +39,93 @@ export default function CharcuteriaView({
     initialTab = 'lotes',
     hideMaduracionTab = false
 }) {
+    const { config } = useGlobalContext();
     const [tab, setTab] = useState(initialTab);
     const [showAddReceta, setShowAddReceta] = useState(false);
     const [showBulkImport, setShowBulkImport] = useState(false);
+
+    // Sorting and searching states for recetas tab
+    const [searchTerm, setSearchTerm] = useState('');
+    const [sortKey, setSortKey] = useState('nombre');
+    const [sortDesc, setSortDesc] = useState(false);
+
+    const handleSort = (key) => {
+        if (sortKey === key) {
+            setSortDesc(!sortDesc);
+        } else {
+            setSortKey(key);
+            setSortDesc(false);
+        }
+    };
+
+    const renderSortIndicator = (targetKey) => {
+        if (sortKey !== targetKey) return null;
+        return sortDesc ? ' ↓' : ' ↑';
+    };
+
+    const processedRecetas = useMemo(() => {
+        const list = charcRecetas.map(r => {
+            const totalBatchCost = r.details ? r.details.reduce((acc, d) => {
+                const ing = ingredients.find(i => i.id === d.ingredientId);
+                const costPerGram = Number(ing?.costo_estandar || ing?.costPerGram || 0);
+                return acc + (Number(d.gramos || 0) * costPerGram);
+            }, 0) : 0;
+            const batchWeight = (r.familia_tecnologica === 'fermentado_seco' || r.familia_tecnologica === 'emulsion_fina' || r.familia_tecnologica === 'embutido_fresco') ? 10000 : 1000;
+            const t_prep = Number(r.tiempo_preparacion || 30);
+            const d_maduracion = Number(r.dias_maduracion || 21);
+            const costo_mo = (t_prep / 60) * (config?.finanzas?.costoHoraHombre || 4500);
+            const costo_camara = d_maduracion * (config?.finanzas?.costoDiaCamara || 150);
+            const totalCostOfBatch = totalBatchCost + costo_mo + costo_camara;
+            const merma = Number(r.merma_secado_objetivo || 35);
+            const finalWeightKg = (batchWeight * (1 - merma / 100)) / 1000;
+            const costPerUnit = finalWeightKg > 0 ? totalCostOfBatch / finalWeightKg : 0;
+
+            return {
+                ...r,
+                totalBatchCost,
+                batchWeight,
+                t_prep,
+                d_maduracion,
+                costo_mo,
+                costo_camara,
+                totalCostOfBatch,
+                merma,
+                finalWeightKg,
+                costPerUnit
+            };
+        });
+
+        // Filter
+        let result = list;
+        if (searchTerm) {
+            const q = searchTerm.toLowerCase();
+            result = result.filter(r => 
+                r.nombre?.toLowerCase().includes(q) ||
+                r.codigo?.toLowerCase().includes(q) ||
+                r.familia_tecnologica?.toLowerCase().includes(q)
+            );
+        }
+
+        // Sort
+        if (sortKey) {
+            result.sort((a, b) => {
+                let valA = a[sortKey];
+                let valB = b[sortKey];
+
+                if (sortKey === 'lead_time_dias' || sortKey === 'merma_secado_objetivo' || sortKey === 'costPerUnit') {
+                    valA = Number(valA || 0);
+                    valB = Number(valB || 0);
+                    return sortDesc ? valB - valA : valA - valB;
+                }
+
+                valA = String(valA || '').toLowerCase();
+                valB = String(valB || '').toLowerCase();
+                return sortDesc ? valB.localeCompare(valA) : valA.localeCompare(valB);
+            });
+        }
+
+        return result;
+    }, [charcRecetas, searchTerm, sortKey, sortDesc, config, ingredients]);
 
     useEffect(() => {
         if (hideMaduracionTab) {
@@ -65,12 +152,15 @@ export default function CharcuteriaView({
 
     // --- Formulario de Ficha Técnica (Receta) ---
     const [recetaForm, setRecetaForm] = useState({
+        id: null,
         codigo: '',
         nombre: '',
         familia_tecnologica: 'fermentado_seco',
         porcentaje_inyeccion: '',
         lead_time_dias: 30,
         merma_secado_objetivo: 35,
+        tiempo_preparacion: 30,
+        dias_maduracion: 21,
         details: [
             { ingredientId: '', categoria_tecnologica: 'magro', porcentaje_base: '', secuencia_mezcla: 1 }
         ]
@@ -88,6 +178,12 @@ export default function CharcuteriaView({
 
     // --- Estado para etiqueta flotante imprimible ---
     const [printedLabel, setPrintedLabel] = useState(null);
+
+    // --- Estado para expansión de recetas en formato tabla ---
+    const [expandedRecipes, setExpandedRecipes] = useState({});
+    const toggleRecipeExpanded = (id) => {
+        setExpandedRecipes(prev => ({ ...prev, [id]: !prev[id] }));
+    };
 
     // --- Cálculo de Costo por Ficha ---
     const getRecipeCost = (detailsList) => {
@@ -130,7 +226,7 @@ export default function CharcuteriaView({
         const alerts = [];
         let blockSave = false;
 
-        if (recetaForm.familia_tecnologica === 'fermentado_seco' || recetaForm.familia_tecnologica === 'emulsion_fina') {
+        if (recetaForm.familia_tecnologica === 'fermentado_seco' || recetaForm.familia_tecnologica === 'emulsion_fina' || recetaForm.familia_tecnologica === 'embutido_fresco') {
             if (Math.abs(sumMeatBase - 100) > 0.01) {
                 alerts.push({ type: 'danger', msg: `Base Cárnica Desbalanceada: La suma de Magro y Grasa debe ser exactamente 100% (Actual: ${sumMeatBase.toFixed(1)}%).` });
                 blockSave = true;
@@ -184,7 +280,7 @@ export default function CharcuteriaView({
 
         // Simular gramos para el guardado (base de referencia para asegurar constraint NOT NULL en DB)
         // Base de 10 kg (10,000g) para fermentados/emulsiones o 1 kg (1000g) para salazones
-        const baseRef = (recetaForm.familia_tecnologica === 'fermentado_seco' || recetaForm.familia_tecnologica === 'emulsion_fina') ? 10000 : 1000;
+        const baseRef = (recetaForm.familia_tecnologica === 'fermentado_seco' || recetaForm.familia_tecnologica === 'emulsion_fina' || recetaForm.familia_tecnologica === 'embutido_fresco') ? 10000 : 1000;
         
         const detailsMapped = recetaForm.details
             .filter(d => d.ingredientId && d.porcentaje_base)
@@ -203,20 +299,59 @@ export default function CharcuteriaView({
             merma_secado_objetivo: Number(recetaForm.merma_secado_objetivo),
             familia_tecnologica: recetaForm.familia_tecnologica,
             porcentaje_inyeccion: recetaForm.familia_tecnologica === 'salazon_inyectada' ? Number(recetaForm.porcentaje_inyeccion) : null,
+            tiempo_preparacion: Number(recetaForm.tiempo_preparacion || 30),
+            dias_maduracion: Number(recetaForm.dias_maduracion || 21),
             version: 1
         };
 
-        addCharcReceta(receta, detailsMapped);
+        if (recetaForm.id) {
+            updateCharcReceta(recetaForm.id, receta, detailsMapped);
+        } else {
+            addCharcReceta(receta, detailsMapped);
+        }
         setShowAddReceta(false);
         setRecetaForm({
+            id: null,
             codigo: '',
             nombre: '',
             familia_tecnologica: 'fermentado_seco',
             porcentaje_inyeccion: '',
             lead_time_dias: 30,
             merma_secado_objetivo: 35,
+            tiempo_preparacion: 30,
+            dias_maduracion: 21,
             details: [{ ingredientId: '', categoria_tecnologica: 'magro', porcentaje_base: '', secuencia_mezcla: 1 }]
         });
+    };
+
+    const handleEditReceta = (rec) => {
+        setRecetaForm({
+            id: rec.id,
+            codigo: rec.codigo || '',
+            nombre: rec.nombre,
+            familia_tecnologica: rec.familia_tecnologica || 'fermentado_seco',
+            porcentaje_inyeccion: rec.porcentaje_inyeccion || '',
+            lead_time_dias: rec.lead_time_dias || 30,
+            merma_secado_objetivo: rec.merma_secado_objetivo || 35,
+            tiempo_preparacion: rec.tiempo_preparacion || 30,
+            dias_maduracion: rec.dias_maduracion || 21,
+            details: rec.details ? rec.details.map(d => ({
+                ingredientId: d.ingredientId || '',
+                categoria_tecnologica: d.categoria_tecnologica || 'aditivo',
+                porcentaje_base: d.porcentaje_base != null ? d.porcentaje_base.toString() : '',
+                secuencia_mezcla: d.secuencia_mezcla || 1
+            })) : [{ ingredientId: '', categoria_tecnologica: 'magro', porcentaje_base: '', secuencia_mezcla: 1 }]
+        });
+        setShowAddReceta(true);
+        if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    };
+
+    const handleDeleteReceta = (id) => {
+        if (confirm("¿Eliminar Ficha de Charcutería permanentemente de la Nube?")) {
+            deleteCharcReceta(id);
+        }
     };
 
     // --- Lógica de Escalabilidad del Asistente ---
@@ -242,31 +377,15 @@ export default function CharcuteriaView({
         let baseWeightG = 0;
         let scaled = [];
 
-        if (rec.familia_tecnologica === 'fermentado_seco' || rec.familia_tecnologica === 'emulsion_fina') {
-            // Algoritmo 1: Determinación de la Masa Cárnica Base (MC)
-            const magroInput = Number(asistente.pesoMagroInput); // ej: magro ingresado
-            const magroDetail = rec.details.find(d => d.categoria_tecnologica === 'magro');
-            const magroPct = magroDetail ? Number(magroDetail.porcentaje_base) : 65;
-
-            // MC = (M_magro * 100) / % Magro Teórico
-            const mcTotal = (magroInput * 100) / magroPct;
+        if (rec.familia_tecnologica === 'fermentado_seco' || rec.familia_tecnologica === 'emulsion_fina' || rec.familia_tecnologica === 'embutido_fresco') {
+            // Algoritmo 1: Determinación de la Masa Cárnica Base (MC) con Opción 1 (Peso Total de Mezcla Cárnica)
+            const mcTotal = Number(asistente.pesoMagroInput); // peso de mezcla cárnica total (magro + grasa)
             baseWeightG = mcTotal;
 
-            scaled = rec.details.map(d => {
-                let calculatedG = 0;
-                if (d.categoria_tecnologica === 'magro') {
-                    calculatedG = magroInput;
-                } else if (d.categoria_tecnologica === 'grasa') {
-                    calculatedG = mcTotal - magroInput; // M_grasa = MC - M_magro
-                } else {
-                    // M_ingrediente = MC * P_ing / 100
-                    calculatedG = (mcTotal * Number(d.porcentaje_base)) / 100;
-                }
-                return {
-                    ...d,
-                    gramos_calculados: Math.round(calculatedG)
-                };
-            });
+            scaled = rec.details.map(d => ({
+                ...d,
+                gramos_calculados: Math.round((mcTotal * Number(d.porcentaje_base || 0)) / 100)
+            }));
         } else if (rec.familia_tecnologica === 'salazon_cruda') {
             // Base Variable W_i
             const w_i = Number(asistente.pesoPiezaInput);
@@ -639,7 +758,7 @@ export default function CharcuteriaView({
             {/* TAB: FICHAS TÉCNICAS (RECETAS) */}
             {tab === 'recetas' && (
                 <div className="space-y-8 animate-in fade-in">
-                    <div className="flex justify-between items-center">
+                    <div className="flex justify-between items-center print:hidden">
                         <div>
                             <h3 className="text-2xl font-black uppercase italic text-slate-800 tracking-tighter">Recetas y Dosificación Industrial</h3>
                             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Definición de fichas técnicas en base cárnica, aditivos y tiempos de curing.</p>
@@ -650,6 +769,7 @@ export default function CharcuteriaView({
                                 setShowAddReceta(!showAddReceta);
                                 if (!showAddReceta) {
                                     setRecetaForm({
+                                        id: null,
                                         codigo: '',
                                         nombre: '',
                                         familia_tecnologica: 'fermentado_seco',
@@ -665,236 +785,378 @@ export default function CharcuteriaView({
                         </div>
                     </div>
 
-                    {/* FORMULARIO DE ALTA DE RECETA DE CHARCUTERÍA */}
-                    {showAddReceta && (
-                        <Card className="p-8 border-t-8 border-slate-900 bg-white shadow-2xl rounded-2xl animate-in slide-in-from-top-6">
-                            <h4 className="text-lg font-black uppercase mb-6 italic text-slate-800">Alta de Ficha Técnica Charcutera</h4>
-                            
-                            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-end mb-6">
-                                <Input label="Código Ficha (SKU)" value={recetaForm.codigo} onChange={v => setRecetaForm({ ...recetaForm, codigo: v })} placeholder="Ej: CH-SLM-01" required />
-                                <Input label="Nombre del Chacinado" placeholder="Ej: Salame tipo Milán" value={recetaForm.nombre} onChange={v => setRecetaForm({ ...recetaForm, nombre: v })} required />
-                                
-                                <Select label="Familia Tecnológica" value={recetaForm.familia_tecnologica} onChange={v => setRecetaForm({ ...recetaForm, familia_tecnologica: v })}>
-                                    <option value="fermentado_seco">Fermentados Secos (Salame, Chorizo)</option>
-                                    <option value="salazon_cruda">Salazones Crudas (Bondiola, Jamón)</option>
-                                    <option value="emulsion_fina">Emulsiones Finas (Mortadela, Salchicha)</option>
-                                    <option value="salazon_inyectada">Salazones Inyectadas (Jamón Cocido)</option>
-                                </Select>
+                    {/* CONTROL BAR */}
+                    <div className="flex flex-col md:flex-row gap-3 items-center justify-between mb-5 print:hidden bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
+                        <div className="relative w-full md:max-w-md">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                            <input 
+                                type="text" 
+                                placeholder="Buscar por código, nombre o familia..." 
+                                value={searchTerm} 
+                                onChange={e => setSearchTerm(e.target.value)} 
+                                className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg text-xs font-bold outline-none focus:border-slate-400 bg-slate-50 focus:bg-white transition-all" 
+                            />
+                        </div>
+                        <Button 
+                            onClick={() => window.print()} 
+                            variant="secondary" 
+                            className="w-full md:w-auto py-2 px-4 flex items-center justify-center gap-1.5 text-xs font-black uppercase"
+                        >
+                            <Printer size={14} /> Imprimir Listado
+                        </Button>
+                    </div>
 
-                                {recetaForm.familia_tecnologica === 'salazon_inyectada' ? (
-                                    <Input label="Porcentaje de Inyección (%)" type="number" value={recetaForm.porcentaje_inyeccion} onChange={v => setRecetaForm({ ...recetaForm, porcentaje_inyeccion: v })} placeholder="Ej: 10" required />
-                                ) : (
-                                    <div className="text-[10px] font-bold text-slate-400 uppercase h-[42px] flex items-center justify-center border border-dashed border-slate-200 rounded-xl bg-slate-50">Inyección N/A</div>
-                                )}
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                                <Input label="Lead Time Estimado de Maduración (Días)" type="number" value={recetaForm.lead_time_dias} onChange={v => setRecetaForm({ ...recetaForm, lead_time_dias: v })} required />
-                                <Input label="Merma / Pérdida de Peso Objetivo (%)" type="number" value={recetaForm.merma_secado_objetivo} onChange={v => setRecetaForm({ ...recetaForm, merma_secado_objetivo: v })} required />
-                            </div>
-
-                            {/* Detalle de componentes de la receta */}
-                            <div className="mb-6 bg-slate-50 p-6 rounded-2xl border border-slate-200">
-                                <div className="flex justify-between items-center mb-4">
-                                    <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Matriz de Formulación (Ingredientes)</p>
-                                    <span className="text-[9px] text-slate-400 font-bold italic">Base de cálculo dinámico: % de Baker/Cárnico</span>
-                                </div>
-                                
-                                <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm bg-white mb-4">
-                                    <table className="w-full text-left">
-                                        <thead className="bg-slate-900 text-white text-[9px] uppercase tracking-wider">
-                                            <tr>
-                                                <th className="px-4 py-3">Insumo</th>
-                                                <th className="px-4 py-3 w-48">Categoría Tecnológica</th>
-                                                <th className="px-4 py-3 w-32 text-center">% de Base</th>
-                                                <th className="px-4 py-3 w-32 text-center">Secuencia Mezcla</th>
-                                                <th className="px-4 py-3 w-16 text-center"></th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-slate-100">
-                                            {recetaForm.details.map((d, i) => (
-                                                <tr key={i} className="hover:bg-slate-50/50 transition-colors">
-                                                    <td className="p-2">
-                                                        <select 
-                                                            className="w-full bg-transparent text-xs font-bold text-slate-700 outline-none cursor-pointer py-1.5"
-                                                            value={d.ingredientId}
-                                                            onChange={e => {
-                                                                const nd = [...recetaForm.details];
-                                                                nd[i].ingredientId = e.target.value;
-                                                                setRecetaForm({ ...recetaForm, details: nd });
-                                                            }}
-                                                        >
-                                                            <option value="" disabled>Seleccione ingrediente...</option>
-                                                            {ingredients.map(ing => <option key={ing.id} value={ing.id}>{ing.name}</option>)}
-                                                        </select>
-                                                    </td>
-                                                    <td className="p-2 border-l border-slate-100">
-                                                        <select 
-                                                            className="w-full bg-transparent text-xs font-bold text-slate-700 outline-none cursor-pointer py-1.5"
-                                                            value={d.categoria_tecnologica}
-                                                            onChange={e => {
-                                                                const nd = [...recetaForm.details];
-                                                                nd[i].categoria_tecnologica = e.target.value;
-                                                                setRecetaForm({ ...recetaForm, details: nd });
-                                                            }}
-                                                        >
-                                                            {Object.entries(CATEGORIAS_TECNOLOGICAS).map(([k, v]) => (
-                                                                <option key={k} value={k}>{v.label}</option>
-                                                            ))}
-                                                        </select>
-                                                    </td>
-                                                    <td className="p-2 border-l border-slate-100">
-                                                        <div className="flex items-center justify-center bg-slate-50 border rounded-lg px-2 py-1 w-24 mx-auto">
-                                                            <input 
-                                                                type="number" 
-                                                                step="0.01" 
-                                                                className="w-full bg-transparent text-xs font-black text-center outline-none text-slate-800"
-                                                                placeholder="0"
-                                                                value={d.porcentaje_base} 
-                                                                onChange={e => {
-                                                                    const nd = [...recetaForm.details];
-                                                                    nd[i].porcentaje_base = e.target.value;
-                                                                    setRecetaForm({ ...recetaForm, details: nd });
-                                                                }} 
-                                                            />
-                                                            <span className="text-[9px] text-slate-400 font-bold ml-1">%</span>
-                                                        </div>
-                                                    </td>
-                                                    <td className="p-2 border-l border-slate-100">
-                                                        <input 
-                                                            type="number" 
-                                                            className="w-16 mx-auto text-center border rounded-lg px-2 py-1 text-xs font-bold text-slate-700 bg-slate-50"
-                                                            min="1"
-                                                            value={d.secuencia_mezcla}
-                                                            onChange={e => {
-                                                                const nd = [...recetaForm.details];
-                                                                nd[i].secuencia_mezcla = e.target.value;
-                                                                setRecetaForm({ ...recetaForm, details: nd });
-                                                            }}
-                                                        />
-                                                    </td>
-                                                    <td className="p-2 text-center">
-                                                        <button 
-                                                            type="button"
-                                                            className="text-red-300 hover:text-red-600 hover:bg-red-50 p-1.5 rounded-lg transition-colors"
-                                                            onClick={() => {
-                                                                const nd = [...recetaForm.details];
-                                                                nd.splice(i, 1);
-                                                                setRecetaForm({ ...recetaForm, details: nd });
-                                                            }}
-                                                        >
-                                                            <Trash2 size={14} />
-                                                        </button>
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-
-                                <Button 
-                                    onClick={() => setRecetaForm({ ...recetaForm, details: [...recetaForm.details, { ingredientId: '', categoria_tecnologica: 'aditivo', porcentaje_base: '', secuencia_mezcla: recetaForm.details.length + 1 }] })}
-                                    variant="secondary"
-                                    className="w-full py-2.5 rounded-xl border border-dashed text-xs flex justify-center items-center gap-2"
-                                >
-                                    + Agregar Insumo a la Mezcla
-                                </Button>
-                            </div>
-
-                            {/* Alertas de validación de inocuidad */}
-                            {validateRecipeForm.alerts.map((al, idx) => (
-                                <div key={idx} className={`p-4 rounded-xl border-l-4 mb-4 text-xs font-semibold flex items-start gap-3 shadow-sm ${
-                                    al.type === 'danger' ? 'bg-red-50 border-red-500 text-red-800' : 'bg-amber-50 border-amber-500 text-amber-800'
-                                }`}>
-                                    <AlertTriangle size={18} className="shrink-0" />
-                                    <span>{al.msg}</span>
-                                </div>
-                            ))}
-
-                            <div className="flex gap-4 justify-end pt-4 border-t">
-                                <Button onClick={() => setShowAddReceta(false)} variant="secondary" className="px-6 py-2.5 rounded-xl">Cancelar</Button>
-                                <Button onClick={handleSaveReceta} variant="success" className="px-8 py-2.5 rounded-xl" disabled={validateRecipeForm.blockSave}>Guardar Ficha Técnica</Button>
-                            </div>
-                        </Card>
-                    )}
-
-                    {/* VISTA DE FICHAS ACTIVAS */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {charcRecetas.map(r => {
-                            const familyData = FAMILIAS_CHARC[r.familia_tecnologica || 'fermentado_seco'];
-                            const totalBatchCost = getRecipeCost(r.details || []);
-                            const batchWeight = (r.familia_tecnologica === 'fermentado_seco' || r.familia_tecnologica === 'emulsion_fina') ? 10000 : 1000;
-                            const costPerUnit = totalBatchCost / (batchWeight / 1000); // Costo por kg
-
-                            return (
-                                <Card key={r.id} className="p-6 border bg-white shadow-sm flex flex-col justify-between rounded-2xl hover:shadow-md transition-shadow">
-                                    <div>
-                                        <div className="flex justify-between items-start mb-4">
-                                            <div>
-                                                <h5 className="font-black text-base uppercase italic text-slate-800 leading-none">{r.nombre}</h5>
-                                                <div className="flex items-center gap-2 mt-2">
-                                                    <span className="text-[9px] font-mono text-blue-500 bg-blue-50 px-2 py-0.5 rounded-lg border border-blue-100">{r.codigo}</span>
-                                                    <span className={`px-2 py-0.5 rounded-lg text-[8px] font-black text-white ${familyData?.color}`}>
-                                                        {familyData?.nombre}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                            <div className="bg-slate-100 p-2.5 rounded-xl text-slate-500"><FileText size={20} /></div>
+                    <div className="w-full">
+                        {/* FORMULARIO DE ALTA DE RECETA DE CHARCUTERÍA (MODAL FLOTANTE) */}
+                        {showAddReceta && (
+                            <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex justify-center items-center p-4 overflow-y-auto">
+                                <div className="bg-white border-[8px] border-slate-900 rounded-[2.5rem] p-8 max-w-4xl w-full shadow-2xl animate-in zoom-in-95 duration-200 overflow-y-auto max-h-[90vh]">
+                                    <h4 className="text-lg font-black uppercase mb-6 italic text-slate-800">{recetaForm.id ? "Editar Ficha Técnica Charcutera" : "Alta de Ficha Técnica Charcutera"}</h4>
+                                    
+                                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-end mb-6">
+                                        <Input label="Código Ficha (SKU)" value={recetaForm.codigo} onChange={v => setRecetaForm({ ...recetaForm, codigo: v })} placeholder="Ej: CH-SLM-01" required />
+                                        <Input label="Nombre del Chacinado" placeholder="Ej: Salame tipo Milán" value={recetaForm.nombre} onChange={v => setRecetaForm({ ...recetaForm, nombre: v })} required />
+                                        
+                                        <Select label="Familia Tecnológica" value={recetaForm.familia_tecnologica} onChange={v => {
+                                            const isFresh = v === 'embutido_fresco';
+                                            setRecetaForm(prev => ({
+                                                ...prev,
+                                                familia_tecnologica: v,
+                                                lead_time_dias: isFresh ? 0 : prev.lead_time_dias,
+                                                merma_secado_objetivo: isFresh ? 0 : prev.merma_secado_objetivo,
+                                                dias_maduracion: isFresh ? 0 : prev.dias_maduracion
+                                            }));
+                                        }}>
+                                            <option value="fermentado_seco">Fermentados Secos (Salame, Chorizo)</option>
+                                            <option value="salazon_cruda">Salazones Crudas (Bondiola, Jamón)</option>
+                                            <option value="emulsion_fina">Emulsiones Finas (Mortadela, Salchicha)</option>
+                                            <option value="salazon_inyectada">Salazones Inyectadas (Jamón Cocido)</option>
+                                            <option value="embutido_fresco">Embutidos Frescos (Chorizo Fresco, Salchicha)</option>
+                                        </Select>
+         
+                                        {recetaForm.familia_tecnologica === 'salazon_inyectada' ? (
+                                            <Input label="Porcentaje de Inyección (%)" type="number" value={recetaForm.porcentaje_inyeccion} onChange={v => setRecetaForm({ ...recetaForm, porcentaje_inyeccion: v })} placeholder="Ej: 10" required />
+                                        ) : (
+                                            <div className="text-[10px] font-bold text-slate-400 uppercase h-[42px] flex items-center justify-center border border-dashed border-slate-200 rounded-xl bg-slate-50">Inyección N/A</div>
+                                        )}
+                                    </div>
+         
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-6">
+                                        <Input label="Lead Time Maduración (Días)" type="number" value={recetaForm.familia_tecnologica === 'embutido_fresco' ? 0 : recetaForm.lead_time_dias} onChange={v => setRecetaForm({ ...recetaForm, lead_time_dias: v })} disabled={recetaForm.familia_tecnologica === 'embutido_fresco'} required />
+                                        <Input label="Merma Secado Objetivo (%)" type="number" value={recetaForm.familia_tecnologica === 'embutido_fresco' ? 0 : recetaForm.merma_secado_objetivo} onChange={v => setRecetaForm({ ...recetaForm, merma_secado_objetivo: v })} disabled={recetaForm.familia_tecnologica === 'embutido_fresco'} required />
+                                        <Input label="Tiempo Prep. (min)" type="number" value={recetaForm.tiempo_preparacion} onChange={v => setRecetaForm({ ...recetaForm, tiempo_preparacion: Number(v) })} suffix="min" required />
+                                        <Input label="Maduración Requerida (Días)" type="number" value={recetaForm.familia_tecnologica === 'embutido_fresco' ? 0 : recetaForm.dias_maduracion} onChange={v => setRecetaForm({ ...recetaForm, dias_maduracion: Number(v) })} disabled={recetaForm.familia_tecnologica === 'embutido_fresco'} suffix="días" required />
+                                    </div>
+         
+                                    {/* Detalle de componentes de la receta */}
+                                    <div className="mb-6 bg-slate-50 p-6 rounded-2xl border border-slate-200">
+                                        <div className="flex justify-between items-center mb-4">
+                                            <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Matriz de Formulación (Ingredientes)</p>
+                                            <span className="text-[9px] text-slate-400 font-bold italic">Base de cálculo dinámico: % de Baker/Cárnico</span>
                                         </div>
                                         
-                                        <div className="grid grid-cols-3 gap-3 text-xs bg-slate-50 p-4 rounded-xl border border-slate-100 mb-4 text-center">
-                                            <div>
-                                                <p className="text-[8px] text-slate-400 font-black uppercase tracking-wider">Lead Time</p>
-                                                <p className="font-mono font-black text-slate-800 text-sm mt-1">{r.lead_time_dias} días</p>
-                                            </div>
-                                            <div>
-                                                <p className="text-[8px] text-slate-400 font-black uppercase tracking-wider">Merma Secado</p>
-                                                <p className="font-mono font-black text-red-600 text-sm mt-1">{r.merma_secado_objetivo}%</p>
-                                            </div>
-                                            <div>
-                                                <p className="text-[8px] text-slate-400 font-black uppercase tracking-wider">Costo / Kg</p>
-                                                <p className="font-mono font-black text-emerald-600 text-sm mt-1">{fmtCost(costPerUnit)}</p>
-                                            </div>
+                                        <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm bg-white mb-4 max-h-[300px] overflow-y-auto">
+                                            <table className="w-full text-left">
+                                                <thead className="bg-slate-900 text-white text-[9px] uppercase tracking-wider sticky top-0 z-10">
+                                                    <tr>
+                                                        <th className="px-4 py-3">Insumo</th>
+                                                        <th className="px-4 py-3 w-48">Categoría Tecnológica</th>
+                                                        <th className="px-4 py-3 w-32 text-center">% de Base</th>
+                                                        <th className="px-4 py-3 w-32 text-center">Secuencia Mezcla</th>
+                                                        <th className="px-4 py-3 w-16 text-center"></th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-slate-100">
+                                                    {recetaForm.details.map((d, i) => (
+                                                        <tr key={i} className="hover:bg-slate-50/50 transition-colors">
+                                                            <td className="p-2">
+                                                                <select 
+                                                                    className="w-full bg-transparent text-xs font-bold text-slate-700 outline-none cursor-pointer py-1.5"
+                                                                    value={d.ingredientId}
+                                                                    onChange={e => {
+                                                                        const nd = [...recetaForm.details];
+                                                                        nd[i].ingredientId = e.target.value;
+                                                                        setRecetaForm({ ...recetaForm, details: nd });
+                                                                    }}
+                                                                >
+                                                                    <option value="" disabled>Seleccione ingrediente...</option>
+                                                                    {ingredients.map(ing => <option key={ing.id} value={ing.id}>{ing.name}</option>)}
+                                                                </select>
+                                                            </td>
+                                                            <td className="p-2 border-l border-slate-100">
+                                                                <select 
+                                                                    className="w-full bg-transparent text-xs font-bold text-slate-700 outline-none cursor-pointer py-1.5"
+                                                                    value={d.categoria_tecnologica}
+                                                                    onChange={e => {
+                                                                        const nd = [...recetaForm.details];
+                                                                        nd[i].categoria_tecnologica = e.target.value;
+                                                                        setRecetaForm({ ...recetaForm, details: nd });
+                                                                    }}
+                                                                >
+                                                                    {Object.entries(CATEGORIAS_TECNOLOGICAS).map(([k, v]) => (
+                                                                        <option key={k} value={k}>{v.label}</option>
+                                                                    ))}
+                                                                </select>
+                                                            </td>
+                                                            <td className="p-2 border-l border-slate-100">
+                                                                <div className="flex items-center justify-center bg-slate-50 border rounded-lg px-2 py-1 w-24 mx-auto">
+                                                                    <input 
+                                                                        type="number" 
+                                                                        step="0.01" 
+                                                                        className="w-full bg-transparent text-xs font-black text-center outline-none text-slate-800"
+                                                                        placeholder="0"
+                                                                        value={d.porcentaje_base} 
+                                                                        onChange={e => {
+                                                                            const nd = [...recetaForm.details];
+                                                                            nd[i].porcentaje_base = e.target.value;
+                                                                            setRecetaForm({ ...recetaForm, details: nd });
+                                                                        }} 
+                                                                    />
+                                                                    <span className="text-[9px] text-slate-400 font-bold ml-1">%</span>
+                                                                </div>
+                                                            </td>
+                                                            <td className="p-2 border-l border-slate-100">
+                                                                <input 
+                                                                    type="number" 
+                                                                    className="w-16 mx-auto text-center border rounded-lg px-2 py-1 text-xs font-bold text-slate-700 bg-slate-50"
+                                                                    min="1"
+                                                                    value={d.secuencia_mezcla}
+                                                                    onChange={e => {
+                                                                        const nd = [...recetaForm.details];
+                                                                        nd[i].secuencia_mezcla = e.target.value;
+                                                                        setRecetaForm({ ...recetaForm, details: nd });
+                                                                    }}
+                                                                />
+                                                            </td>
+                                                            <td className="p-2 text-center">
+                                                                <button 
+                                                                    type="button"
+                                                                    className="text-red-300 hover:text-red-600 hover:bg-red-50 p-1.5 rounded-lg transition-colors"
+                                                                    onClick={() => {
+                                                                        const nd = [...recetaForm.details];
+                                                                        nd.splice(i, 1);
+                                                                        setRecetaForm({ ...recetaForm, details: nd });
+                                                                    }}
+                                                                >
+                                                                    <Trash2 size={14} />
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
                                         </div>
-
-                                        <div className="space-y-2">
-                                            <p className="text-[8px] text-slate-400 font-black uppercase tracking-wider">Composición de Receta (%):</p>
-                                            <div className="divide-y divide-slate-100 text-[10px]">
-                                                {r.details?.map((d, i) => {
-                                                    const ing = ingredients.find(ing => ing.id === d.ingredientId);
-                                                    const cat = CATEGORIAS_TECNOLOGICAS[d.categoria_tecnologica || 'aditivo'];
-                                                    return (
-                                                        <div key={i} className="py-2 flex justify-between items-center text-slate-700">
-                                                            <div className="flex items-center gap-2">
-                                                                <span className={`text-[7px] px-1.5 py-0.5 rounded uppercase font-black ${cat?.color}`}>
-                                                                    {d.categoria_tecnologica}
-                                                                </span>
-                                                                <span className="font-semibold">{ing?.name || 'Insumo'}</span>
-                                                            </div>
-                                                            <div className="font-mono flex items-center gap-3">
-                                                                <span className="text-slate-400">Paso {d.secuencia_mezcla}</span>
-                                                                <span className="font-black text-slate-900">{d.porcentaje_base}%</span>
-                                                            </div>
-                                                        </div>
-                                                    );
-                                                })}
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="border-t pt-4 mt-6">
-                                        <Button onClick={() => handleStartAsistente(r)} variant="primary" className="w-full py-2.5 rounded-xl text-xs font-black uppercase tracking-wider italic flex items-center justify-center gap-2">
-                                            <Play size={14} className="fill-current" /> Pesar y Colgar Lote
+                                        
+                                        <Button 
+                                            onClick={() => setRecetaForm({ ...recetaForm, details: [...recetaForm.details, { ingredientId: '', categoria_tecnologica: 'aditivo', porcentaje_base: '', secuencia_mezcla: recetaForm.details.length + 1 }] })}
+                                            variant="secondary"
+                                            className="w-full py-2.5 rounded-xl border border-dashed text-xs flex justify-center items-center gap-2"
+                                        >
+                                            + Agregar Insumo a la Mezcla
                                         </Button>
                                     </div>
-                                </Card>
-                            );
-                        })}
-                        {charcRecetas.length === 0 && (
-                            <div className="col-span-full py-16 text-center opacity-30 italic text-slate-400 text-xs">
-                                No se han registrado fichas técnicas.
+         
+                                    {/* Alertas de validación de inocuidad */}
+                                    {validateRecipeForm.alerts.map((al, idx) => (
+                                        <div key={idx} className={`p-4 rounded-xl border-l-4 mb-4 text-xs font-semibold flex items-start gap-3 shadow-sm ${
+                                            al.type === 'danger' ? 'bg-red-50 border-red-500 text-red-800' : 'bg-amber-50 border-amber-500 text-amber-800'
+                                        }`}>
+                                            <AlertTriangle size={18} className="shrink-0" />
+                                            <span>{al.msg}</span>
+                                        </div>
+                                    ))}
+         
+                                    <div className="flex gap-4 justify-end pt-4 border-t">
+                                        <Button onClick={() => setShowAddReceta(false)} variant="secondary" className="px-6 py-2.5 rounded-xl">Cancelar</Button>
+                                        <Button onClick={handleSaveReceta} variant="success" className="px-8 py-2.5 rounded-xl" disabled={validateRecipeForm.blockSave}>Guardar Ficha Técnica</Button>
+                                    </div>
+                                </div>
                             </div>
                         )}
+ 
+                        {/* VISTA DE FICHAS ACTIVAS */}
+                        <div className="w-full">
+                            <Card id="printable-list-container" className="overflow-hidden border border-slate-200 shadow-sm bg-white rounded-2xl">
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left font-bold text-xs uppercase text-slate-700">
+                                <thead className="bg-slate-900 text-white text-[9px] tracking-widest">
+                                    <tr>
+                                        <th className="px-4 py-3 cursor-pointer select-none hover:bg-slate-800 transition-colors" onClick={() => handleSort('nombre')}>
+                                            SKU / Chacinado {renderSortIndicator('nombre')}
+                                        </th>
+                                        <th className="px-4 py-3 cursor-pointer select-none hover:bg-slate-800 transition-colors text-center" onClick={() => handleSort('familia_tecnologica')}>
+                                            Familia {renderSortIndicator('familia_tecnologica')}
+                                        </th>
+                                        <th className="px-4 py-3 cursor-pointer select-none hover:bg-slate-800 transition-colors text-center" onClick={() => handleSort('lead_time_dias')}>
+                                            Lead Time {renderSortIndicator('lead_time_dias')}
+                                        </th>
+                                        <th className="px-4 py-3 cursor-pointer select-none hover:bg-slate-800 transition-colors text-center" onClick={() => handleSort('merma_secado_objetivo')}>
+                                            Merma Secado {renderSortIndicator('merma_secado_objetivo')}
+                                        </th>
+                                        <th className="px-4 py-3 cursor-pointer select-none hover:bg-slate-800 transition-colors text-right" onClick={() => handleSort('costPerUnit')}>
+                                            Costo / Kg {renderSortIndicator('costPerUnit')}
+                                        </th>
+                                        <th className="px-4 py-3 text-center w-40 print:hidden">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100 bg-white">
+                                    {processedRecetas.map(r => {
+                                        const familyData = FAMILIAS_CHARC[r.familia_tecnologica || 'fermentado_seco'];
+                                        const totalBatchCost = r.totalBatchCost;
+                                        const batchWeight = r.batchWeight;
+                                        const t_prep = r.t_prep;
+                                        const d_maduracion = r.dias_maduracion;
+                                        const costo_mo = r.costo_mo;
+                                        const costo_camara = r.costo_camara;
+                                        const totalCostOfBatch = r.totalCostOfBatch;
+                                        const merma = r.merma;
+                                        const finalWeightKg = r.finalWeightKg;
+                                        const costPerUnit = r.costPerUnit;
+                                        const isExpanded = !!expandedRecipes[r.id];
+
+                                        return (
+                                            <React.Fragment key={r.id}>
+                                                <tr className={`hover:bg-slate-50 transition-colors group ${isExpanded ? 'bg-slate-50' : ''}`}>
+                                                    <td className="px-4 py-3.5 border-b border-slate-100">
+                                                        <p className="text-[11px] font-black text-slate-800 leading-none">{r.nombre}</p>
+                                                        <div className="flex items-center gap-2 mt-1.5">
+                                                            <span className="text-[8px] font-mono text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">{r.codigo}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-4 py-3.5 text-center border-b border-slate-100">
+                                                        <span className={`px-2 py-0.5 rounded text-[8px] text-white font-black uppercase ${familyData?.color}`}>{familyData?.nombre?.replace(' (Madurados)', '')?.replace(' (Sin Cámara)', '')}</span>
+                                                    </td>
+                                                    <td className="px-4 py-3.5 text-center font-mono text-slate-800 border-b border-slate-100">
+                                                        {r.lead_time_dias} días
+                                                    </td>
+                                                    <td className="px-4 py-3.5 text-center font-mono text-slate-800 border-b border-slate-100">
+                                                        {r.merma_secado_objetivo}%
+                                                    </td>
+                                                    <td className="px-4 py-3.5 text-right font-mono font-black text-emerald-600 border-b border-slate-100">
+                                                        {fmtCost(costPerUnit)}
+                                                    </td>
+                                                    <td className="px-4 py-3.5 text-center border-b border-slate-100 print:hidden">
+                                                        <div className="flex justify-center items-center gap-1.5">
+                                                            <button 
+                                                                onClick={() => toggleRecipeExpanded(r.id)} 
+                                                                className={`p-1.5 rounded-md transition-colors ${isExpanded ? 'bg-slate-200 text-slate-800' : 'text-slate-400 hover:text-slate-800 hover:bg-slate-100'}`}
+                                                                title="Ver composición"
+                                                            >
+                                                                {isExpanded ? <ChevronUp size={14} /> : <Eye size={14} />}
+                                                            </button>
+                                                            <button 
+                                                                onClick={() => handleStartAsistente(r)} 
+                                                                className="p-1.5 text-blue-500 hover:bg-blue-50 rounded-md transition-colors"
+                                                                title="Pesar y Colgar Lote"
+                                                            >
+                                                                <Play size={14} className="fill-current" />
+                                                            </button>
+                                                            <button 
+                                                                onClick={() => handleEditReceta(r)} 
+                                                                className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-md transition-colors"
+                                                                title="Editar"
+                                                            >
+                                                                <Wrench size={14} />
+                                                            </button>
+                                                            <button 
+                                                                onClick={() => handleDeleteReceta(r.id)} 
+                                                                className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                                                                title="Eliminar"
+                                                            >
+                                                                <Trash2 size={14} />
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                                {isExpanded && (
+                                                    <tr className="bg-slate-50/50 border-b border-slate-200">
+                                                        <td colSpan="6" className="px-8 py-5">
+                                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                                                <div className="md:col-span-2">
+                                                                    <p className="text-[9px] text-slate-400 font-black uppercase tracking-wider mb-2">Composición de Receta (%):</p>
+                                                                    <div className="bg-white border border-slate-200 rounded-xl overflow-hidden divide-y divide-slate-100">
+                                                                        {r.details?.map((d, i) => {
+                                                                            const ing = ingredients.find(ing => ing.id === d.ingredientId);
+                                                                            const cat = CATEGORIAS_TECNOLOGICAS[d.categoria_tecnologica || 'aditivo'];
+                                                                            return (
+                                                                                <div key={i} className="px-4 py-2 flex justify-between items-center text-[10px] text-slate-700 hover:bg-slate-50 transition-colors">
+                                                                                    <div className="flex items-center gap-2">
+                                                                                        <span className={`text-[7px] px-1.5 py-0.5 rounded uppercase font-black ${cat?.color}`}>
+                                                                                            {d.categoria_tecnologica}
+                                                                                        </span>
+                                                                                        <span className="font-semibold">{ing?.name || 'Insumo'}</span>
+                                                                                    </div>
+                                                                                    <div className="font-mono flex items-center gap-3">
+                                                                                        <span className="text-slate-400">Paso {d.secuencia_mezcla}</span>
+                                                                                        <span className="font-black text-slate-900">{d.porcentaje_base}%</span>
+                                                                                    </div>
+                                                                                </div>
+                                                                            );
+                                                                        })}
+                                                                    </div>
+                                                                </div>
+                                                                
+                                                                <div className="flex flex-col justify-between bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+                                                                    <div>
+                                                                        <p className="text-[9px] text-slate-400 font-black uppercase tracking-wider mb-2">Resumen Operativo</p>
+                                                                        <div className="space-y-1.5 text-[10px] text-slate-600">
+                                                                            <div className="flex justify-between border-b pb-1"><span>Prep. Labor:</span> <span className="font-mono font-bold">{t_prep} min</span></div>
+                                                                            <div className="flex justify-between border-b pb-1"><span>Cámara:</span> <span className="font-mono font-bold">{d_maduracion} días</span></div>
+                                                                            <div className="flex justify-between border-b pb-1"><span>Merma Obj:</span> <span className="font-mono font-bold text-red-600">{merma}%</span></div>
+                                                                            <div className="flex justify-between pt-1"><span>Costo Lote ({batchWeight / 1000}kg):</span> <span className="font-mono font-bold text-slate-800">{fmtCost(totalCostOfBatch)}</span></div>
+                                                                        </div>
+                                                                    </div>
+                                                                    
+                                                                    <div className="mt-4 pt-3 border-t print:hidden">
+                                                                        <Button onClick={() => handleStartAsistente(r)} variant="primary" className="w-full py-2 rounded-xl text-[10px] font-black uppercase tracking-wider italic flex items-center justify-center gap-1.5">
+                                                                            <Play size={12} className="fill-current" /> Pesar y Colgar Lote
+                                                                        </Button>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                )}
+                                            </React.Fragment>
+                                        );
+                                    })}
+                                    {processedRecetas.length === 0 && (
+                                        <tr>
+                                            <td colSpan="6" className="py-16 text-center opacity-30 italic text-slate-400 text-xs">
+                                                No se han registrado fichas técnicas.
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </Card>
+
+                    {/* ESTILO DE IMPRESIÓN */}
+                    <style>{`
+                        @media print {
+                            body * {
+                                visibility: hidden;
+                            }
+                            #printable-list-container, #printable-list-container * {
+                                visibility: visible;
+                            }
+                            #printable-list-container {
+                                position: absolute;
+                                left: 0;
+                                top: 0;
+                                width: 100%;
+                                margin: 0;
+                                padding: 0;
+                                border: none !important;
+                                box-shadow: none !important;
+                            }
+                            .print\:hidden {
+                                display: none !important;
+                            }
+                        }
+                    `}</style>
+                        </div>
                     </div>
                 </div>
             )}
@@ -932,13 +1194,13 @@ export default function CharcuteriaView({
                                     <Scale size={48} />
                                 </div>
                                 
-                                {asistente.recetaSelected.familia_tecnologica === 'fermentado_seco' || asistente.recetaSelected.familia_tecnologica === 'emulsion_fina' ? (
+                                {asistente.recetaSelected.familia_tecnologica === 'fermentado_seco' || asistente.recetaSelected.familia_tecnologica === 'emulsion_fina' || asistente.recetaSelected.familia_tecnologica === 'embutido_fresco' ? (
                                     <div className="max-w-md mx-auto space-y-4">
                                         <h4 className="text-2xl font-black uppercase italic tracking-tight text-slate-800">
-                                            ¿Cuánta carne magra tienes?
+                                            ¿Peso de la Base Cárnica (Magro + Grasa)?
                                         </h4>
                                         <p className="text-slate-400 text-[10px] font-bold uppercase leading-normal tracking-wide">
-                                            El sistema calculará automáticamente la cantidad de grasa necesaria para completar el 100% de la Base Cárnica ($MC$), escalando los aditivos en proporción.
+                                            Ingrese el peso total de la mezcla cárnica (magro y grasa combinados). El sistema calculará la cantidad requerida de cada tipo de carne y aditivos en proporción.
                                         </p>
                                         <div className="flex items-end justify-center gap-2">
                                             <input 

@@ -46,6 +46,23 @@ export default function BulkImportModal({
             .replace(/_/g, ""); // remove underscores
     };
 
+    // Helper: Clean and parse standard Spanish/English decimal numbers
+    const cleanNumber = (val) => {
+        if (val === undefined || val === null || val === '') return 0;
+        let s = val.toString().trim().replace(/\s/g, '').replace(/%/g, '');
+        if (s.includes(',') && s.includes('.')) {
+            if (s.indexOf('.') < s.indexOf(',')) {
+                s = s.replace(/\./g, '').replace(',', '.');
+            } else {
+                s = s.replace(/,/g, '');
+            }
+        } else if (s.includes(',')) {
+            s = s.replace(',', '.');
+        }
+        const num = Number(s);
+        return isNaN(num) ? 0 : num;
+    };
+
     // Robust CSV & TSV Parser
     const parseCSVOrTSV = (text) => {
         let delimiter = ',';
@@ -118,6 +135,39 @@ export default function BulkImportModal({
         const processed = [];
         const errors = [];
 
+        // Detect mismatch between import type and CSV columns
+        if ((type === 'recetas' || type === 'charc_recetas') && (headers.includes('costopresentacion') || headers.includes('factorconversion') || headers.includes('unidadcompra') || headers.includes('almacen'))) {
+            setValidationErrors([
+                "⚠️ COMPATIBILIDAD: Estás intentando cargar una planilla de INSUMOS / INGREDIENTES en el importador de RECETAS.",
+                "Por favor, asegúrate de estar utilizando el enlace de la planilla de recetas correcta."
+            ]);
+            return;
+        }
+
+        if (type === 'ingredientes' && (headers.includes('recetanombre') || headers.includes('familiatecnologica') || headers.includes('logicaformula'))) {
+            setValidationErrors([
+                "⚠️ COMPATIBILIDAD: Estás intentando cargar una planilla de RECETAS en el importador de INSUMOS.",
+                "Por favor, asegúrate de estar utilizando el enlace de la planilla de insumos/ingredientes correcta."
+            ]);
+            return;
+        }
+
+        if (type === 'recetas' && (headers.includes('familiatecnologica') || headers.includes('categoriatecnologica'))) {
+            setValidationErrors([
+                "⚠️ COMPATIBILIDAD: Estás en la pestaña de Panadería (BOMs) e intentas cargar recetas de Charcutería.",
+                "Cierra este modal, selecciona la pestaña 'Fichas Charcutería' arriba en la pantalla, y vuelve a hacer clic en 'Carga Masiva'."
+            ]);
+            return;
+        }
+
+        if (type === 'charc_recetas' && (headers.includes('logicaformula') || headers.includes('mermacoccionpct'))) {
+            setValidationErrors([
+                "⚠️ COMPATIBILIDAD: Estás en la pestaña de Charcutería e intentas cargar recetas de Panadería.",
+                "Cierra este modal, selecciona la pestaña 'Fichas Panadería' arriba en la pantalla, y vuelve a hacer clic en 'Carga Masiva'."
+            ]);
+            return;
+        }
+
         // Dynamic code generation helper counters (derived from current DB states)
         let provCounter = 0;
         if (type === 'proveedores') {
@@ -140,6 +190,7 @@ export default function BulkImportModal({
         // Object holding max index for ingredients by prefix to avoid duplicates inside the imported file
         const ingCounters = {};
         const charcCounters = {};
+        const recipeNameToCode = {};
 
         rows.forEach((row, rowIndex) => {
             const rowNum = rowIndex + 2; // +1 for 1-based index, +1 for header row
@@ -212,11 +263,11 @@ export default function BulkImportModal({
                 const itemTipo = (record.tipo || record.clase || 'insumo').toLowerCase();
                 const familia = record.familia || record.categoria || (itemTipo === 'empaque' ? 'Empaque' : 'Otros');
                 const unidad_compra = record.unidadcompra || record.presentacion || record.presentacioncompra || (itemTipo === 'empaque' ? 'unidad' : 'Bolsa 25 kg');
-                const factor_conversion = Number(record.factorconversion || record.factor || record.gramosporpresentacion || (itemTipo === 'empaque' ? 1 : 25000)) || 1;
+                const factor_conversion = cleanNumber(record.factorconversion || record.factor || record.gramosporpresentacion) || (itemTipo === 'empaque' ? 1 : 25000);
                 const unidad_base = record.unidadbase || record.unidadmedidabase || (itemTipo === 'empaque' ? 'u' : 'g');
                 const almacen = record.almacen || record.ubicacion || (itemTipo === 'empaque' ? 'Depósito Empaque' : 'Almacén Secos Principal');
                 const alergeno = record.alergeno || record.alergenos || '';
-                const costo_presentacion = Number(record.costopresentacion || record.precio || record.costo || 0);
+                const costo_presentacion = cleanNumber(record.costopresentacion || record.precio || record.costo);
                 let codigo = record.codigo || record.sku || record.id || '';
 
                 if (!name) {
@@ -259,17 +310,17 @@ export default function BulkImportModal({
             }
             
             else if (type === 'recetas') {
-                const receta_codigo = record.recetacodigo || record.recetasku || record.sku || '';
+                const receta_codigo = record.recetacodigo || record.recetasku || record.sku || record.codigo || '';
                 const receta_nombre = record.recetanombre || record.producto || record.nombre || '';
                 const familia = record.familia || 'F';
                 const wip = record.wip || record.essubensamble || record.subensamble || 'false';
                 const logica_formula = record.logicaformula || record.logica || 'panadero';
                 const formato_venta = record.formatoventa || record.formato || 'Unidad';
-                const peso_unidad_g = Number(record.pesounidadg || record.pesounidad || record.peso || 100);
-                const merma_coccion_pct = Number(record.mermacoccion || record.mermacoccionpct || record.merma || 15);
-                const mano_obra_horas = Number(record.manoobrahoras || record.horashombre || record.manoobra || 1);
-                const lote_minimo = Number(record.loteminimo || 1);
-                const ingrediente_ident = record.ingredientecodigo || record.ingredientesku || record.ingrediente || '';
+                const peso_unidad_g = cleanNumber(record.pesounidadg || record.pesounidad || record.peso) || 100;
+                const merma_coccion_pct = cleanNumber(record.mermacoccion || record.mermacoccionpct || record.merma) || 15;
+                const mano_obra_horas = cleanNumber(record.manoobrahoras || record.horashombre || record.manoobra) || 1;
+                const lote_minimo = cleanNumber(record.loteminimo) || 1;
+                const ingrediente_ident = record.ingredientecodigo || record.ingredientesku || record.ingrediente || record.ingredientecodigoonombre || '';
                 const porcentaje = record.porcentaje || record.porcentajepanadero || record.pct || '';
                 const gramos = record.gramos || record.cantidad || '';
 
@@ -303,23 +354,23 @@ export default function BulkImportModal({
                     ingrediente_id: ing ? ing.id : null,
                     ingrediente_codigo: ing ? ing.codigo : ingrediente_ident,
                     ingrediente_nombre: ing ? ing.name : 'No Encontrado',
-                    porcentaje: porcentaje !== '' ? Number(porcentaje) : null,
-                    gramos: gramos !== '' ? Number(gramos) : 0,
+                    porcentaje: porcentaje !== '' ? cleanNumber(porcentaje) : null,
+                    gramos: gramos !== '' ? cleanNumber(gramos) : 0,
                     originalRow: rowNum
                 });
             }
             
             else if (type === 'charc_recetas') {
-                const receta_codigo = record.recetacodigo || record.recetasku || record.sku || '';
+                const receta_codigo = record.recetacodigo || record.recetasku || record.sku || record.codigo || '';
                 const receta_nombre = record.recetanombre || record.producto || record.nombre || '';
                 const familia_tecnologica = record.familiatecnologica || record.familia || 'fermentado_seco';
-                const lead_time_dias = Number(record.leadtimedias || record.leadtime || 30);
-                const merma_secado_objetivo = Number(record.mermasecadoobjetivo || record.mermasecado || record.merma || 35);
-                const porcentaje_inyeccion = record.porcentajeinyeccion ? Number(record.porcentajeinyeccion) : null;
-                const ingrediente_ident = record.ingredientecodigo || record.ingredientesku || record.ingrediente || '';
+                const lead_time_dias = cleanNumber(record.leadtimedias || record.leadtime) || 30;
+                const merma_secado_objetivo = cleanNumber(record.mermasecadoobjetivo || record.mermasecado || record.merma) || 35;
+                const porcentaje_inyeccion = record.porcentajeinyeccion ? cleanNumber(record.porcentajeinyeccion) : null;
+                const ingrediente_ident = record.ingredientecodigo || record.ingredientesku || record.ingrediente || record.ingredientecodigoonombre || '';
                 const porcentaje_base = record.porcentaje || record.porcentajebase || record.pct || '';
                 const categoria_tecnologica = record.categoriatecnologica || record.categoria || 'aditivo';
-                const secuencia_mezcla = Number(record.secuenciamezcla || record.secuencia || 1);
+                const secuencia_mezcla = cleanNumber(record.secuenciamezcla || record.secuencia) || 1;
 
                 if (!receta_nombre) {
                     errors.push(`Fila ${rowNum}: Nombre del chacinado es requerido.`);
@@ -336,21 +387,26 @@ export default function BulkImportModal({
 
                 let codigo = receta_codigo || '';
                 if (!codigo && receta_nombre) {
-                    const famKey = familia_tecnologica.toLowerCase();
-                    const famPrefix = famKey === 'fermentado_seco' ? 'SEC' :
-                                      famKey === 'salazon_cruda' ? 'SLZ' :
-                                      famKey === 'emulsion_fina' ? 'EMU' : 'INY';
-                    const prefix = `CH-${famPrefix}-`;
-                    
-                    if (!charcCounters[prefix]) {
-                        const numbers = charcRecetas
-                            .filter(r => r.codigo?.startsWith(prefix))
-                            .map(r => parseInt(r.codigo.split('-').pop()))
-                            .filter(n => !isNaN(n));
-                        charcCounters[prefix] = numbers.length > 0 ? Math.max(...numbers) : 0;
+                    if (recipeNameToCode[receta_nombre]) {
+                        codigo = recipeNameToCode[receta_nombre];
+                    } else {
+                        const famKey = familia_tecnologica.toLowerCase();
+                        const famPrefix = famKey === 'fermentado_seco' ? 'SEC' :
+                                          famKey === 'salazon_cruda' ? 'SLZ' :
+                                          famKey === 'emulsion_fina' ? 'EMU' : 'INY';
+                        const prefix = `CH-${famPrefix}-`;
+                        
+                        if (!charcCounters[prefix]) {
+                            const numbers = charcRecetas
+                                .filter(r => r.codigo?.startsWith(prefix))
+                                .map(r => parseInt(r.codigo.split('-').pop()))
+                                .filter(n => !isNaN(n));
+                            charcCounters[prefix] = numbers.length > 0 ? Math.max(...numbers) : 0;
+                        }
+                        charcCounters[prefix]++;
+                        codigo = `${prefix}${String(charcCounters[prefix]).padStart(3, '0')}`;
+                        recipeNameToCode[receta_nombre] = codigo;
                     }
-                    charcCounters[prefix]++;
-                    codigo = `${prefix}${String(charcCounters[prefix]).padStart(3, '0')}`;
                 }
 
                 processed.push({
@@ -363,7 +419,7 @@ export default function BulkImportModal({
                     ingrediente_id: ing ? ing.id : null,
                     ingrediente_codigo: ing ? ing.codigo : ingrediente_ident,
                     ingrediente_nombre: ing ? ing.name : 'No Encontrado',
-                    porcentaje_base: porcentaje_base !== '' ? Number(porcentaje_base) : null,
+                    porcentaje_base: porcentaje_base !== '' ? cleanNumber(porcentaje_base) : null,
                     categoria_tecnologica: categoria_tecnologica.toLowerCase(),
                     secuencia_mezcla,
                     originalRow: rowNum
@@ -419,7 +475,7 @@ export default function BulkImportModal({
             Object.values(groups).forEach(g => {
                 if (g.familia === 'fermentado_seco' || g.familia === 'emulsion_fina') {
                     const sumMeatBase = g.items
-                        .filter(it => it.categoria_tecnologica === 'magro' || it.categoria_tecnologica === 'grasa')
+                        .filter(it => it.categoria_tecnologica.includes('magro') || it.categoria_tecnologica.includes('grasa'))
                         .reduce((sum, it) => sum + (it.porcentaje_base || 0), 0);
                     if (Math.abs(sumMeatBase - 100) > 0.01) {
                         errors.push(`Receta ${g.codigo} (${g.nombre}): La suma de base cárnica (Magro y Grasa) debe ser exactamente 100% (Actual: ${sumMeatBase.toFixed(1)}%).`);

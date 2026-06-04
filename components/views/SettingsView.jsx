@@ -10,12 +10,15 @@ export default function SettingsView({ config, setConfig, showToast, dashboardCo
         stitchProjectId, setStitchProjectId,
         stitchApiKey, setStitchApiKey,
         stitchDesignSystems, setStitchDesignSystems,
-        stitchThemeConfig, setStitchThemeConfig
+        stitchThemeConfig, setStitchThemeConfig,
+        stitchActiveTheme, setStitchActiveTheme,
+        applyStitchTheme
     } = useGlobalContext();
     const [form, setForm] = useState(config);
     const [newBranch, setNewBranch] = useState('');
     const [loadingStitch, setLoadingStitch] = useState(false);
     const [stitchError, setStitchError] = useState(null);
+    const [showVariants, setShowVariants] = useState(false);
 
     const loadStitchDesignSystems = async () => {
         if (!stitchProjectId || !stitchApiKey) {
@@ -25,6 +28,28 @@ export default function SettingsView({ config, setConfig, showToast, dashboardCo
         setLoadingStitch(true);
         setStitchError(null);
         try {
+            // 1. Obtener detalles del proyecto (Tema Activo en el Canvas)
+            const projRes = await fetch('/api/stitch-sync', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    action: 'get-project',
+                    projectId: stitchProjectId,
+                    apiKey: stitchApiKey
+                })
+            });
+            const projData = await projRes.json();
+            
+            let activeTheme = null;
+            if (!projData.error && projData.designTheme) {
+                activeTheme = projData.designTheme;
+                setStitchActiveTheme(activeTheme);
+                localStorage.setItem('stitchActiveTheme', JSON.stringify(activeTheme));
+            }
+
+            // 2. Obtener lista completa de sistemas de diseño (Variantes e Históricos)
             const res = await fetch('/api/stitch-sync', {
                 method: 'POST',
                 headers: {
@@ -45,7 +70,19 @@ export default function SettingsView({ config, setConfig, showToast, dashboardCo
                 localStorage.setItem('stitchDesignSystems', JSON.stringify(data.designSystems));
                 localStorage.setItem('stitchProjectId', stitchProjectId);
                 localStorage.setItem('stitchApiKey', stitchApiKey);
-                showToast("Sistemas de diseño cargados de Stitch correctamente.");
+                
+                // Auto-actualizar y aplicar el tema activo del canvas si existe
+                const finalTheme = activeTheme || (data.designSystems[0]?.designSystem);
+                if (finalTheme) {
+                    localStorage.setItem('stitchThemeConfig', JSON.stringify(finalTheme));
+                    setStitchThemeConfig(finalTheme);
+                    
+                    if (theme === 'stitch-custom') {
+                        setTimeout(() => applyStitchTheme(finalTheme), 50);
+                    }
+                }
+                
+                showToast("Sincronización con el canvas de Stitch completada con éxito.");
             } else {
                 throw new Error("No se encontraron sistemas de diseño en este proyecto.");
             }
@@ -65,6 +102,14 @@ export default function SettingsView({ config, setConfig, showToast, dashboardCo
         setStitchThemeConfig(themeConfig);
         changeTheme('stitch-custom');
         showToast(`Tema de Stitch '${themeConfig.displayName}' aplicado.`);
+    };
+
+    const applyActiveCanvasTheme = (themeConfig) => {
+        if (!themeConfig) return;
+        localStorage.setItem('stitchThemeConfig', JSON.stringify(themeConfig));
+        setStitchThemeConfig(themeConfig);
+        changeTheme('stitch-custom');
+        showToast(`Tema del Canvas de Stitch '${themeConfig.displayName || 'Artisan Industrial'}' aplicado.`);
     };
 
     const saveCompanyData = () => {
@@ -128,23 +173,19 @@ export default function SettingsView({ config, setConfig, showToast, dashboardCo
                 <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-4">
                     Selecciona una dirección de rediseño para cambiar la estética completa de la aplicación en tiempo real
                 </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-xl">
                     {[
-                        { id: 'classic', label: 'Classic Light', desc: 'Tema claro estándar', color: 'border-slate-200 bg-slate-50 text-slate-900' },
-                        { id: 'artisan', label: 'Artisan Industrial', desc: 'Vidrio Oscuro & Naranja', color: 'border-orange-500 bg-slate-900 text-white' },
-                        { id: 'terminal', label: 'Bakery OS Terminal', desc: 'Negro & Verde Ácido', color: 'border-lime-400 bg-black text-lime-400 font-mono' },
-                        { id: 'executive', label: 'Executive Neo-Dark', desc: 'Navy & Púrpura', color: 'border-purple-500 bg-slate-950 text-indigo-200' },
-                        { id: 'artisanflow', label: 'ArtisanFlow Light', desc: 'Vidrio Suave & Esmeralda', color: 'border-emerald-500 bg-slate-50/50 text-emerald-900' },
-                        ...(stitchThemeConfig ? [{
+                        { id: 'classic', label: 'Classic Light', desc: 'Versión clara estándar del ERP', color: 'border-slate-200 bg-slate-50 text-slate-900' },
+                        {
                             id: 'stitch-custom',
-                            label: `Stitch: ${stitchThemeConfig.displayName || 'Custom'}`,
-                            desc: 'Tema sincronizado de tu canvas',
+                            label: `Artisan Dark (Stitch)`,
+                            desc: 'Versión oscura de tu lienzo de Stitch',
                             isStitch: true,
-                            customColor: stitchThemeConfig.customColor || stitchThemeConfig.theme?.customColor || '#e9590c',
-                            bgColor: (stitchThemeConfig.namedColors || stitchThemeConfig.theme?.namedColors || {}).background || '#131313',
-                            textColor: (stitchThemeConfig.namedColors || stitchThemeConfig.theme?.namedColors || {}).on_surface || '#e5e2e1',
-                            fontFamily: stitchThemeConfig.font || stitchThemeConfig.theme?.font || 'HANKEN_GROTESK'
-                        }] : [])
+                            customColor: stitchThemeConfig?.customColor || stitchThemeConfig?.theme?.customColor || '#e9590c',
+                            bgColor: (stitchThemeConfig?.namedColors || stitchThemeConfig?.theme?.namedColors || {}).background || '#131313',
+                            textColor: (stitchThemeConfig?.namedColors || stitchThemeConfig?.theme?.namedColors || {}).on_surface || '#e5e2e1',
+                            fontFamily: stitchThemeConfig?.font || stitchThemeConfig?.theme?.font || 'HANKEN_GROTESK'
+                        }
                     ].map(t => (
                         <button
                             key={t.id}
@@ -156,7 +197,7 @@ export default function SettingsView({ config, setConfig, showToast, dashboardCo
                                 color: t.textColor,
                                 fontFamily: t.fontFamily === 'SPACE_MONO' ? 'Space Mono, monospace' : t.fontFamily === 'HANKEN_GROTESK' ? 'Hanken Grotesk, sans-serif' : t.fontFamily === 'OUTFIT' ? 'Outfit, sans-serif' : t.fontFamily === 'MANROPE' ? 'Manrope, sans-serif' : 'inherit'
                             } : {}}
-                            className={`p-4 rounded-xl text-left border-2 transition-all flex flex-col justify-between h-28 ${t.isStitch ? '' : t.color} ${theme === t.id ? 'ring-4 ring-orange-500/30 scale-[1.02] shadow-md border-orange-500' : 'opacity-70 hover:opacity-100 hover:scale-[1.01]'}`}
+                            className={`p-5 rounded-xl text-left border-2 transition-all flex flex-col justify-between h-28 ${t.isStitch ? '' : t.color} ${theme === t.id ? 'ring-4 ring-orange-500/30 scale-[1.02] shadow-md border-orange-500' : 'opacity-70 hover:opacity-100 hover:scale-[1.01]'}`}
                         >
                             <span className="text-xs font-black uppercase tracking-wider">{t.label}</span>
                             <span className="text-[9px] font-bold leading-tight opacity-75 mt-2">{t.desc}</span>
@@ -224,89 +265,88 @@ export default function SettingsView({ config, setConfig, showToast, dashboardCo
                     </div>
                 )}
 
-                {stitchDesignSystems && stitchDesignSystems.length > 0 ? (
-                    <div>
-                        <p className="text-[10px] font-black uppercase text-slate-400 mb-4 tracking-widest">
-                            Sistemas de diseño detectados en el proyecto ({stitchDesignSystems.length})
-                        </p>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {stitchDesignSystems.map(system => {
-                                const ds = system.designSystem;
-                                if (!ds) return null;
-                                const colors = ds.namedColors || ds.theme?.namedColors || {};
-                                const primaryColor = ds.customColor || ds.theme?.customColor || '#e9590c';
-                                const activeName = stitchThemeConfig?.displayName;
-                                const isCurrent = activeName === ds.displayName && theme === 'stitch-custom';
-                                
-                                return (
-                                    <div 
-                                        key={system.name} 
-                                        className={`border-2 rounded-xl p-4 flex flex-col justify-between transition-all bg-white ${isCurrent ? 'border-indigo-600 shadow-md ring-4 ring-indigo-500/10' : 'border-slate-100 hover:border-slate-300'}`}
+                {stitchActiveTheme && (
+                    <div className="mb-6 bg-slate-950 text-white rounded-xl border-2 shadow-2xl p-6 transition-all hover:scale-[1.01] duration-300 relative overflow-hidden group" style={{ borderColor: stitchActiveTheme.customColor || stitchActiveTheme.theme?.customColor || '#e9590c' }}>
+                        {/* Background light-bleed glow */}
+                        <div 
+                            className="absolute -right-24 -top-24 w-48 h-48 rounded-full blur-3xl opacity-20 transition-all group-hover:scale-125 duration-700"
+                            style={{ backgroundColor: stitchActiveTheme.customColor || stitchActiveTheme.theme?.customColor || '#e9590c' }}
+                        />
+                        
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 relative z-10">
+                            <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-2">
+                                    <span 
+                                        className="text-[8px] font-black uppercase px-2.5 py-1 rounded-md tracking-wider text-black animate-pulse"
+                                        style={{ backgroundColor: stitchActiveTheme.customColor || stitchActiveTheme.theme?.customColor || '#e9590c' }}
                                     >
-                                        <div>
-                                            <div className="flex items-center justify-between mb-2">
-                                                <h5 className="font-bold text-xs text-slate-800 uppercase tracking-wide truncate max-w-[150px]">
-                                                    {ds.displayName || 'Sin Nombre'}
-                                                </h5>
-                                                {isCurrent && (
-                                                    <span className="bg-indigo-600 text-white text-[7px] font-black uppercase px-2 py-0.5 rounded-full tracking-wider animate-pulse">
-                                                        Activo
-                                                    </span>
-                                                )}
-                                            </div>
-                                            <p className="text-[9px] text-slate-400 leading-tight mb-4">
-                                                Tipografía: <span className="font-bold text-slate-700">{ds.font || ds.theme?.font || 'Inter'}</span>
-                                            </p>
-                                            
-                                            {/* Paleta visual */}
-                                            <div className="flex gap-2 mb-4 items-center">
-                                                <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest mr-1">Paleta:</span>
-                                                <div 
-                                                    className="w-5 h-5 rounded-full border border-slate-200 shadow-inner" 
-                                                    style={{ backgroundColor: colors.background || '#131313' }}
-                                                    title={`Background: ${colors.background}`}
-                                                />
-                                                <div 
-                                                    className="w-5 h-5 rounded-full border border-slate-200 shadow-inner" 
-                                                    style={{ backgroundColor: colors.surface_container || '#201f1f' }}
-                                                    title={`Surface Container: ${colors.surface_container}`}
-                                                />
-                                                <div 
-                                                    className="w-5 h-5 rounded-full border border-slate-200 shadow-inner" 
-                                                    style={{ backgroundColor: primaryColor }}
-                                                    title={`Primary: ${primaryColor}`}
-                                                />
-                                                <div 
-                                                    className="w-5 h-5 rounded-full border border-slate-200 shadow-inner" 
-                                                    style={{ backgroundColor: colors.on_surface || '#ffffff' }}
-                                                    title={`Text: ${colors.on_surface}`}
-                                                />
-                                            </div>
+                                        Diseño Activo en Canvas
+                                    </span>
+                                    {theme === 'stitch-custom' && (
+                                        <span className="bg-emerald-500 text-white text-[8px] font-black uppercase px-2.5 py-1 rounded-md tracking-wider animate-in fade-in zoom-in-50 duration-300">
+                                            Tema Aplicado
+                                        </span>
+                                    )}
+                                </div>
+                                <h4 className="text-2xl font-black uppercase italic tracking-wide">
+                                    Stitch: {stitchActiveTheme.displayName || 'Artisan Modern Precision'}
+                                </h4>
+                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">
+                                    Última sincronización directa con tu editor gráfico
+                                </p>
+                                
+                                <div className="grid grid-cols-2 gap-x-6 gap-y-1 mt-4 text-[10px] font-bold text-slate-300 uppercase tracking-wider">
+                                    <p>Tipografía: <span className="text-white font-black">{stitchActiveTheme.font || stitchActiveTheme.theme?.font || 'Hanken Grotesk'}</span></p>
+                                    <p>Bordes: <span className="text-white font-black">{stitchActiveTheme.roundness || stitchActiveTheme.theme?.roundness || 'ROUND_EIGHT'}</span></p>
+                                </div>
+                                
+                                {/* Paleta de colores */}
+                                <div className="flex gap-2.5 mt-5 items-center flex-wrap">
+                                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mr-1">Paleta de Colores:</span>
+                                    {[
+                                        { title: 'Fondo', color: (stitchActiveTheme.namedColors || stitchActiveTheme.theme?.namedColors || {}).background || '#131313' },
+                                        { title: 'Contenedores', color: (stitchActiveTheme.namedColors || stitchActiveTheme.theme?.namedColors || {}).surface_container || '#201f1f' },
+                                        { title: 'Acento Primario', color: stitchActiveTheme.customColor || stitchActiveTheme.theme?.customColor || '#e9590c' },
+                                        { title: 'Texto Principal', color: (stitchActiveTheme.namedColors || stitchActiveTheme.theme?.namedColors || {}).on_surface || '#e5e2e1' }
+                                    ].map(c => (
+                                        <div key={c.title} className="flex items-center gap-1.5 bg-slate-900 border border-slate-800 px-2 py-1 rounded-lg">
+                                            <div 
+                                                className="w-3.5 h-3.5 rounded-full border border-slate-700 shadow-inner" 
+                                                style={{ backgroundColor: c.color }}
+                                            />
+                                            <span className="text-[8px] text-slate-400 font-bold uppercase tracking-widest">{c.title}</span>
                                         </div>
-                                        
-                                        <Button 
-                                            variant={isCurrent ? 'success' : 'secondary'}
-                                            onClick={() => applyStitchSystem(system)}
-                                            className="w-full text-center"
-                                        >
-                                            {isCurrent ? "Aplicado" : "Aplicar Sistema"}
-                                        </Button>
-                                    </div>
-                                );
-                            })}
+                                    ))}
+                                </div>
+                            </div>
+                            
+                            <Button 
+                                variant={theme === 'stitch-custom' ? 'success' : 'accent'}
+                                onClick={() => applyActiveCanvasTheme(stitchActiveTheme)}
+                                className="w-full md:w-auto px-8 py-3 text-xs shadow-lg uppercase tracking-widest self-stretch md:self-auto"
+                                style={theme === 'stitch-custom' ? {} : {
+                                    backgroundColor: stitchActiveTheme.customColor || stitchActiveTheme.theme?.customColor || '#e9590c',
+                                    color: '#ffffff'
+                                }}
+                            >
+                                {theme === 'stitch-custom' ? "Aplicado en el ERP" : "Aplicar Tema de Canvas"}
+                            </Button>
                         </div>
                     </div>
-                ) : (
-                    <div className="text-center py-6 bg-slate-50 border rounded-xl border-dashed">
+                )}
+
+                {!stitchActiveTheme && (!stitchDesignSystems || stitchDesignSystems.length === 0) && (
+                    <div className="text-center py-8 bg-slate-50 border rounded-xl border-dashed">
                         <Sparkles className="mx-auto text-slate-300 mb-2" size={32} />
                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">
-                            No se han cargado sistemas de diseño de Stitch aún
+                            No se ha sincronizado con Stitch aún
                         </p>
                         <p className="text-[9px] text-slate-400 mt-1 max-w-xs mx-auto">
-                            Ingresa tus credenciales y haz clic en "Cargar Sistemas" para conectarte
+                            Ingresa tus credenciales y haz clic en "Cargar Sistemas" para sincronizar tu canvas
                         </p>
                     </div>
                 )}
+
             </Card>
 
             {/* Variables Financieras */}
@@ -317,6 +357,10 @@ export default function SettingsView({ config, setConfig, showToast, dashboardCo
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
                     <Input label="Costo Mano Obra ($ / Hora)" type="number" value={form.finanzas.costoHoraHombre} onChange={v => setForm({ ...form, finanzas: { ...form.finanzas, costoHoraHombre: Number(v) } })} />
+                    <Input label="Costo Horno ($ / Hora)" type="number" value={form.finanzas.costoHoraHorno || 2500} onChange={v => setForm({ ...form, finanzas: { ...form.finanzas, costoHoraHorno: Number(v) } })} />
+                    <Input label="Costo Día Cámara ($ / Día)" type="number" value={form.finanzas.costoDiaCamara || 150} onChange={v => setForm({ ...form, finanzas: { ...form.finanzas, costoDiaCamara: Number(v) } })} />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end mt-4">
                     <Input label="Gastos Indirectos" type="number" value={form.finanzas.costosIndirectosPct} suffix="% de MP" onChange={v => setForm({ ...form, finanzas: { ...form.finanzas, costosIndirectosPct: Number(v) } })} />
                     <Input label="Markup (Margen)" type="number" value={form.finanzas.margenGanancia} suffix="%" onChange={v => setForm({ ...form, finanzas: { ...form.finanzas, margenGanancia: Number(v) } })} />
                 </div>

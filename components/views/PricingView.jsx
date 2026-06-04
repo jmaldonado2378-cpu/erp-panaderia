@@ -54,9 +54,21 @@ function getIngredientCost(ing, recipes, ingredients, config, visited = new Set(
         return acc + (gramosMap[i] * costPerGram);
     }, 0);
 
-    const costo_mo = (Number(recipe.horas_hombre) || 0) * (config?.finanzas?.costoHoraHombre || 4500);
+    const t_pesaje = Number(recipe.tiempo_pesaje || 5);
+    const t_amasado = Number(recipe.tiempo_amasado || 15);
+    const t_armado = Number(recipe.tiempo_armado || 20);
+    const t_horneado = Number(recipe.tiempo_horneado || 25);
+    const cap_horno = Number(recipe.capacidad_horno || 100);
+
+    const costo_mo = ((t_pesaje + t_amasado + t_armado + t_horneado) / 60) * (config?.finanzas?.costoHoraHombre || 4500);
+    const recipeLoteUnidades = recipe.formato_venta === 'Unidad' && Number(recipe.peso_unidad) > 0
+        ? Number(recipe.lote_minimo || 1)
+        : (Number(recipe.lote_minimo || 1) * 1000) / (Number(recipe.peso_unidad) || 1);
+    const recipeCiclosHorno = cap_horno > 0 ? (recipeLoteUnidades / cap_horno) : 1;
+    const costo_horno = (t_horneado / 60) * (config?.finanzas?.costoHoraHorno || 2500) * recipeCiclosHorno;
+
     const costo_cif = costo_mp * ((config?.finanzas?.costosIndirectosPct || 20) / 100);
-    const costo_total = costo_mp + costo_mo + costo_cif;
+    const costo_total = costo_mp + costo_mo + costo_horno + costo_cif;
 
     const pesoFinalG = Number(recipe.peso_final) || 1;
     return costo_total / pesoFinalG;
@@ -93,20 +105,32 @@ function calcCostosBakery(receta, recipes, ingredients, config) {
         return acc + (gramosMap[i] * getIngredientCost(ing, recipes, ingredients, config));
     }, 0);
 
-    const costo_mo = (Number(receta.horas_hombre) || 0) * (config?.finanzas?.costoHoraHombre || 4500);
+    const t_pesaje = Number(receta.tiempo_pesaje || 5);
+    const t_amasado = Number(receta.tiempo_amasado || 15);
+    const t_armado = Number(receta.tiempo_armado || 20);
+    const t_horneado = Number(receta.tiempo_horneado || 25);
+    const cap_horno = Number(receta.capacidad_horno || 100);
+
+    const costo_mo = ((t_pesaje + t_amasado + t_armado + t_horneado) / 60) * (config?.finanzas?.costoHoraHombre || 4500);
+    const recipeLoteUnidades = receta.formato_venta === 'Unidad' && Number(receta.peso_unidad) > 0
+        ? Number(receta.lote_minimo || 1)
+        : (Number(receta.lote_minimo || 1) * 1000) / (Number(receta.peso_unidad) || 1);
+    const recipeCiclosHorno = cap_horno > 0 ? (recipeLoteUnidades / cap_horno) : 1;
+    const costo_horno = (t_horneado / 60) * (config?.finanzas?.costoHoraHorno || 2500) * recipeCiclosHorno;
+
     const costo_cif = costo_mp * ((config?.finanzas?.costosIndirectosPct || 20) / 100);
 
     const unidades_rinde = receta.formato_venta === 'Unidad'
         ? Number(receta.lote_minimo || 1)
         : kgLoteFinal;
 
-    return { costo_mp, costo_mo, costo_cif, unidades_rinde: unidades_rinde || 1 };
+    return { costo_mp, costo_mo, costo_horno, costo_cif, unidades_rinde: unidades_rinde || 1 };
 }
 
 /* ================================================================
-   HELPER: Calcula costos de una receta de Charcutería
+   HELPER: Calcula costos de una receta de Charcutería (Propuesta A)
    ================================================================ */
-function calcCostosCharcuteria(receta, recipes, ingredients, config, pesoUnidadVta = 350, formatoVta = 'unidad') {
+function calcCostosCharcuteria(receta, recipes, ingredients, config, pesoUnidadVta = 350, formatoVta = 'unidad', charcConfig = {}) {
     const details = receta.details || [];
     
     // Costo de MP (excluyendo empaque en la receta si tiene categoría empaque)
@@ -142,8 +166,17 @@ function calcCostosCharcuteria(receta, recipes, ingredients, config, pesoUnidadV
         unidades_rinde = peso_final_g / 1000;
     }
 
+    // Tiempos directos de preparación y días de colgado en cámara
+    const t_prep = Number(charcConfig.tiempo_preparacion !== undefined ? charcConfig.tiempo_preparacion : (receta.tiempo_preparacion || 30));
+    const d_maduracion = Number(charcConfig.dias_maduracion !== undefined ? charcConfig.dias_maduracion : (receta.dias_maduracion || 21));
+
+    const costo_mo = (t_prep / 60) * (config?.finanzas?.costoHoraHombre || 4500);
+    const costo_camara = d_maduracion * (config?.finanzas?.costoDiaCamara || 150);
+
     return {
         costo_mp,
+        costo_mo,
+        costo_camara,
         costo_empaque_receta,
         peso_crudo_total_g,
         peso_final_g,
@@ -170,6 +203,10 @@ export default function PricingView({
     const [filterEstado, setFilterEstado] = useState('TODOS');
     const [searchTerm, setSearchTerm] = useState('');
     const [showConfigCIF, setShowConfigCIF] = useState(false);
+    
+    // Inputs editables para el margen neto real
+    const [inputMargenRealP, setInputMargenRealP] = useState('');
+    const [inputMargenRealPct, setInputMargenRealPct] = useState('');
 
     // Empaques: insumos con tipo === 'empaque'
     const empaqueIngredients = useMemo(
@@ -391,6 +428,7 @@ export default function PricingView({
 
         let costo_mp = 0;
         let costo_mo = 0;
+        let costo_horno = 0;
         let costo_cif = 0;
         let unidades_rinde = 1;
         let costo_empaque_receta = 0;
@@ -400,6 +438,7 @@ export default function PricingView({
             const res = calcCostosBakery(selectedProduct.original, recipes, ingredients, config);
             costo_mp = res.costo_mp;
             costo_mo = res.costo_mo;
+            costo_horno = res.costo_horno || 0;
             costo_cif = res.costo_cif;
             unidades_rinde = res.unidades_rinde;
         } 
@@ -411,23 +450,40 @@ export default function PricingView({
                 ingredients, 
                 config,
                 Number(charcConfig.peso_unidad_vta || 350),
-                charcConfig.formato_vta
+                charcConfig.formato_vta,
+                charcConfig
             );
             costo_mp = res.costo_mp;
             costo_empaque_receta = res.costo_empaque_receta;
             unidades_rinde = res.unidades_rinde;
-            // Charcutería MO fija se puede absorber vía CIF
-            costo_mo = 0;
+            costo_mo = res.costo_mo;
+            costo_horno = res.costo_camara || 0; // Se mapea el costo de cámara en el slot de costo_horno
             costo_cif = 0;
         } 
         else if (selectedProduct.subtipo === 'fraccionado') {
-            const fraccConfig = localPricing.fracc_config || { insumo_granel_id: selectedProduct.original.id, peso_porcion_g: 250, merma_fracc: 2.0 };
+            const fraccConfig = localPricing.fracc_config || { 
+                insumo_granel_id: selectedProduct.original.id, 
+                peso_porcion_g: 250, 
+                merma_fracc: 2.0,
+                tiempo_seteo: 10,
+                tiempo_porcionado_seg: 15,
+                lote_porciones: 40
+            };
             const ingGranel = ingredients.find(i => i.id === fraccConfig.insumo_granel_id) || selectedProduct.original;
             const costPerGram = Number(ingGranel.costo_estandar || 0);
             
             const gramosConsumidos = Number(fraccConfig.peso_porcion_g || 250) / (1 - Number(fraccConfig.merma_fracc || 2) / 100);
             costo_mp = gramosConsumidos * costPerGram;
             unidades_rinde = 1; // Ya es unitario
+
+            // Propuesta A Fraccionamiento: tiempos directos
+            const t_seteo = Number(fraccConfig.tiempo_seteo || 10);
+            const t_porc_seg = Number(fraccConfig.tiempo_porcionado_seg || 15);
+            const lote_p = Number(fraccConfig.lote_porciones || 40) || 1;
+
+            costo_mo = ((t_seteo / (60 * lote_p)) + (t_porc_seg / 3600)) * (config?.finanzas?.costoHoraHombre || 4500);
+            costo_horno = 0;
+            costo_cif = 0;
         } 
         else if (selectedProduct.subtipo === 'reventa') {
             costo_mp = Number(selectedProduct.original.costo_compra || 0);
@@ -441,8 +497,8 @@ export default function PricingView({
 
         const costo_empaque_total = costo_empaque_adicional + (costo_empaque_receta / unidades_rinde);
 
-        // III. Costo de producción (materia prima + MO de la receta)
-        const costo_produccion_directo = (costo_mp + costo_mo) / unidades_rinde;
+        // III. Costo de producción (materia prima + MO de la receta + Costo Horno/Cámara)
+        const costo_produccion_directo = (costo_mp + costo_mo + costo_horno) / unidades_rinde;
 
         // IV. Asignación de CIF (Fijo o Porcentual)
         let cif_unitario = 0;
@@ -459,13 +515,17 @@ export default function PricingView({
         return {
             costo_mp: costo_mp / unidades_rinde,
             costo_mo: costo_mo / unidades_rinde,
+            costo_horno: costo_horno / unidades_rinde,
             costo_empaque_total,
+            costo_empaque_receta_unitario: costo_empaque_receta / unidades_rinde,
             cif_unitario,
             costo_produccion_total,
             costo_unitario_total,
             unidades_rinde
         };
-    }, [selectedProduct, ingredients, config, localPricing?.empaques, localPricing?.fracc_config, localPricing?.charc_config, fixedCosts.usar_cif_fijo, cifUnitarioPool]);
+    }, [selectedProduct, ingredients, config, localPricing?.empaques, localPricing?.fracc_config, localPricing?.charc_config, fixedCosts.usar_cif_fijo, cifUnitarioPool, recipes]);
+
+    const packagingRecetaUnitario = costos?.costo_empaque_receta_unitario || 0;
 
     /* ── FORMULACIÓN DE PRECIO CRÍTICO (Margen sobre Precio) ── */
     const simulacionPrecio = useMemo(() => {
@@ -522,15 +582,31 @@ export default function PricingView({
         };
     }, [costos, localPricing, taxSettings]);
 
+    // Sincronizar inputs editables del margen real con el estado calculado
+    useEffect(() => {
+        if (simulacionPrecio) {
+            if (typeof document !== 'undefined') {
+                if (document.activeElement !== document.getElementById('input-margen-real-p')) {
+                    setInputMargenRealP(simulacionPrecio.margenRealP.toFixed(2));
+                }
+                if (document.activeElement !== document.getElementById('input-margen-real-pct')) {
+                    setInputMargenRealPct(simulacionPrecio.margenRealPct.toFixed(1));
+                }
+            } else {
+                setInputMargenRealP(simulacionPrecio.margenRealP.toFixed(2));
+                setInputMargenRealPct(simulacionPrecio.margenRealPct.toFixed(1));
+            }
+        }
+    }, [simulacionPrecio?.margenRealP, simulacionPrecio?.margenRealPct]);
+
     // Comprobación de precio desactualizado
     const checkIsDesactualizado = (p, lp) => {
         if (!lp || !lp.precio_publicado) return false;
         
-        // Calcular costo rápido
         let costoUnit = 0;
         if (p.subtipo === 'panaderia') {
             const r = calcCostosBakery(p.original, recipes, ingredients, config);
-            costoUnit = (r.costo_mp + r.costo_mo + (fixedCosts.usar_cif_fijo ? cifUnitarioPool * r.unidades_rinde : r.costo_cif)) / r.unidades_rinde + Number(lp.costo_empaque_total || 0);
+            costoUnit = (r.costo_mp + r.costo_mo + r.costo_horno + (fixedCosts.usar_cif_fijo ? cifUnitarioPool * r.unidades_rinde : r.costo_cif)) / r.unidades_rinde + Number(lp.costo_empaque_total || 0);
         } else if (p.subtipo === 'charcuteria') {
             let configCharc = { peso_unidad_vta: 350, formato_vta: 'unidad' };
             if (lp.notas) {
@@ -539,10 +615,10 @@ export default function PricingView({
                     if (parsed.charc_config) configCharc = parsed.charc_config;
                 } catch {}
             }
-            const cr = calcCostosCharcuteria(p.original, recipes, ingredients, config, configCharc.peso_unidad_vta, configCharc.formato_vta);
-            costoUnit = cr.costo_mp / cr.unidades_rinde + Number(lp.costo_empaque_total || 0);
+            const cr = calcCostosCharcuteria(p.original, recipes, ingredients, config, configCharc.peso_unidad_vta, configCharc.formato_vta, configCharc);
+            costoUnit = (cr.costo_mp + cr.costo_mo + cr.costo_camara) / cr.unidades_rinde + Number(lp.costo_empaque_total || 0);
         } else if (p.subtipo === 'fraccionado') {
-            let configFracc = { peso_porcion_g: 250, merma_fracc: 2.0 };
+            let configFracc = { peso_porcion_g: 250, merma_fracc: 2.0, tiempo_seteo: 10, tiempo_porcionado_seg: 15, lote_porciones: 40 };
             if (lp.notas) {
                 try {
                     const parsed = JSON.parse(lp.notas);
@@ -550,7 +626,12 @@ export default function PricingView({
                 } catch {}
             }
             const gramos = Number(configFracc.peso_porcion_g) / (1 - Number(configFracc.merma_fracc) / 100);
-            costoUnit = gramos * Number(p.original.costo_estandar || 0) + Number(lp.costo_empaque_total || 0);
+            const t_seteo = Number(configFracc.tiempo_seteo || 10);
+            const t_porc_seg = Number(configFracc.tiempo_porcionado_seg || 15);
+            const lote_p = Number(configFracc.lote_porciones || 40) || 1;
+            const fracc_mo = ((t_seteo / (60 * lote_p)) + (t_porc_seg / 3600)) * (config?.finanzas?.costoHoraHombre || 4500);
+
+            costoUnit = gramos * Number(p.original.costo_estandar || 0) + fracc_mo + Number(lp.costo_empaque_total || 0);
         } else {
             costoUnit = Number(p.original.costo_compra || 0) + Number(lp.costo_empaque_total || 0);
         }
@@ -588,6 +669,48 @@ export default function PricingView({
             upd[idx] = { ...upd[idx], cantidad: Number(val) };
             return { ...prev, empaques: upd };
         });
+    };
+
+    /* ── Edición Inversa de Margen Real (Pesos $) ── */
+    const handleEditMargenRealP = (val) => {
+        if (!costos || !localPricing || !simulacionPrecio) return;
+        const targetP = Number(val) || 0;
+        const comisionesPct = Number(taxSettings.comision_canal || 0);
+        const iibbPct = Number(taxSettings.iibb_pct || 0);
+        const divisor = 1 - (comisionesPct + iibbPct) / 100;
+        if (divisor <= 0.05) return; // Protección
+        
+        const costo = costos.costo_unitario_total;
+        const costoEnvio = Number(taxSettings.costo_envio || 0);
+        const precioNuevo = (costo + costoEnvio + targetP) / divisor;
+        
+        const activeCanalKey = `precio_${localPricing.canal_principal}`;
+        setLocalPricing(prev => ({
+            ...prev,
+            [activeCanalKey]: precioNuevo.toFixed(2)
+        }));
+    };
+
+    /* ── Edición Inversa de Margen Real (Porcentaje %) ── */
+    const handleEditMargenRealPct = (val) => {
+        if (!costos || !localPricing || !simulacionPrecio) return;
+        const targetPct = Number(val) || 0;
+        const comisionesPct = Number(taxSettings.comision_canal || 0);
+        const iibbPct = Number(taxSettings.iibb_pct || 0);
+        const divisor = 1 - (targetPct + comisionesPct + iibbPct) / 100;
+        
+        if (divisor <= 0.05) return; // Protección
+        
+        const costo = costos.costo_unitario_total;
+        const costoEnvio = Number(taxSettings.costo_envio || 0);
+        const precioNuevo = (costo + costoEnvio) / divisor;
+        
+        const activeCanalKey = `precio_${localPricing.canal_principal}`;
+        setLocalPricing(prev => ({
+            ...prev,
+            margen_pct: Math.min(90, Math.max(5, targetPct)), // Sincroniza slider en rango válido (5-90)
+            [activeCanalKey]: precioNuevo.toFixed(2)
+        }));
     };
 
     /* ── Guardar / Publicar Precio ── */
@@ -933,7 +1056,7 @@ export default function PricingView({
                                         </div>
                                     )}
 
-                                    {selectedProduct.subtipo === 'charcuteria' && (
+                                                                   {selectedProduct.subtipo === 'charcuteria' && (
                                         <div className="bg-slate-50 p-4 rounded-xl border space-y-2">
                                             <div className="flex justify-between text-[9px] font-black uppercase tracking-wider text-slate-400">
                                                 <span>BOM Base Cárnica (Merma Secado: {selectedProduct.original.merma_secado_objetivo}%)</span>
@@ -967,6 +1090,33 @@ export default function PricingView({
                                                 </div>
                                             )}
 
+                                            <div className="grid grid-cols-2 gap-3 bg-white p-2.5 rounded-lg border">
+                                                <div className="flex flex-col gap-1 text-left">
+                                                    <label className="text-[10px] font-bold text-slate-600">Tiempo Prep. (min)</label>
+                                                    <input 
+                                                        type="number" 
+                                                        value={localPricing.charc_config?.tiempo_preparacion !== undefined ? localPricing.charc_config.tiempo_preparacion : (selectedProduct.original.tiempo_preparacion || 30)}
+                                                        onChange={e => setLocalPricing({
+                                                            ...localPricing,
+                                                            charc_config: { ...localPricing.charc_config, tiempo_preparacion: Number(e.target.value) }
+                                                        })}
+                                                        className="border rounded px-1.5 py-1 text-xs font-semibold text-slate-800 outline-none"
+                                                    />
+                                                </div>
+                                                <div className="flex flex-col gap-1 text-left">
+                                                    <label className="text-[10px] font-bold text-slate-600">Días Cámara (días)</label>
+                                                    <input 
+                                                        type="number" 
+                                                        value={localPricing.charc_config?.dias_maduracion !== undefined ? localPricing.charc_config.dias_maduracion : (selectedProduct.original.dias_maduracion || 21)}
+                                                        onChange={e => setLocalPricing({
+                                                            ...localPricing,
+                                                            charc_config: { ...localPricing.charc_config, dias_maduracion: Number(e.target.value) }
+                                                        })}
+                                                        className="border rounded px-1.5 py-1 text-xs font-semibold text-slate-800 outline-none"
+                                                    />
+                                                </div>
+                                            </div>
+
                                             <div className="max-h-[150px] overflow-y-auto space-y-1">
                                                 {selectedProduct.original.details?.map(d => {
                                                     const ing = ingredients.find(i => i.id === d.ingredientId);
@@ -986,7 +1136,7 @@ export default function PricingView({
                                             <div className="flex justify-between items-center pt-2 border-t font-black text-xs text-slate-800">
                                                 <span>Total Lote Terminado ({localPricing.charc_config?.formato_vta === 'unidad' ? 'Pieza' : 'Kg'})</span>
                                                 <span className="font-mono text-emerald-600">
-                                                    MP: {fmt(costos.costo_mp)} {costos.costo_mo > 0 && `+ MO: ${fmt(costos.costo_mo)}`}
+                                                    MP: {fmt(costos.costo_mp)} {costos.costo_mo > 0 && `+ MO: ${fmt(costos.costo_mo)}`} {costos.costo_horno > 0 && `+ Cámara: ${fmt(costos.costo_horno)}`}
                                                 </span>
                                             </div>
                                         </div>
@@ -1022,9 +1172,49 @@ export default function PricingView({
                                                     })}
                                                 />
                                             </div>
+
+                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 bg-white p-2.5 rounded-lg border">
+                                                <div className="flex flex-col gap-1 text-left">
+                                                    <label className="text-[10px] font-bold text-slate-600">Tiempo Seteo (min)</label>
+                                                    <input 
+                                                        type="number" 
+                                                        value={localPricing.fracc_config?.tiempo_seteo !== undefined ? localPricing.fracc_config.tiempo_seteo : 10}
+                                                        onChange={e => setLocalPricing({
+                                                            ...localPricing, 
+                                                            fracc_config: { ...localPricing.fracc_config, tiempo_seteo: Number(e.target.value) }
+                                                        })}
+                                                        className="border rounded px-1.5 py-1 text-xs font-semibold text-slate-800 outline-none"
+                                                    />
+                                                </div>
+                                                <div className="flex flex-col gap-1 text-left">
+                                                    <label className="text-[10px] font-bold text-slate-600">Tiempo Porción (seg)</label>
+                                                    <input 
+                                                        type="number" 
+                                                        value={localPricing.fracc_config?.tiempo_porcionado_seg !== undefined ? localPricing.fracc_config.tiempo_porcionado_seg : 15}
+                                                        onChange={e => setLocalPricing({
+                                                            ...localPricing, 
+                                                            fracc_config: { ...localPricing.fracc_config, tiempo_porcionado_seg: Number(e.target.value) }
+                                                        })}
+                                                        className="border rounded px-1.5 py-1 text-xs font-semibold text-slate-800 outline-none"
+                                                    />
+                                                </div>
+                                                <div className="flex flex-col gap-1 text-left">
+                                                    <label className="text-[10px] font-bold text-slate-600">Bolsas por Lote (u)</label>
+                                                    <input 
+                                                        type="number" 
+                                                        value={localPricing.fracc_config?.lote_porciones !== undefined ? localPricing.fracc_config.lote_porciones : 40}
+                                                        onChange={e => setLocalPricing({
+                                                            ...localPricing, 
+                                                            fracc_config: { ...localPricing.fracc_config, lote_porciones: Number(e.target.value) }
+                                                        })}
+                                                        className="border rounded px-1.5 py-1 text-xs font-semibold text-slate-800 outline-none"
+                                                    />
+                                                </div>
+                                            </div>
+
                                             <div className="flex justify-between items-center text-xs font-bold pt-2 border-t text-slate-700">
-                                                <span>Costo de Producto Granel por Unidad (con merma)</span>
-                                                <span className="font-mono text-slate-900">{fmt(costos.costo_mp)}</span>
+                                                <span>Costo Granel: {fmt(costos.costo_mp)} {costos.costo_mo > 0 && `+ Costo Envasado (MO): ${fmt(costos.costo_mo)}`}</span>
+                                                <span className="font-mono text-slate-900">Total: {fmt(costos.costo_mp + costos.costo_mo)}</span>
                                             </div>
                                         </div>
                                     )}
@@ -1039,35 +1229,162 @@ export default function PricingView({
                                         </div>
                                     )}
 
-                                    {/* II. Envases y Packaging */}
-                                    <div className="pt-2">
-                                        <div className="flex items-center justify-between mb-2">
-                                            <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest flex items-center gap-1"><Package size={12} /> Packaging y Empaque</p>
-                                            <span className="text-[9px] text-slate-400">Asignados a la unidad de venta</span>
+                                    {/* II. ESTRUCTURA DE COSTOS Y ANÁLISIS DE INCIDENCIA (OPCIÓN A) */}
+                                    <div className="pt-4">
+                                        <div className="flex items-center justify-between mb-3">
+                                            <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest flex items-center gap-1">
+                                                <Scale size={12} /> Estructura de Costos e Incidencia Unitario
+                                            </p>
+                                            <span className="text-[9px] text-slate-400">Valores netos de IVA</span>
                                         </div>
-                                        {localPricing.empaques.length === 0 && (
-                                            <p className="text-xs text-slate-400 italic text-center py-2 bg-slate-50 rounded-xl border border-dashed">Sin empaques asignados.</p>
-                                        )}
-                                        {localPricing.empaques.map((e, idx) => (
-                                            <div key={idx} className="flex items-center gap-2 py-1.5 border-b border-dashed border-slate-100">
-                                                <span className="text-xs font-bold text-slate-700 flex-1">{e.nombre}</span>
-                                                <div className="flex items-center gap-1">
-                                                    <input type="number" step="0.1" min="0.1" value={e.cantidad} onChange={ev => updateEmpaqueQty(idx, ev.target.value)}
-                                                        className="w-14 border border-slate-200 rounded px-1.5 py-0.5 text-xs font-mono text-center outline-none focus:border-slate-500" />
-                                                    <span className="text-[9px] text-slate-400">{e.unidad}</span>
-                                                </div>
-                                                <span className="font-mono font-black text-xs text-purple-600 w-24 text-right">{fmt(Number(e.cantidad) * Number(e.costo_unitario))}</span>
-                                                <button onClick={() => removeEmpaque(idx)} className="text-slate-300 hover:text-red-500 transition-colors"><Trash2 size={12} /></button>
-                                            </div>
-                                        ))}
+
+                                        <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm bg-white mb-4">
+                                            <table className="w-full text-left text-xs">
+                                                <thead className="bg-slate-900 text-white text-[9px] uppercase tracking-wider">
+                                                    <tr>
+                                                        <th className="px-4 py-3">Concepto Costo</th>
+                                                        <th className="px-4 py-3">Detalle / Cantidad</th>
+                                                        <th className="px-4 py-3 text-right w-28">Costo Unit. ($)</th>
+                                                        <th className="px-4 py-3 text-center w-24">Incidencia %</th>
+                                                        <th className="px-4 py-3 w-10 text-center"></th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-slate-100">
+                                                    {/* Row 1: Materia Prima */}
+                                                    {costos.costo_mp > 0 && (
+                                                        <tr className="hover:bg-slate-50 transition-colors">
+                                                            <td className="px-4 py-2.5 font-bold text-slate-700">
+                                                                {selectedProduct.subtipo === 'reventa' ? 'Costo de Adquisición (Proveedor)' : 'Materia Prima (Receta)'}
+                                                            </td>
+                                                            <td className="px-4 py-2.5 text-slate-500">
+                                                                {selectedProduct.subtipo === 'reventa' ? 'Precio de compra pactado' : 'Ingredientes dosificados'}
+                                                            </td>
+                                                            <td className="px-4 py-2.5 text-right font-mono font-bold text-slate-700">{fmt(costos.costo_mp)}</td>
+                                                            <td className="px-4 py-2.5 text-center font-mono font-bold text-slate-600">
+                                                                {((costos.costo_mp / (costos.costo_unitario_total || 1)) * 100).toFixed(1)}%
+                                                            </td>
+                                                            <td className="px-4 py-2.5"></td>
+                                                        </tr>
+                                                    )}
+
+                                                    {/* Row 2: Mano de Obra */}
+                                                    {costos.costo_mo > 0 && (
+                                                        <tr className="hover:bg-slate-50 transition-colors">
+                                                            <td className="px-4 py-2.5 font-bold text-slate-700">Mano de Obra Directa</td>
+                                                            <td className="px-4 py-2.5 text-slate-500">
+                                                                {selectedProduct.subtipo === 'panaderia' && `${((selectedProduct.original.tiempo_pesaje || 5) + (selectedProduct.original.tiempo_amasado || 15) + (selectedProduct.original.tiempo_armado || 20) + (selectedProduct.original.tiempo_horneado || 25))} min sumados`}
+                                                                {selectedProduct.subtipo === 'charcuteria' && `${localPricing.charc_config?.tiempo_preparacion !== undefined ? localPricing.charc_config.tiempo_preparacion : (selectedProduct.original.tiempo_preparacion || 30)} min prep`}
+                                                                {selectedProduct.subtipo === 'fraccionado' && `${localPricing.fracc_config?.tiempo_seteo || 10}m seteo + ${localPricing.fracc_config?.tiempo_porcionado_seg || 15}s porción`}
+                                                            </td>
+                                                            <td className="px-4 py-2.5 text-right font-mono font-bold text-slate-700">{fmt(costos.costo_mo)}</td>
+                                                            <td className="px-4 py-2.5 text-center font-mono font-bold text-slate-600">
+                                                                {((costos.costo_mo / (costos.costo_unitario_total || 1)) * 100).toFixed(1)}%
+                                                            </td>
+                                                            <td className="px-4 py-2.5"></td>
+                                                        </tr>
+                                                    )}
+
+                                                    {/* Row 3: Horno o Cámara */}
+                                                    {costos.costo_horno > 0 && (
+                                                        <tr className="hover:bg-slate-50 transition-colors">
+                                                            <td className="px-4 py-2.5 font-bold text-slate-700">
+                                                                {selectedProduct.subtipo === 'charcuteria' ? 'Cámara de Maduración' : 'Horno / Cocción'}
+                                                            </td>
+                                                            <td className="px-4 py-2.5 text-slate-500">
+                                                                {selectedProduct.subtipo === 'charcuteria' 
+                                                                    ? `${localPricing.charc_config?.dias_maduracion !== undefined ? localPricing.charc_config.dias_maduracion : (selectedProduct.original.dias_maduracion || 21)} días`
+                                                                    : `${selectedProduct.original.tiempo_horneado || 25} min horneado`
+                                                                }
+                                                            </td>
+                                                            <td className="px-4 py-2.5 text-right font-mono font-bold text-slate-700">{fmt(costos.costo_horno)}</td>
+                                                            <td className="px-4 py-2.5 text-center font-mono font-bold text-slate-600">
+                                                                {((costos.costo_horno / (costos.costo_unitario_total || 1)) * 100).toFixed(1)}%
+                                                            </td>
+                                                            <td className="px-4 py-2.5"></td>
+                                                        </tr>
+                                                    )}
+
+                                                    {/* Row 4: Packaging Receta (si existe) */}
+                                                    {packagingRecetaUnitario > 0.01 && (
+                                                        <tr className="hover:bg-slate-50 transition-colors">
+                                                            <td className="px-4 py-2.5 font-bold text-slate-700">Tripa/Envoltura (Ficha)</td>
+                                                            <td className="px-4 py-2.5 text-slate-500">Packaging de formulación</td>
+                                                            <td className="px-4 py-2.5 text-right font-mono font-bold text-slate-700">{fmt(packagingRecetaUnitario)}</td>
+                                                            <td className="px-4 py-2.5 text-center font-mono font-bold text-slate-600">
+                                                                {((packagingRecetaUnitario / (costos.costo_unitario_total || 1)) * 100).toFixed(1)}%
+                                                            </td>
+                                                            <td className="px-4 py-2.5"></td>
+                                                        </tr>
+                                                    )}
+
+                                                    {/* Rows 5+: Linked Packaging Items */}
+                                                    {localPricing.empaques.map((e, idx) => {
+                                                        const unitCost = Number(e.cantidad) * Number(e.costo_unitario);
+                                                        return (
+                                                            <tr key={idx} className="hover:bg-slate-50 transition-colors group">
+                                                                <td className="px-4 py-2 font-bold text-slate-700">Packaging: {e.nombre}</td>
+                                                                <td className="px-4 py-2">
+                                                                    <div className="flex items-center gap-1.5">
+                                                                        <input 
+                                                                            type="number" step="0.1" min="0.1" value={e.cantidad} 
+                                                                            onChange={ev => updateEmpaqueQty(idx, ev.target.value)}
+                                                                            className="w-14 border border-slate-200 rounded px-1.5 py-0.5 text-xs font-mono text-center outline-none focus:border-slate-500 bg-slate-50" 
+                                                                        />
+                                                                        <span className="text-[9px] text-slate-400 uppercase font-black">{e.unidad}</span>
+                                                                    </div>
+                                                                </td>
+                                                                <td className="px-4 py-2 text-right font-mono font-bold text-purple-600">{fmt(unitCost)}</td>
+                                                                <td className="px-4 py-2 text-center font-mono font-bold text-slate-600">
+                                                                    {((unitCost / (costos.costo_unitario_total || 1)) * 100).toFixed(1)}%
+                                                                </td>
+                                                                <td className="px-4 py-2 text-center">
+                                                                    <button 
+                                                                        onClick={() => removeEmpaque(idx)} 
+                                                                        className="text-slate-300 hover:text-red-500 transition-colors p-1"
+                                                                    >
+                                                                        <Trash2 size={14} />
+                                                                    </button>
+                                                                </td>
+                                                            </tr>
+                                                        );
+                                                    })}
+
+                                                    {/* Row Last: CIF */}
+                                                    {costos.cif_unitario > 0 && (
+                                                        <tr className="hover:bg-slate-50 transition-colors">
+                                                            <td className="px-4 py-2.5 font-bold text-slate-700">Costos Indirectos (CIF)</td>
+                                                            <td className="px-4 py-2.5 text-slate-500">
+                                                                {fixedCosts.usar_cif_fijo ? 'Cuota de Absorción Fija' : `${fixedCosts.costosIndirectosPct ?? 20}% de Materia Prima`}
+                                                            </td>
+                                                            <td className="px-4 py-2.5 text-right font-mono font-bold text-slate-700">{fmt(costos.cif_unitario)}</td>
+                                                            <td className="px-4 py-2.5 text-center font-mono font-bold text-slate-600">
+                                                                {((costos.cif_unitario / (costos.costo_unitario_total || 1)) * 100).toFixed(1)}%
+                                                            </td>
+                                                            <td className="px-4 py-2.5"></td>
+                                                        </tr>
+                                                    )}
+
+                                                    {/* Totals Row */}
+                                                    <tr className="bg-slate-900 text-white font-black text-sm">
+                                                        <td className="px-4 py-3">COSTO UNITARIO TOTAL</td>
+                                                        <td className="px-4 py-3">
+                                                            Rendimiento: {costos.unidades_rinde.toFixed(selectedProduct.original.formato_venta === 'Unidad' ? 0 : 2)} {selectedProduct.original.formato_venta === 'Unidad' ? 'u' : 'kg'}
+                                                        </td>
+                                                        <td className="px-4 py-3 text-right font-mono text-emerald-400">{fmt(costos.costo_unitario_total)}</td>
+                                                        <td className="px-4 py-3 text-center font-mono">100.0%</td>
+                                                        <td className="px-4 py-3"></td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
 
                                         {/* Selector para agregar empaque */}
-                                        <div className="mt-2">
+                                        <div className="mb-4">
                                             <select 
                                                 onChange={e => { if (e.target.value) { addEmpaque(e.target.value); e.target.value = ''; } }}
-                                                className="w-full border border-dashed border-emerald-300 bg-emerald-50 rounded-lg px-3 py-1.5 text-xs font-bold outline-none focus:border-emerald-500 text-slate-600 cursor-pointer"
+                                                className="w-full border border-dashed border-emerald-300 bg-emerald-50 rounded-xl px-3 py-2 text-xs font-bold outline-none focus:border-emerald-500 text-slate-600 cursor-pointer"
                                             >
-                                                <option value="">+ Vincular empaque/etiqueta/caja...</option>
+                                                <option value="">+ Vincular empaque/etiqueta/caja adicional...</option>
                                                 {empaqueIngredients.filter(m => !localPricing.empaques.find(e => e.ingrediente_id === m.id)).map(m => (
                                                     <option key={m.id} value={m.id}>{m.name} — {fmt(m.costo_estandar)}/{m.unidad_compra || 'unidad'}</option>
                                                 ))}
@@ -1076,46 +1393,11 @@ export default function PricingView({
                                     </div>
                                 </div>
 
-                                {/* TOTAL DIRECTO */}
-                                <div className="mt-4 bg-slate-900 text-white rounded-xl p-4 flex justify-between items-center">
-                                    <div>
-                                        <p className="text-[9px] uppercase text-slate-400 font-black">Costo Directo Total (Materia Prima + Empaque)</p>
-                                        <p className="text-xs text-slate-400">neto de IVA</p>
-                                    </div>
-                                    <p className="text-xl font-black font-mono text-emerald-400">
-                                        {fmt(costos.costo_mp + costos.costo_mo + costos.costo_empaque_total)}
-                                    </p>
-                                </div>
-                            </Card>
-
-                            {/* BLOQUE 2: ABSORCIÓN DE COSTOS INDIRECTOS (CIF) */}
-                            <Card className="p-5 border shadow-sm bg-white rounded-2xl">
-                                <div className="flex items-center gap-2 mb-3 border-b pb-3">
-                                    <Settings size={16} className="text-blue-600" />
-                                    <h4 className="text-xs font-black uppercase tracking-tight text-slate-800">Costos Indirectos (CIF) Asignados</h4>
-                                </div>
-                                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 p-3 bg-slate-50 border rounded-xl">
-                                    <div>
-                                        <p className="text-xs font-black text-slate-800">
-                                            {fixedCosts.usar_cif_fijo ? 'Cuota de Absorción Fija por Unidad' : 'Absorción por Porcentaje de Materia Prima'}
-                                        </p>
-                                        <p className="text-[10px] text-slate-500 mt-1">
-                                            {fixedCosts.usar_cif_fijo 
-                                                ? `Gastos Fijos consolidados divididos el volumen estimado (${fixedCosts.volumen_mensual} u/mes).`
-                                                : `Aplica un ${config?.finanzas?.costosIndirectosPct || 20}% sobre el costo directo de materia prima.`
-                                            }
-                                        </p>
-                                    </div>
-                                    <div className="bg-white border-2 border-dashed border-blue-300 px-4 py-2 rounded-xl text-right ml-auto">
-                                        <p className="text-[8px] uppercase font-black text-slate-400">CIF Unitario</p>
-                                        <p className="text-sm font-black font-mono text-blue-700">{fmt(costos.cif_unitario)}</p>
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-4 mt-4 pt-2">
-                                    <div className="bg-slate-100 p-3 rounded-xl">
+                                {/* TOTAL DIRECTO / INDIRECTO RESUMEN */}
+                                <div className="grid grid-cols-2 gap-4 pt-2">
+                                    <div className="bg-slate-100 p-3 rounded-xl border">
                                         <p className="text-[8px] uppercase text-slate-500 font-bold">Costo Directo Unitario</p>
-                                        <p className="text-base font-black font-mono text-slate-700">{fmt(costos.costo_mp + costos.costo_mo + costos.costo_empaque_total)}</p>
+                                        <p className="text-base font-black font-mono text-slate-700">{fmt(costos.costo_mp + costos.costo_mo + costos.costo_horno + costos.costo_empaque_total)}</p>
                                     </div>
                                     <div className="bg-emerald-500 text-white p-3 rounded-xl shadow-lg shadow-emerald-100">
                                         <p className="text-[8px] uppercase text-emerald-100 font-bold">Costo de Producción Total</p>
@@ -1192,10 +1474,55 @@ export default function PricingView({
                                         <p className="text-sm font-black font-mono text-red-600 mt-0.5">{fmt(simulacionPrecio.iibbP)}</p>
                                         <span className="text-[8px] text-slate-400">({taxSettings.iibb_pct}%)</span>
                                     </div>
-                                    <div className="border p-2.5 rounded-xl bg-emerald-50 border-emerald-200">
-                                        <p className="text-[8px] uppercase text-emerald-700 font-black">Margen Neto Real</p>
-                                        <p className="text-sm font-black font-mono text-emerald-700 mt-0.5">{fmt(simulacionPrecio.margenRealP)}</p>
-                                        <span className="text-[8px] text-emerald-600">({simulacionPrecio.margenRealPct.toFixed(1)}% Real)</span>
+                                    <div className="border p-2.5 rounded-xl bg-emerald-50 border-emerald-200 flex flex-col justify-between">
+                                        <div>
+                                            <p className="text-[8px] uppercase text-emerald-700 font-black flex items-center justify-between">
+                                                <span>Margen Neto Real</span>
+                                                <Edit3 size={10} className="text-emerald-600" />
+                                            </p>
+                                            <div className="mt-1 space-y-1">
+                                                {/* Input Pesos */}
+                                                <div className="relative flex items-center bg-white/60 border border-emerald-200 rounded px-1.5 py-0.5" title="Editar margen real en pesos ($)">
+                                                    <span className="text-[10px] text-emerald-700 font-bold font-mono">$</span>
+                                                    <input 
+                                                        id="input-margen-real-p"
+                                                        type="number"
+                                                        step="0.01"
+                                                        value={inputMargenRealP}
+                                                        onChange={e => {
+                                                            setInputMargenRealP(e.target.value);
+                                                            handleEditMargenRealP(e.target.value);
+                                                        }}
+                                                        onBlur={() => {
+                                                            if (simulacionPrecio) {
+                                                                setInputMargenRealP(simulacionPrecio.margenRealP.toFixed(2));
+                                                            }
+                                                        }}
+                                                        className="w-full bg-transparent text-right font-mono font-bold text-xs text-emerald-800 outline-none pr-0.5 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                                    />
+                                                </div>
+                                                {/* Input Porcentaje */}
+                                                <div className="relative flex items-center bg-white/60 border border-emerald-200 rounded px-1.5 py-0.5" title="Editar margen real en porcentaje (%)">
+                                                    <input 
+                                                        id="input-margen-real-pct"
+                                                        type="number"
+                                                        step="0.1"
+                                                        value={inputMargenRealPct}
+                                                        onChange={e => {
+                                                            setInputMargenRealPct(e.target.value);
+                                                            handleEditMargenRealPct(e.target.value);
+                                                        }}
+                                                        onBlur={() => {
+                                                            if (simulacionPrecio) {
+                                                                setInputMargenRealPct(simulacionPrecio.margenRealPct.toFixed(1));
+                                                            }
+                                                        }}
+                                                        className="w-full bg-transparent text-right font-mono font-bold text-[10px] text-emerald-600 outline-none pr-0.5 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                                    />
+                                                    <span className="text-[10px] text-emerald-600 font-bold font-mono">%</span>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
 

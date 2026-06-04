@@ -136,13 +136,13 @@ export default function ProductionOrdersView({
 
     const activateOrder = async (id) => {
         try {
-            const { error } = await supabase.from('ordenes_produccion').update({ estado: 'PLANIFICADA' }).eq('id', id);
+            const { error } = await supabase.from('ordenes_produccion').update({ estado: 'PESAJE' }).eq('id', id);
             if (error) throw error;
-            setOrders(orders.map(o => o.id === id ? { ...o, status: 'PLANIFICADA', estado: 'PLANIFICADA' } : o));
+            setOrders(orders.map(o => o.id === id ? { ...o, status: 'PESAJE', estado: 'PESAJE' } : o));
             setSelectedOrder(null);
             showToast("Orden activada en Kanban de Planta.");
         } catch (err) {
-            setOrders(orders.map(o => o.id === id ? { ...o, status: 'PLANIFICADA', estado: 'PLANIFICADA' } : o));
+            setOrders(orders.map(o => o.id === id ? { ...o, status: 'PESAJE', estado: 'PESAJE' } : o));
             setSelectedOrder(null);
             showToast("Orden activada localmente (Offline).");
         }
