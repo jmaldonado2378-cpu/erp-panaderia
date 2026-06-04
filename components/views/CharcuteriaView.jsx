@@ -855,97 +855,126 @@ export default function CharcuteriaView({
                                             <span className="text-[9px] text-slate-400 font-bold italic">Base de cálculo dinámico: % de Baker/Cárnico</span>
                                         </div>
                                         
-                                        <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm bg-white mb-4 max-h-[300px] overflow-y-auto">
-                                            <table className="w-full text-left">
-                                                <thead className="bg-slate-900 text-white text-[9px] uppercase tracking-wider sticky top-0 z-10">
-                                                    <tr>
-                                                        <th className="px-4 py-3">Insumo</th>
-                                                        <th className="px-4 py-3 w-48">Categoría Tecnológica</th>
-                                                        <th className="px-4 py-3 w-32 text-center">% de Base</th>
-                                                        <th className="px-4 py-3 w-32 text-center">Secuencia Mezcla</th>
-                                                        <th className="px-4 py-3 w-16 text-center"></th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody className="divide-y divide-slate-100">
-                                                    {recetaForm.details.map((d, i) => (
-                                                        <tr key={i} className="hover:bg-slate-50/50 transition-colors">
-                                                            <td className="p-2">
-                                                                <select 
-                                                                    className="w-full bg-transparent text-xs font-bold text-slate-700 outline-none cursor-pointer py-1.5"
-                                                                    value={d.ingredientId}
-                                                                    onChange={e => {
-                                                                        const nd = [...recetaForm.details];
-                                                                        nd[i].ingredientId = e.target.value;
-                                                                        setRecetaForm({ ...recetaForm, details: nd });
-                                                                    }}
-                                                                >
-                                                                    <option value="" disabled>Seleccione ingrediente...</option>
-                                                                    {ingredients.map(ing => <option key={ing.id} value={ing.id}>{ing.name}</option>)}
-                                                                </select>
-                                                            </td>
-                                                            <td className="p-2 border-l border-slate-100">
-                                                                <select 
-                                                                    className="w-full bg-transparent text-xs font-bold text-slate-700 outline-none cursor-pointer py-1.5"
-                                                                    value={d.categoria_tecnologica}
-                                                                    onChange={e => {
-                                                                        const nd = [...recetaForm.details];
-                                                                        nd[i].categoria_tecnologica = e.target.value;
-                                                                        setRecetaForm({ ...recetaForm, details: nd });
-                                                                    }}
-                                                                >
-                                                                    {Object.entries(CATEGORIAS_TECNOLOGICAS).map(([k, v]) => (
-                                                                        <option key={k} value={k}>{v.label}</option>
-                                                                    ))}
-                                                                </select>
-                                                            </td>
-                                                            <td className="p-2 border-l border-slate-100">
-                                                                <div className="flex items-center justify-center bg-slate-50 border rounded-lg px-2 py-1 w-24 mx-auto">
-                                                                    <input 
-                                                                        type="number" 
-                                                                        step="0.01" 
-                                                                        className="w-full bg-transparent text-xs font-black text-center outline-none text-slate-800"
-                                                                        placeholder="0"
-                                                                        value={d.porcentaje_base} 
-                                                                        onChange={e => {
-                                                                            const nd = [...recetaForm.details];
-                                                                            nd[i].porcentaje_base = e.target.value;
-                                                                            setRecetaForm({ ...recetaForm, details: nd });
-                                                                        }} 
-                                                                    />
-                                                                    <span className="text-[9px] text-slate-400 font-bold ml-1">%</span>
-                                                                </div>
-                                                            </td>
-                                                            <td className="p-2 border-l border-slate-100">
-                                                                <input 
-                                                                    type="number" 
-                                                                    className="w-16 mx-auto text-center border rounded-lg px-2 py-1 text-xs font-bold text-slate-700 bg-slate-50"
-                                                                    min="1"
-                                                                    value={d.secuencia_mezcla}
-                                                                    onChange={e => {
-                                                                        const nd = [...recetaForm.details];
-                                                                        nd[i].secuencia_mezcla = e.target.value;
-                                                                        setRecetaForm({ ...recetaForm, details: nd });
-                                                                    }}
-                                                                />
-                                                            </td>
-                                                            <td className="p-2 text-center">
-                                                                <button 
-                                                                    type="button"
-                                                                    className="text-red-300 hover:text-red-600 hover:bg-red-50 p-1.5 rounded-lg transition-colors"
-                                                                    onClick={() => {
-                                                                        const nd = [...recetaForm.details];
-                                                                        nd.splice(i, 1);
-                                                                        setRecetaForm({ ...recetaForm, details: nd });
-                                                                    }}
-                                                                >
-                                                                    <Trash2 size={14} />
-                                                                </button>
-                                                            </td>
-                                                        </tr>
-                                                    ))}
-                                                </tbody>
-                                            </table>
-                                        </div>
+                                        {(() => {
+                                            const baseRef = (recetaForm.familia_tecnologica === 'fermentado_seco' || recetaForm.familia_tecnologica === 'emulsion_fina' || recetaForm.familia_tecnologica === 'embutido_fresco') ? 10000 : 1000;
+                                            const totalBatchCost = recetaForm.details.reduce((acc, curr) => {
+                                                if (!curr.ingredientId || !curr.porcentaje_base) return acc;
+                                                const ing = ingredients.find(i => i.id === curr.ingredientId);
+                                                const costPerGram = Number(ing?.costo_estandar || ing?.costPerGram || 0);
+                                                const grams = (Number(curr.porcentaje_base) / 100) * baseRef;
+                                                return acc + (grams * costPerGram);
+                                            }, 0);
+
+                                            return (
+                                                <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm bg-white mb-4 max-h-[300px] overflow-y-auto">
+                                                    <table className="w-full text-left">
+                                                        <thead className="bg-slate-900 text-white text-[9px] uppercase tracking-wider sticky top-0 z-10">
+                                                            <tr>
+                                                                <th className="px-4 py-3">Insumo</th>
+                                                                <th className="px-4 py-3 w-40">Categoría</th>
+                                                                <th className="px-4 py-3 w-24 text-center">% Base</th>
+                                                                <th className="px-4 py-3 w-20 text-center">Sec.</th>
+                                                                <th className="px-4 py-3 w-28 text-right">Costo Insumo</th>
+                                                                <th className="px-4 py-3 w-28 text-center">Incidencia %</th>
+                                                                <th className="px-4 py-3 w-12 text-center"></th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody className="divide-y divide-slate-100">
+                                                            {recetaForm.details.map((d, i) => {
+                                                                const ing = ingredients.find(x => x.id === d.ingredientId);
+                                                                const costPerGram = Number(ing?.costo_estandar || ing?.costPerGram || 0);
+                                                                const grams = d.porcentaje_base ? (Number(d.porcentaje_base) / 100) * baseRef : 0;
+                                                                const componentCost = grams * costPerGram;
+                                                                const incidencePct = totalBatchCost > 0 ? (componentCost / totalBatchCost) * 100 : 0;
+
+                                                                return (
+                                                                    <tr key={i} className="hover:bg-slate-50/50 transition-colors">
+                                                                        <td className="p-2">
+                                                                            <select 
+                                                                                className="w-full bg-transparent text-xs font-bold text-slate-700 outline-none cursor-pointer py-1.5"
+                                                                                value={d.ingredientId}
+                                                                                onChange={e => {
+                                                                                    const nd = [...recetaForm.details];
+                                                                                    nd[i].ingredientId = e.target.value;
+                                                                                    setRecetaForm({ ...recetaForm, details: nd });
+                                                                                }}
+                                                                            >
+                                                                                <option value="" disabled>Seleccione ingrediente...</option>
+                                                                                {ingredients.map(ing => <option key={ing.id} value={ing.id}>{ing.name}</option>)}
+                                                                            </select>
+                                                                        </td>
+                                                                        <td className="p-2 border-l border-slate-100">
+                                                                            <select 
+                                                                                className="w-full bg-transparent text-xs font-bold text-slate-700 outline-none cursor-pointer py-1.5"
+                                                                                value={d.categoria_tecnologica}
+                                                                                onChange={e => {
+                                                                                    const nd = [...recetaForm.details];
+                                                                                    nd[i].categoria_tecnologica = e.target.value;
+                                                                                    setRecetaForm({ ...recetaForm, details: nd });
+                                                                                }}
+                                                                            >
+                                                                                {Object.entries(CATEGORIAS_TECNOLOGICAS).map(([k, v]) => (
+                                                                                    <option key={k} value={k}>{v.label.replace('Base Cárnica (', '').replace(')', '').replace('Ligantes / ', '')}</option>
+                                                                                ))}
+                                                                            </select>
+                                                                        </td>
+                                                                        <td className="p-2 border-l border-slate-100">
+                                                                            <div className="flex items-center justify-center bg-slate-50 border rounded-lg px-2 py-1 w-20 mx-auto">
+                                                                                <input 
+                                                                                    type="number" 
+                                                                                    step="0.01" 
+                                                                                    className="w-full bg-transparent text-xs font-black text-center outline-none text-slate-800"
+                                                                                    placeholder="0"
+                                                                                    value={d.porcentaje_base} 
+                                                                                    onChange={e => {
+                                                                                        const nd = [...recetaForm.details];
+                                                                                        nd[i].porcentaje_base = e.target.value;
+                                                                                        setRecetaForm({ ...recetaForm, details: nd });
+                                                                                    }} 
+                                                                                />
+                                                                                <span className="text-[9px] text-slate-400 font-bold ml-1">%</span>
+                                                                            </div>
+                                                                        </td>
+                                                                        <td className="p-2 border-l border-slate-100">
+                                                                            <input 
+                                                                                type="number" 
+                                                                                className="w-12 mx-auto text-center border rounded-lg px-2 py-1 text-xs font-bold text-slate-700 bg-slate-50"
+                                                                                min="1"
+                                                                                value={d.secuencia_mezcla}
+                                                                                onChange={e => {
+                                                                                    const nd = [...recetaForm.details];
+                                                                                    nd[i].secuencia_mezcla = e.target.value;
+                                                                                    setRecetaForm({ ...recetaForm, details: nd });
+                                                                                }}
+                                                                            />
+                                                                        </td>
+                                                                        <td className="p-2 border-l border-slate-100 text-right font-mono font-black text-slate-700 text-xs w-28">
+                                                                            {fmtCost(componentCost)}
+                                                                        </td>
+                                                                        <td className="p-2 border-l border-slate-100 text-center font-mono font-black text-slate-600 text-xs w-28">
+                                                                            {incidencePct.toFixed(1)}%
+                                                                        </td>
+                                                                        <td className="p-2 text-center">
+                                                                            <button 
+                                                                                type="button"
+                                                                                className="text-red-300 hover:text-red-600 hover:bg-red-50 p-1.5 rounded-lg transition-colors"
+                                                                                onClick={() => {
+                                                                                    const nd = [...recetaForm.details];
+                                                                                    nd.splice(i, 1);
+                                                                                    setRecetaForm({ ...recetaForm, details: nd });
+                                                                                }}
+                                                                            >
+                                                                                <Trash2 size={14} />
+                                                                            </button>
+                                                                        </td>
+                                                                    </tr>
+                                                                );
+                                                            })}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            );
+                                        })()}
                                         
                                         <Button 
                                             onClick={() => setRecetaForm({ ...recetaForm, details: [...recetaForm.details, { ingredientId: '', categoria_tecnologica: 'aditivo', porcentaje_base: '', secuencia_mezcla: recetaForm.details.length + 1 }] })}
@@ -1078,17 +1107,23 @@ export default function CharcuteriaView({
                                                                         {r.details?.map((d, i) => {
                                                                             const ing = ingredients.find(ing => ing.id === d.ingredientId);
                                                                             const cat = CATEGORIAS_TECNOLOGICAS[d.categoria_tecnologica || 'aditivo'];
+                                                                            const costPerGram = Number(ing?.costo_estandar || ing?.costPerGram || 0);
+                                                                            const grams = (Number(d.porcentaje_base || 0) / 100) * r.batchWeight;
+                                                                            const componentCost = grams * costPerGram;
+                                                                            const incidencePct = r.totalBatchCost > 0 ? (componentCost / r.totalBatchCost) * 100 : 0;
                                                                             return (
                                                                                 <div key={i} className="px-4 py-2 flex justify-between items-center text-[10px] text-slate-700 hover:bg-slate-50 transition-colors">
-                                                                                    <div className="flex items-center gap-2">
-                                                                                        <span className={`text-[7px] px-1.5 py-0.5 rounded uppercase font-black ${cat?.color}`}>
-                                                                                            {d.categoria_tecnologica}
+                                                                                    <div className="flex items-center gap-2 w-1/2">
+                                                                                        <span className={`text-[7px] px-1.5 py-0.5 rounded uppercase font-black ${cat?.color} w-20 text-center shrink-0`}>
+                                                                                            {d.categoria_tecnologica.replace('Base Cárnica (', '').replace(')', '').replace('Ligantes / ', '')}
                                                                                         </span>
-                                                                                        <span className="font-semibold">{ing?.name || 'Insumo'}</span>
+                                                                                        <span className="font-semibold truncate">{ing?.name || 'Insumo'}</span>
                                                                                     </div>
-                                                                                    <div className="font-mono flex items-center gap-3">
-                                                                                        <span className="text-slate-400">Paso {d.secuencia_mezcla}</span>
-                                                                                        <span className="font-black text-slate-900">{d.porcentaje_base}%</span>
+                                                                                    <div className="font-mono flex items-center justify-between w-1/2 pl-4">
+                                                                                        <span className="text-slate-400 text-[9px]">Paso {d.secuencia_mezcla}</span>
+                                                                                        <span className="font-black text-slate-900 w-12 text-right">{d.porcentaje_base}%</span>
+                                                                                        <span className="font-black text-emerald-600 w-20 text-right">{fmtCost(componentCost)}</span>
+                                                                                        <span className="font-black text-slate-600 w-12 text-right">{incidencePct.toFixed(1)}%</span>
                                                                                     </div>
                                                                                 </div>
                                                                             );
