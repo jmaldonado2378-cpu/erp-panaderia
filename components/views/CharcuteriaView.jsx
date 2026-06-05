@@ -161,6 +161,10 @@ export default function CharcuteriaView({
         merma_secado_objetivo: 35,
         tiempo_preparacion: 30,
         dias_maduracion: 21,
+        tiempo_curado_salado_dias: 0,
+        tiempo_estufado_dias: 0,
+        tiempo_curado_salmuera_dias: 0,
+        tiempo_coccion_mins: 0,
         details: [
             { ingredientId: '', categoria_tecnologica: 'magro', porcentaje_base: '', secuencia_mezcla: 1 }
         ]
@@ -292,15 +296,35 @@ export default function CharcuteriaView({
                 gramos: Number(((Number(d.porcentaje_base) / 100) * baseRef).toFixed(2))
             }));
 
+        const fam = recetaForm.familia_tecnologica;
+        const curado_salado = fam === 'salazon_cruda' ? Number(recetaForm.tiempo_curado_salado_dias || 0) : 0;
+        const estufado = fam === 'fermentado_seco' ? Number(recetaForm.tiempo_estufado_dias || 0) : 0;
+        const curado_salmuera = fam === 'salazon_inyectada' ? Number(recetaForm.tiempo_curado_salmuera_dias || 0) : 0;
+        const coccion = (fam === 'salazon_inyectada' || fam === 'emulsion_fina') ? Number(recetaForm.tiempo_coccion_mins || 0) : 0;
+        const maduracion = (fam === 'salazon_cruda' || fam === 'fermentado_seco') ? Number(recetaForm.dias_maduracion || 0) : 0;
+
+        let derivedLeadTime = 0;
+        if (fam === 'salazon_cruda') {
+            derivedLeadTime = curado_salado + maduracion;
+        } else if (fam === 'fermentado_seco') {
+            derivedLeadTime = estufado + maduracion;
+        } else if (fam === 'salazon_inyectada') {
+            derivedLeadTime = curado_salmuera;
+        }
+
         const receta = {
             codigo: recetaForm.codigo.toUpperCase(),
             nombre: recetaForm.nombre,
-            lead_time_dias: Number(recetaForm.lead_time_dias),
-            merma_secado_objetivo: Number(recetaForm.merma_secado_objetivo),
-            familia_tecnologica: recetaForm.familia_tecnologica,
-            porcentaje_inyeccion: recetaForm.familia_tecnologica === 'salazon_inyectada' ? Number(recetaForm.porcentaje_inyeccion) : null,
+            lead_time_dias: derivedLeadTime,
+            merma_secado_objetivo: (fam === 'emulsion_fina' || fam === 'embutido_fresco') ? 0 : Number(recetaForm.merma_secado_objetivo || 0),
+            familia_tecnologica: fam,
+            porcentaje_inyeccion: fam === 'salazon_inyectada' ? Number(recetaForm.porcentaje_inyeccion) : null,
             tiempo_preparacion: Number(recetaForm.tiempo_preparacion || 30),
-            dias_maduracion: Number(recetaForm.dias_maduracion || 21),
+            dias_maduracion: maduracion,
+            tiempo_curado_salado_dias: curado_salado,
+            tiempo_estufado_dias: estufado,
+            tiempo_curado_salmuera_dias: curado_salmuera,
+            tiempo_coccion_mins: coccion,
             version: 1
         };
 
@@ -320,6 +344,10 @@ export default function CharcuteriaView({
             merma_secado_objetivo: 35,
             tiempo_preparacion: 30,
             dias_maduracion: 21,
+            tiempo_curado_salado_dias: 0,
+            tiempo_estufado_dias: 0,
+            tiempo_curado_salmuera_dias: 0,
+            tiempo_coccion_mins: 0,
             details: [{ ingredientId: '', categoria_tecnologica: 'magro', porcentaje_base: '', secuencia_mezcla: 1 }]
         });
     };
@@ -334,7 +362,11 @@ export default function CharcuteriaView({
             lead_time_dias: rec.lead_time_dias || 30,
             merma_secado_objetivo: rec.merma_secado_objetivo || 35,
             tiempo_preparacion: rec.tiempo_preparacion || 30,
-            dias_maduracion: rec.dias_maduracion || 21,
+            dias_maduracion: rec.dias_maduracion || 0,
+            tiempo_curado_salado_dias: rec.tiempo_curado_salado_dias || 0,
+            tiempo_estufado_dias: rec.tiempo_estufado_dias || 0,
+            tiempo_curado_salmuera_dias: rec.tiempo_curado_salmuera_dias || 0,
+            tiempo_coccion_mins: rec.tiempo_coccion_mins || 0,
             details: rec.details ? rec.details.map(d => ({
                 ingredientId: d.ingredientId || '',
                 categoria_tecnologica: d.categoria_tecnologica || 'aditivo',
@@ -841,11 +873,126 @@ export default function CharcuteriaView({
                                         )}
                                     </div>
          
-                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-6">
-                                        <Input label="Lead Time Maduración (Días)" type="number" value={recetaForm.familia_tecnologica === 'embutido_fresco' ? 0 : recetaForm.lead_time_dias} onChange={v => setRecetaForm({ ...recetaForm, lead_time_dias: v })} disabled={recetaForm.familia_tecnologica === 'embutido_fresco'} required />
-                                        <Input label="Merma Secado Objetivo (%)" type="number" value={recetaForm.familia_tecnologica === 'embutido_fresco' ? 0 : recetaForm.merma_secado_objetivo} onChange={v => setRecetaForm({ ...recetaForm, merma_secado_objetivo: v })} disabled={recetaForm.familia_tecnologica === 'embutido_fresco'} required />
-                                        <Input label="Tiempo Prep. (min)" type="number" value={recetaForm.tiempo_preparacion} onChange={v => setRecetaForm({ ...recetaForm, tiempo_preparacion: Number(v) })} suffix="min" required />
-                                        <Input label="Maduración Requerida (Días)" type="number" value={recetaForm.familia_tecnologica === 'embutido_fresco' ? 0 : recetaForm.dias_maduracion} onChange={v => setRecetaForm({ ...recetaForm, dias_maduracion: Number(v) })} disabled={recetaForm.familia_tecnologica === 'embutido_fresco'} suffix="días" required />
+                                    <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 mb-6 space-y-4">
+                                        <div className="flex justify-between items-center border-b border-slate-200 pb-2 mb-2">
+                                            <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Cronometría y Tiempos de Proceso</p>
+                                            <span className="text-[9px] text-slate-400 font-bold bg-slate-200 px-2 py-0.5 rounded">
+                                                Lead Time Calculado: {(() => {
+                                                    const fam = recetaForm.familia_tecnologica;
+                                                    if (fam === 'salazon_cruda') return `${Number(recetaForm.tiempo_curado_salado_dias || 0) + Number(recetaForm.dias_maduracion || 0)} días`;
+                                                    if (fam === 'fermentado_seco') return `${Number(recetaForm.tiempo_estufado_dias || 0) + Number(recetaForm.dias_maduracion || 0)} días`;
+                                                    if (fam === 'salazon_inyectada') return `${Number(recetaForm.tiempo_curado_salmuera_dias || 0)} días`;
+                                                    return '0 días';
+                                                })()}
+                                            </span>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                                            <Input 
+                                                label="Preparación (Minutos)" 
+                                                type="number" 
+                                                value={recetaForm.tiempo_preparacion} 
+                                                onChange={v => setRecetaForm({ ...recetaForm, tiempo_preparacion: Number(v) })} 
+                                                suffix="min" 
+                                                required 
+                                            />
+
+                                            {/* Salazones crudas */}
+                                            {recetaForm.familia_tecnologica === 'salazon_cruda' && (
+                                                <>
+                                                    <Input 
+                                                        label="Curado/Salado (días)" 
+                                                        type="number" 
+                                                        value={recetaForm.tiempo_curado_salado_dias} 
+                                                        onChange={v => setRecetaForm({ ...recetaForm, tiempo_curado_salado_dias: Number(v) })} 
+                                                        suffix="días" 
+                                                        required 
+                                                    />
+                                                    <Input 
+                                                        label="Maduración (días)" 
+                                                        type="number" 
+                                                        value={recetaForm.dias_maduracion} 
+                                                        onChange={v => setRecetaForm({ ...recetaForm, dias_maduracion: Number(v) })} 
+                                                        suffix="días" 
+                                                        required 
+                                                    />
+                                                    <Input 
+                                                        label="Merma Secado Objetivo (%)" 
+                                                        type="number" 
+                                                        value={recetaForm.merma_secado_objetivo} 
+                                                        onChange={v => setRecetaForm({ ...recetaForm, merma_secado_objetivo: v })} 
+                                                        suffix="%" 
+                                                        required 
+                                                    />
+                                                </>
+                                            )}
+
+                                            {/* Fermentados secos */}
+                                            {recetaForm.familia_tecnologica === 'fermentado_seco' && (
+                                                <>
+                                                    <Input 
+                                                        label="Estufado (días)" 
+                                                        type="number" 
+                                                        value={recetaForm.tiempo_estufado_dias} 
+                                                        onChange={v => setRecetaForm({ ...recetaForm, tiempo_estufado_dias: Number(v) })} 
+                                                        suffix="días" 
+                                                        required 
+                                                    />
+                                                    <Input 
+                                                        label="Maduración (días)" 
+                                                        type="number" 
+                                                        value={recetaForm.dias_maduracion} 
+                                                        onChange={v => setRecetaForm({ ...recetaForm, dias_maduracion: Number(v) })} 
+                                                        suffix="días" 
+                                                        required 
+                                                    />
+                                                    <Input 
+                                                        label="Merma Secado Objetivo (%)" 
+                                                        type="number" 
+                                                        value={recetaForm.merma_secado_objetivo} 
+                                                        onChange={v => setRecetaForm({ ...recetaForm, merma_secado_objetivo: v })} 
+                                                        suffix="%" 
+                                                        required 
+                                                    />
+                                                </>
+                                            )}
+
+                                            {/* Salazones inyectadas */}
+                                            {recetaForm.familia_tecnologica === 'salazon_inyectada' && (
+                                                <>
+                                                    <Input 
+                                                        label="Curado/Salmuera (días)" 
+                                                        type="number" 
+                                                        value={recetaForm.tiempo_curado_salmuera_dias} 
+                                                        onChange={v => setRecetaForm({ ...recetaForm, tiempo_curado_salmuera_dias: Number(v) })} 
+                                                        suffix="días" 
+                                                        required 
+                                                    />
+                                                    <Input 
+                                                        label="Cocción (minutos)" 
+                                                        type="number" 
+                                                        value={recetaForm.tiempo_coccion_mins} 
+                                                        onChange={v => setRecetaForm({ ...recetaForm, tiempo_coccion_mins: Number(v) })} 
+                                                        suffix="min" 
+                                                        required 
+                                                    />
+                                                </>
+                                            )}
+
+                                            {/* Emulsiones finas */}
+                                            {recetaForm.familia_tecnologica === 'emulsion_fina' && (
+                                                <>
+                                                    <Input 
+                                                        label="Cocción (minutos)" 
+                                                        type="number" 
+                                                        value={recetaForm.tiempo_coccion_mins} 
+                                                        onChange={v => setRecetaForm({ ...recetaForm, tiempo_coccion_mins: Number(v) })} 
+                                                        suffix="min" 
+                                                        required 
+                                                    />
+                                                </>
+                                            )}
+                                        </div>
                                     </div>
          
                                     {/* Detalle de componentes de la receta */}
@@ -1136,8 +1283,40 @@ export default function CharcuteriaView({
                                                                         <p className="text-[9px] text-slate-400 font-black uppercase tracking-wider mb-2">Resumen Operativo</p>
                                                                         <div className="space-y-1.5 text-[10px] text-slate-600">
                                                                             <div className="flex justify-between border-b pb-1"><span>Prep. Labor:</span> <span className="font-mono font-bold">{t_prep} min</span></div>
-                                                                            <div className="flex justify-between border-b pb-1"><span>Cámara:</span> <span className="font-mono font-bold">{d_maduracion} días</span></div>
-                                                                            <div className="flex justify-between border-b pb-1"><span>Merma Obj:</span> <span className="font-mono font-bold text-red-600">{merma}%</span></div>
+                                                                            
+                                                                            {r.familia_tecnologica === 'salazon_cruda' && (
+                                                                                <>
+                                                                                    <div className="flex justify-between border-b pb-1"><span>Curado/Salado:</span> <span className="font-mono font-bold">{r.tiempo_curado_salado_dias || 0} días</span></div>
+                                                                                    <div className="flex justify-between border-b pb-1"><span>Maduración:</span> <span className="font-mono font-bold">{r.dias_maduracion || 0} días</span></div>
+                                                                                    <div className="flex justify-between border-b pb-1"><span>Merma Obj:</span> <span className="font-mono font-bold text-red-600">{merma}%</span></div>
+                                                                                </>
+                                                                            )}
+
+                                                                            {r.familia_tecnologica === 'fermentado_seco' && (
+                                                                                <>
+                                                                                    <div className="flex justify-between border-b pb-1"><span>Estufado:</span> <span className="font-mono font-bold">{r.tiempo_estufado_dias || 0} días</span></div>
+                                                                                    <div className="flex justify-between border-b pb-1"><span>Maduración:</span> <span className="font-mono font-bold">{r.dias_maduracion || 0} días</span></div>
+                                                                                    <div className="flex justify-between border-b pb-1"><span>Merma Obj:</span> <span className="font-mono font-bold text-red-600">{merma}%</span></div>
+                                                                                </>
+                                                                            )}
+
+                                                                            {r.familia_tecnologica === 'salazon_inyectada' && (
+                                                                                <>
+                                                                                    <div className="flex justify-between border-b pb-1"><span>Curado/Salmuera:</span> <span className="font-mono font-bold">{r.tiempo_curado_salmuera_dias || 0} días</span></div>
+                                                                                    <div className="flex justify-between border-b pb-1"><span>Cocción:</span> <span className="font-mono font-bold">{r.tiempo_coccion_mins || 0} min</span></div>
+                                                                                </>
+                                                                            )}
+
+                                                                            {r.familia_tecnologica === 'emulsion_fina' && (
+                                                                                <>
+                                                                                    <div className="flex justify-between border-b pb-1"><span>Cocción:</span> <span className="font-mono font-bold">{r.tiempo_coccion_mins || 0} min</span></div>
+                                                                                </>
+                                                                            )}
+
+                                                                            {r.familia_tecnologica === 'embutido_fresco' && (
+                                                                                <div className="flex justify-between border-b pb-1"><span>Proceso:</span> <span className="font-mono font-bold text-indigo-600">Fresco</span></div>
+                                                                            )}
+                                                                            
                                                                             <div className="flex justify-between pt-1"><span>Costo Lote ({batchWeight / 1000}kg):</span> <span className="font-mono font-bold text-slate-800">{fmtCost(totalCostOfBatch)}</span></div>
                                                                         </div>
                                                                     </div>
