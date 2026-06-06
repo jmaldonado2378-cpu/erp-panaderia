@@ -107,142 +107,44 @@ export default function KanbanView({
 
     return (
         <div className="space-y-4 h-[calc(100vh-210px)] flex flex-col print:h-auto">
-            {/* SECTOR SELECTOR */}
+            {/* FILTROS DE SECTOR KANBAN */}
             <div className="flex gap-2 items-center bg-white p-3 rounded-xl border shadow-sm print:hidden">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Línea de Producción:</span>
-                <button 
-                    onClick={() => setSelectedSector('bakery')} 
-                    className={`px-4 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all ${selectedSector === 'bakery' ? 'bg-slate-900 text-white shadow-md' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
-                >
-                    🥐 Panificación
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Filtrar Línea:</span>
+                <button onClick={() => setFilterFamilia('TODAS')} className={`px-3 py-1 rounded-md text-[9px] font-black uppercase transition-all ${filterFamilia === 'TODAS' ? 'bg-slate-900 text-white shadow-sm' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>
+                    Todas las Líneas
                 </button>
-                <button 
-                    onClick={() => setSelectedSector('charcuteria')} 
-                    className={`px-4 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all ${selectedSector === 'charcuteria' ? 'bg-slate-900 text-white shadow-md' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
-                >
-                    🍖 Charcutería (Cámaras)
-                </button>
-                <button 
-                    onClick={() => setSelectedSector('fraccionamiento')} 
-                    className={`px-4 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all ${selectedSector === 'fraccionamiento' ? 'bg-slate-900 text-white shadow-md' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
-                >
-                    ⚖ Fraccionamiento
-                </button>
+                {Object.values(FAMILIAS).map(f => (
+                    <button key={f.id} onClick={() => setFilterFamilia(f.id)} className={`px-3 py-1 rounded-md text-[9px] font-black uppercase transition-all ${filterFamilia === f.id ? 'bg-orange-600 text-white shadow-sm' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>
+                        {f.nombre}
+                    </button>
+                ))}
             </div>
 
-            {/* SECTOR: BAKERY (PANIFICACIÓN) */}
-            {selectedSector === 'bakery' && (
-                <>
-                    {/* FILTROS DE SECTOR KANBAN */}
-                    <div className="flex gap-2 items-center bg-white p-3 rounded-xl border shadow-sm print:hidden">
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Filtrar Línea:</span>
-                        <button onClick={() => setFilterFamilia('TODAS')} className={`px-3 py-1 rounded-md text-[9px] font-black uppercase transition-all ${filterFamilia === 'TODAS' ? 'bg-slate-900 text-white shadow-sm' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>
-                            Todas las Líneas
-                        </button>
-                        {Object.values(FAMILIAS).map(f => (
-                            <button key={f.id} onClick={() => setFilterFamilia(f.id)} className={`px-3 py-1 rounded-md text-[9px] font-black uppercase transition-all ${filterFamilia === f.id ? 'bg-orange-600 text-white shadow-sm' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>
-                                {f.nombre}
-                            </button>
-                        ))}
-                    </div>
-
-                    <div className="flex gap-4 flex-1 overflow-x-auto pb-4">
-                        {ETAPAS_KANBAN.map(etapa => (
-                            <div key={etapa.id} className="fall-target w-64 flex-shrink-0 flex flex-col bg-slate-100 rounded-xl border border-slate-200 shadow-inner">
-                                <div className="p-3 bg-white border-b-2 border-slate-200 flex justify-between items-center rounded-t-xl">
-                                    <div className="flex items-center gap-1.5 font-black text-[9px] uppercase text-slate-800">{etapa.icon} {etapa.nombre}</div>
-                                    <span className="text-[9px] font-black text-white bg-slate-900 px-1.5 py-0.5 rounded-full">{filteredOrders.filter(o => o.status === etapa.id || o.estado === etapa.id).length}</span>
-                                </div>
-                                <div className="flex-1 p-2.5 overflow-y-auto space-y-2.5">
-                                    {filteredOrders.filter(o => (o.status || o.estado) === etapa.id).map(o => {
-                                        const rec = recipes.find(r => r.id === (o.recipeId || o.receta_id));
-                                        return (
-                                            <Card key={o.id} className="p-4 hover:border-orange-500 transition-all border-2 border-transparent group shadow-sm bg-white">
-                                                <div className="flex justify-between items-center mb-2"><span className="text-[8px] font-mono font-bold text-slate-400">{o.codigo_orden || o.id}</span></div>
-                                                <h5 className="font-black text-xs uppercase text-slate-800 leading-tight mb-3 italic truncate" title={rec?.nombre_producto}>{rec?.nombre_producto || 'Cargando...'}</h5>
-                                                <div className="flex justify-between items-end border-t border-slate-100 pt-2 mt-1">
-                                                    <div><p className="text-[7px] font-black uppercase text-slate-400">Meta Lote</p><p className="text-xs font-black text-blue-700 font-mono leading-none mt-0.5">{o.targetAmount || o.cantidad_objetivo}</p></div>
-                                                    {etapa.id !== 'TERMINADA' && (<button onClick={() => etapa.id === 'CALIDAD' ? setSelected(o) : moveOrder(o.id, ETAPAS_KANBAN[ETAPAS_KANBAN.findIndex(e => e.id === etapa.id) + 1].id)} className="opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900 text-white p-1.5 rounded-md hover:bg-orange-500 shadow-sm"><ArrowRight size={12} /></button>)}
-                                                </div>
-                                            </Card>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </>
-            )}
-
-            {/* SECTOR: CHARCUTERÍA (CÁMARAS) */}
-            {selectedSector === 'charcuteria' && (
-                <div className="flex-1 flex items-center justify-center p-12">
-                    <Card className="max-w-xl p-8 border border-slate-200 text-center bg-white shadow-2xl rounded-2xl flex flex-col items-center">
-                        <div className="bg-amber-100 p-4 rounded-full text-amber-600 mb-4 animate-bounce">
-                            <ThermometerSun size={36} />
+            <div className="flex gap-4 flex-1 overflow-x-auto pb-4">
+                {ETAPAS_KANBAN.map(etapa => (
+                    <div key={etapa.id} className="fall-target w-64 flex-shrink-0 flex flex-col bg-slate-100 rounded-xl border border-slate-200 shadow-inner">
+                        <div className="p-3 bg-white border-b-2 border-slate-200 flex justify-between items-center rounded-t-xl">
+                            <div className="flex items-center gap-1.5 font-black text-[9px] uppercase text-slate-800">{etapa.icon} {etapa.nombre}</div>
+                            <span className="text-[9px] font-black text-white bg-slate-900 px-1.5 py-0.5 rounded-full">{filteredOrders.filter(o => o.status === etapa.id || o.estado === etapa.id).length}</span>
                         </div>
-                        <h4 className="text-lg font-black uppercase italic text-slate-800 mb-2">Monitoreo Exclusivo de Cámaras</h4>
-                        <p className="text-xs text-slate-500 leading-relaxed mb-6">
-                            Por diseño del flujo de curado (curing), que requiere un seguimiento de semanas de deshidratación controlada, 
-                            los lotes de Charcutería se administran exclusivamente desde el panel específico de Cámaras de Maduración.
-                        </p>
-                        <Link href="/charcuteria" className="px-6 py-3 bg-slate-900 hover:bg-orange-600 text-white font-black uppercase text-xs tracking-wider rounded-xl transition-all shadow-md active:scale-95 flex items-center gap-2">
-                            Abrir Cámaras de Maduración <ArrowRight size={14} />
-                        </Link>
-                    </Card>
-                </div>
-            )}
-
-            {/* SECTOR: FRACCIONAMIENTO */}
-            {selectedSector === 'fraccionamiento' && (
-                <div className="flex gap-4 flex-1 overflow-x-auto pb-4">
-                    {[
-                        { id: 'PENDIENTE', nombre: 'Tareas Planificadas', color: 'border-blue-500', icon: <Scale size={16} /> },
-                        { id: 'COMPLETADO', nombre: 'Porcionados Listos', color: 'border-emerald-500', icon: <ShieldCheck size={16} /> }
-                    ].map(etapa => (
-                        <div key={etapa.id} className="fall-target w-80 flex-shrink-0 flex flex-col bg-slate-100 rounded-xl border border-slate-200 shadow-inner">
-                            <div className="p-3 bg-white border-b-2 border-slate-200 flex justify-between items-center rounded-t-xl">
-                                <div className="flex items-center gap-1.5 font-black text-[9px] uppercase text-slate-800">{etapa.icon} {etapa.nombre}</div>
-                                <span className="text-[9px] font-black text-white bg-slate-900 px-1.5 py-0.5 rounded-full">
-                                    {fraccTareas.filter(t => t.estado === etapa.id).length}
-                                </span>
-                            </div>
-                            <div className="flex-1 p-2.5 overflow-y-auto space-y-2.5">
-                                {fraccTareas.filter(t => t.estado === etapa.id).map(t => {
-                                    const granelIng = ingredients.find(i => i.id === t.insumo_granel_id);
-                                    return (
-                                        <Card key={t.id} className={`p-4 hover:border-slate-400 transition-all border-2 border-transparent group shadow-sm bg-white`}>
-                                            <div className="flex justify-between items-center mb-2">
-                                                <span className="text-[8px] font-mono font-bold text-slate-400">{t.lote_pt_generado}</span>
-                                                <span className="text-[8px] text-slate-400">{new Date(t.fecha_tarea || t.created_at).toLocaleDateString('es-AR')}</span>
-                                            </div>
-                                            <h5 className="font-black text-xs uppercase text-slate-800 leading-tight mb-2 italic truncate">{granelIng?.name || 'Insumo'}</h5>
-                                            <p className="text-[10px] text-slate-500 font-medium">Cantidad: {(t.cantidad_granel_consumida_g / 1000).toFixed(2)} kg granel</p>
-                                            <p className="text-[10px] text-slate-500 font-medium mt-0.5">Formato Bolsa: {t.formato_bolsa_g} g</p>
-                                            {t.estado === 'COMPLETADO' && (
-                                                <p className="text-[10px] text-emerald-600 font-black mt-2 bg-emerald-50 px-2 py-0.5 rounded inline-block">Bolsas Obtenidas: {t.cantidad_bolsas_obtenidas} u</p>
-                                            )}
-                                            {t.estado === 'PENDIENTE' && (
-                                                <div className="flex justify-end mt-4 border-t pt-2">
-                                                    <button 
-                                                        onClick={() => handleCompleteFracc(t)}
-                                                        className="bg-slate-900 hover:bg-emerald-600 text-white text-[9px] font-black px-3 py-1.5 rounded uppercase flex items-center gap-1 active:scale-95 transition-all shadow-sm"
-                                                    >
-                                                        Completar Tarea <ArrowRight size={10} />
-                                                    </button>
-                                                </div>
-                                            )}
-                                        </Card>
-                                    );
-                                })}
-                                {fraccTareas.filter(t => t.estado === etapa.id).length === 0 && (
-                                    <p className="text-xs text-slate-400 italic text-center py-8">No hay tareas en esta etapa.</p>
-                                )}
-                            </div>
+                        <div className="flex-1 p-2.5 overflow-y-auto space-y-2.5">
+                            {filteredOrders.filter(o => (o.status || o.estado) === etapa.id).map(o => {
+                                const rec = recipes.find(r => r.id === (o.recipeId || o.receta_id));
+                                return (
+                                    <Card key={o.id} className="p-4 hover:border-orange-500 transition-all border-2 border-transparent group shadow-sm bg-white">
+                                        <div className="flex justify-between items-center mb-2"><span className="text-[8px] font-mono font-bold text-slate-400">{o.codigo_orden || o.id}</span></div>
+                                        <h5 className="font-black text-xs uppercase text-slate-800 leading-tight mb-3 italic truncate" title={rec?.nombre_producto}>{rec?.nombre_producto || 'Cargando...'}</h5>
+                                        <div className="flex justify-between items-end border-t border-slate-100 pt-2 mt-1">
+                                            <div><p className="text-[7px] font-black uppercase text-slate-400">Meta Lote</p><p className="text-xs font-black text-blue-700 font-mono leading-none mt-0.5">{o.targetAmount || o.cantidad_objetivo}</p></div>
+                                            {etapa.id !== 'TERMINADA' && (<button onClick={() => etapa.id === 'CALIDAD' ? setSelected(o) : moveOrder(o.id, ETAPAS_KANBAN[ETAPAS_KANBAN.findIndex(e => e.id === etapa.id) + 1].id)} className="opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900 text-white p-1.5 rounded-md hover:bg-orange-500 shadow-sm"><ArrowRight size={12} /></button>)}
+                                        </div>
+                                    </Card>
+                                );
+                            })}
                         </div>
-                    ))}
-                </div>
-            )}
+                    </div>
+                ))}
+            </div>
 
             {/* AUDITORÍA MODAL - BAKERY */}
             {selected && (

@@ -120,6 +120,7 @@ const MOCK_CHARC_RECETAS = [
         tiempo_estufado_dias: 2,
         tiempo_curado_salmuera_dias: 0,
         tiempo_coccion_mins: 0,
+        tamano_lote_kg: 10.0000,
         version: 1, 
         details: [
             { ingredientId: 'i6', gramos: 6500, porcentaje_base: 65.00, categoria_tecnologica: 'magro', secuencia_mezcla: 1 },
@@ -147,6 +148,7 @@ const MOCK_CHARC_RECETAS = [
         tiempo_estufado_dias: 0,
         tiempo_curado_salmuera_dias: 0,
         tiempo_coccion_mins: 0,
+        tamano_lote_kg: 1.0000,
         version: 1, 
         details: [
             { ingredientId: 'i6', gramos: 1000, porcentaje_base: 100.00, categoria_tecnologica: 'magro', secuencia_mezcla: 1 },
@@ -587,8 +589,21 @@ export const GlobalProvider = ({ children }) => {
     // ── CHARCUTERÍA ────────────────────────────────────────────────
     const addCharcReceta = async (receta, details) => {
         try {
-            const { data, error } = await supabase.from('charc_recetas').insert([receta]).select();
-            if (error) throw error;
+            let data, error;
+            const res = await supabase.from('charc_recetas').insert([receta]).select();
+            data = res.data;
+            error = res.error;
+            
+            if (error && (error.code === '42703' || error.message.includes('tamano_lote_kg'))) {
+                console.warn("Columna 'tamano_lote_kg' no existe en DB, reintentando sin ella");
+                const { tamano_lote_kg, ...cleanReceta } = receta;
+                const retry = await supabase.from('charc_recetas').insert([cleanReceta]).select();
+                if (retry.error) throw retry.error;
+                data = retry.data;
+            } else if (error) {
+                throw error;
+            }
+            
             const newId = data[0].id;
             
             // Guardar detalles
@@ -602,7 +617,7 @@ export const GlobalProvider = ({ children }) => {
             }));
             await supabase.from('charc_receta_ingredientes').insert(detInserts);
 
-            setCharcRecetas(prev => [{ ...data[0], details: details }, ...prev]);
+            setCharcRecetas(prev => [{ ...data[0], tamano_lote_kg: receta.tamano_lote_kg, details: details }, ...prev]);
             showToast("Receta de charcutería guardada.");
         } catch (err) {
             console.warn("Fallo persistencia, guardando localmente:", err.message);
@@ -615,7 +630,14 @@ export const GlobalProvider = ({ children }) => {
     const updateCharcReceta = async (id, receta, details) => {
         try {
             const { error } = await supabase.from('charc_recetas').update(receta).eq('id', id);
-            if (error) throw error;
+            if (error && (error.code === '42703' || error.message.includes('tamano_lote_kg'))) {
+                console.warn("Columna 'tamano_lote_kg' no existe en DB, reintentando sin ella");
+                const { tamano_lote_kg, ...cleanReceta } = receta;
+                const retry = await supabase.from('charc_recetas').update(cleanReceta).eq('id', id);
+                if (retry.error) throw retry.error;
+            } else if (error) {
+                throw error;
+            }
             
             // Eliminar detalles viejos e insertar los nuevos
             const { error: delError } = await supabase.from('charc_receta_ingredientes').delete().eq('receta_id', id);
@@ -695,26 +717,171 @@ export const GlobalProvider = ({ children }) => {
     };
 
     // ── FRACCIONAMIENTO ────────────────────────────────────────────
-    const addFraccTarea = async (tarea) => {
+    const addFraccTarea = async (tarea, granelLoteId, empaqueLoteId, newLotInsumo) => {
         try {
-            const { data, error } = await supabase.from('fracc_tareas').insert([tarea]).select();
+            // 1. Insert/Update task in fracc_tareas
+            let data, error;
+            if (tarea.id && !String(tarea.id).startsWith('ft_') && !String(tarea.id).startsWith('o_')) {
+                const res = await supabase.from('fracc_tareas').update({
+                    cantidad_granel_consumida_g: tarea.cantidad_granel_consumida_g,
+                    cantidad_bolsas_obtenidas: tarea.cantidad_bolsas_obtenidas,
+                    estado: 'COMPLETADO',
+                    fecha_tarea: new Date().toISOString()
+                }).eq('id', tarea.id).select();
+                data = res.data;
+                error = res.error;
+            } else {
+                const res = await supabase.from('fracc_tareas').insert([tarea]).select();
+                data = res.data;
+                error = res.error;
+            }
             if (error) throw error;
-            setFraccTareas(prev => [data[0], ...prev]);
             
-            // Deducción automática de stock de insumos FEFO
-            deductIngredientStock(tarea.insumo_granel_id, tarea.cantidad_granel_consumida_g);
-            deductIngredientStock(tarea.empaque_id, tarea.cantidad_bolsas_obtenidas);
-            
-            showToast("Fraccionamiento guardado y stock descontado.");
+            // 2. Update stock of consumed lots in DB
+            if (granelLoteId) {
+                const granelL = lots.find(l => l.id === granelLoteId);
+                if (granelL) {
+                    const newAmt = Math.max(0, granelL.amount - tarea.cantidad_granel_consumida_g);
+                    await supabase.from('lotes_insumos').update({ cantidad_actual: newAmt }).eq('id', granelLoteId);
+                }
+            }
+            if (empaqueLoteId) {
+                const empaqueL = lots.find(l => l.id === empaqueLoteId);
+                if (empaqueL) {
+                    const newAmt = Math.max(0, empaqueL.amount - tarea.cantidad_bolsas_obtenidas);
+                    await supabase.from('lotes_insumos').update({ cantidad_actual: newAmt }).eq('id', empaqueLoteId);
+                }
+            }
+
+            // 3. Insert new lot in DB
+            let insertedLot = null;
+            if (newLotInsumo) {
+                const { data: lotData, error: lotErr } = await supabase.from('lotes_insumos').insert([newLotInsumo]).select();
+                if (lotErr) throw lotErr;
+                if (lotData) insertedLot = lotData[0];
+            }
+
+            // 4. Update corresponding production order in DB and local state
+            try {
+                const { data: ords } = await supabase.from('ordenes_produccion').select('id, observaciones');
+                if (ords) {
+                    const match = ords.find(o => {
+                        try {
+                            const obs = JSON.parse(o.observaciones);
+                            return obs.linea === 'fraccionamiento' && String(obs.lote_pt_generado).toUpperCase() === String(tarea.lote_pt_generado).toUpperCase();
+                        } catch(e) { return false; }
+                    });
+                    if (match) {
+                        await supabase.from('ordenes_produccion').update({ estado: 'COMPLETADO' }).eq('id', match.id);
+                        setOrders(prev => prev.map(o => o.id === match.id ? { ...o, estado: 'COMPLETADO', status: 'COMPLETADO' } : o));
+                    }
+                }
+            } catch(e) {
+                console.warn("Error matching production order:", e.message);
+            }
+
+            // 5. Update local state
+            setFraccTareas(prev => {
+                const taskToSave = data && data[0] ? data[0] : tarea;
+                const exists = prev.some(t => t.id === taskToSave.id);
+                if (exists) {
+                    return prev.map(t => t.id === taskToSave.id ? taskToSave : t);
+                }
+                return [taskToSave, ...prev];
+            });
+
+            setLots(prev => {
+                let step1 = prev.map(l => {
+                    if (l.id === granelLoteId) {
+                        return { ...l, amount: Math.max(0, l.amount - tarea.cantidad_granel_consumida_g) };
+                    }
+                    if (l.id === empaqueLoteId) {
+                        return { ...l, amount: Math.max(0, l.amount - tarea.cantidad_bolsas_obtenidas) };
+                    }
+                    return l;
+                });
+                if (insertedLot) {
+                    const mappedLot = {
+                        id: insertedLot.id,
+                        codigo_lote: insertedLot.codigo_lote,
+                        ingredientId: insertedLot.ingrediente_id,
+                        providerId: insertedLot.proveedor_id,
+                        amount: insertedLot.cantidad_actual,
+                        unitPrice: insertedLot.costo_unitario,
+                        expiry: insertedLot.fecha_vencimiento,
+                        ingreso: insertedLot.fecha_ingreso,
+                        unidad: insertedLot.unidad
+                    };
+                    return [mappedLot, ...step1];
+                } else if (newLotInsumo) {
+                    const localMappedLot = {
+                        id: 'l_' + Date.now(),
+                        codigo_lote: newLotInsumo.codigo_lote,
+                        ingredientId: newLotInsumo.ingrediente_id,
+                        providerId: null,
+                        amount: newLotInsumo.cantidad_actual,
+                        unitPrice: newLotInsumo.costo_unitario,
+                        expiry: newLotInsumo.fecha_vencimiento,
+                        ingreso: newLotInsumo.fecha_ingreso,
+                        unidad: newLotInsumo.unidad
+                    };
+                    return [localMappedLot, ...step1];
+                }
+                return step1;
+            });
+
+            showToast("✅ Fraccionamiento completado e inventario actualizado.");
         } catch (err) {
             console.warn("Fallo persistencia, guardando localmente:", err.message);
-            const localTask = { id: 'ft_' + Date.now(), ...tarea, fecha_tarea: new Date().toISOString() };
-            setFraccTareas(prev => [localTask, ...prev]);
+            const localTask = { id: tarea.id || 'ft_' + Date.now(), ...tarea, estado: 'COMPLETADO', fecha_tarea: new Date().toISOString() };
             
-            deductIngredientStock(tarea.insumo_granel_id, tarea.cantidad_granel_consumida_g);
-            deductIngredientStock(tarea.empaque_id, tarea.cantidad_bolsas_obtenidas);
+            // Local update for matching order
+            setOrders(prev => prev.map(o => {
+                try {
+                    const obs = JSON.parse(o.observaciones);
+                    if (obs.linea === 'fraccionamiento' && String(obs.lote_pt_generado).toUpperCase() === String(tarea.lote_pt_generado).toUpperCase()) {
+                        return { ...o, estado: 'COMPLETADO', status: 'COMPLETADO' };
+                    }
+                } catch(e) {}
+                return o;
+            }));
+
+            setFraccTareas(prev => {
+                const exists = prev.some(t => t.id === localTask.id);
+                if (exists) {
+                    return prev.map(t => t.id === localTask.id ? localTask : t);
+                }
+                return [localTask, ...prev];
+            });
+
+            setLots(prev => {
+                let step1 = prev.map(l => {
+                    if (l.id === granelLoteId) {
+                        return { ...l, amount: Math.max(0, l.amount - tarea.cantidad_granel_consumida_g) };
+                    }
+                    if (l.id === empaqueLoteId) {
+                        return { ...l, amount: Math.max(0, l.amount - tarea.cantidad_bolsas_obtenidas) };
+                    }
+                    return l;
+                });
+                if (newLotInsumo) {
+                    const localMappedLot = {
+                        id: 'l_' + Date.now(),
+                        codigo_lote: newLotInsumo.codigo_lote,
+                        ingredientId: newLotInsumo.ingrediente_id,
+                        providerId: null,
+                        amount: newLotInsumo.cantidad_actual,
+                        unitPrice: newLotInsumo.costo_unitario,
+                        expiry: newLotInsumo.fecha_vencimiento,
+                        ingreso: newLotInsumo.fecha_ingreso,
+                        unidad: newLotInsumo.unidad
+                    };
+                    return [localMappedLot, ...step1];
+                }
+                return step1;
+            });
             
-            showToast("Fraccionamiento registrado localmente (Offline)");
+            showToast("✅ Fraccionamiento guardado localmente (Offline).");
         }
     };
 

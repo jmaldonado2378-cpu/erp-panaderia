@@ -11,6 +11,23 @@ export default function ProductionOrdersView({
 }) {
     const [sector, setSector] = useState('bakery'); // 'bakery', 'charcuteria', 'fraccionamiento'
     
+    // Helper to parse observations
+    const parseObs = (obs) => {
+        try {
+            return obs ? JSON.parse(obs) : {};
+        } catch (e) {
+            return {};
+        }
+    };
+
+    const FAMILIAS_CHARC = {
+        fermentado_seco: { color: 'bg-red-700' },
+        salazon_cruda: { color: 'bg-amber-600' },
+        emulsion_fina: { color: 'bg-blue-600' },
+        salazon_inyectada: { color: 'bg-emerald-600' },
+        embutido_fresco: { color: 'bg-indigo-600' }
+    };
+    
     // Formulario de Panificados
     const [form, setForm] = useState({ recipeId: '', amount: '' });
     
@@ -91,23 +108,48 @@ export default function ProductionOrdersView({
                 setSaving(false);
                 return;
             }
-            const selectedRec = charcRecetas.find(r => r.id === charcForm.receta_id);
-            const vencimiento = charcForm.fecha_vencimiento || new Date(Date.now() + (selectedRec?.lead_time_dias || 30) * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
             
-            const lote = {
-                receta_id: charcForm.receta_id,
-                codigo_lote: charcForm.codigo_lote.toUpperCase(),
-                peso_inicial_g: Number(charcForm.peso_inicial_g),
-                peso_actual_g: Number(charcForm.peso_inicial_g),
-                estado: 'EN_SECADO',
-                fecha_ingreso: new Date().toISOString(),
-                fecha_vencimiento: vencimiento
+            const metadata = {
+                linea: 'charcuteria',
+                charc_receta_id: charcForm.receta_id,
+                codigo_lote: charcForm.codigo_lote.toUpperCase()
             };
-            if (addCharcLote) {
-                await addCharcLote(lote);
+
+            try {
+                const { data, error } = await supabase
+                    .from('ordenes_produccion')
+                    .insert([{
+                        codigo_orden: codigoOrden,
+                        receta_id: null,
+                        cantidad_objetivo: Number(charcForm.peso_inicial_g),
+                        unidad: 'gramos',
+                        estado: 'PLANIFICADA',
+                        fecha: new Date().toISOString().split('T')[0],
+                        observaciones: JSON.stringify(metadata)
+                    }])
+                    .select();
+                if (error) throw error;
+                if (data) {
+                    setOrders([{ ...data[0], recipeId: null, targetAmount: data[0].cantidad_objetivo, status: data[0].estado }, ...orders]);
+                }
+                showToast("✅ Orden de Charcutería planificada.");
+            } catch (err) {
+                console.warn("Error Supabase. Guardando localmente:", err.message);
+                const localOrder = {
+                    id: 'o_' + Date.now(),
+                    codigo_orden: codigoOrden,
+                    receta_id: null,
+                    cantidad_objetivo: Number(charcForm.peso_inicial_g),
+                    unidad: 'gramos',
+                    estado: 'PLANIFICADA',
+                    status: 'PLANIFICADA',
+                    fecha: new Date().toISOString().split('T')[0],
+                    observaciones: JSON.stringify(metadata)
+                };
+                setOrders([localOrder, ...orders]);
+                showToast("✅ Orden guardada localmente (Offline).");
             }
             setCharcForm({ receta_id: '', codigo_lote: '', peso_inicial_g: '', fecha_vencimiento: '' });
-            showToast("✅ Lote de Charcutería registrado en secado.");
         }
         else if (sector === 'fraccionamiento') {
             if (!fraccForm.insumo_granel_id || !fraccForm.empaque_id || !fraccForm.cantidad_granel_consumida_g || !fraccForm.lote_pt_generado) {
@@ -115,36 +157,132 @@ export default function ProductionOrdersView({
                 setSaving(false);
                 return;
             }
-            const task = {
+            
+            const metadata = {
+                linea: 'fraccionamiento',
                 insumo_granel_id: fraccForm.insumo_granel_id,
-                cantidad_granel_consumida_g: Number(fraccForm.cantidad_granel_consumida_g),
                 empaque_id: fraccForm.empaque_id,
                 formato_bolsa_g: Number(fraccForm.formato_bolsa_g),
-                cantidad_bolsas_obtenidas: 0,
-                lote_pt_generado: fraccForm.lote_pt_generado.toUpperCase(),
-                estado: 'PENDIENTE',
-                fecha_tarea: new Date().toISOString()
+                lote_pt_generado: fraccForm.lote_pt_generado.toUpperCase()
             };
-            if (addFraccTarea) {
-                await addFraccTarea(task);
+
+            try {
+                const { data, error } = await supabase
+                    .from('ordenes_produccion')
+                    .insert([{
+                        codigo_orden: codigoOrden,
+                        receta_id: null,
+                        cantidad_objetivo: Number(fraccForm.cantidad_granel_consumida_g),
+                        unidad: 'gramos',
+                        estado: 'PLANIFICADA',
+                        fecha: new Date().toISOString().split('T')[0],
+                        observaciones: JSON.stringify(metadata)
+                    }])
+                    .select();
+                if (error) throw error;
+                if (data) {
+                    setOrders([{ ...data[0], recipeId: null, targetAmount: data[0].cantidad_objetivo, status: data[0].estado }, ...orders]);
+                }
+                showToast("✅ Orden de Fraccionamiento planificada.");
+            } catch (err) {
+                console.warn("Error Supabase. Guardando localmente:", err.message);
+                const localOrder = {
+                    id: 'o_' + Date.now(),
+                    codigo_orden: codigoOrden,
+                    receta_id: null,
+                    cantidad_objetivo: Number(fraccForm.cantidad_granel_consumida_g),
+                    unidad: 'gramos',
+                    estado: 'PLANIFICADA',
+                    status: 'PLANIFICADA',
+                    fecha: new Date().toISOString().split('T')[0],
+                    observaciones: JSON.stringify(metadata)
+                };
+                setOrders([localOrder, ...orders]);
+                showToast("✅ Orden guardada localmente (Offline).");
             }
             setFraccForm({ insumo_granel_id: '', empaque_id: '', formato_bolsa_g: 100, cantidad_granel_consumida_g: '', lote_pt_generado: '' });
-            showToast("✅ Tarea de Fraccionamiento planificada.");
         }
         setSaving(false);
     };
 
     const activateOrder = async (id) => {
+        const orderToActivate = orders.find(o => o.id === id);
+        if (!orderToActivate) return;
+        const obsData = parseObs(orderToActivate.observaciones);
+        const isCharc = obsData.linea === 'charcuteria';
+        const isFracc = obsData.linea === 'fraccionamiento';
+        
+        const targetState = isCharc ? 'PREPARACION' : isFracc ? 'PENDIENTE' : 'PESAJE';
+        const toastMsg = isCharc ? 'Orden derivada a Preparación en Cámaras.' : isFracc ? 'Orden derivada a Fraccionamiento.' : 'Orden activada en Kanban de Planta.';
+
         try {
-            const { error } = await supabase.from('ordenes_produccion').update({ estado: 'PESAJE' }).eq('id', id);
+            const { error } = await supabase.from('ordenes_produccion').update({ estado: targetState }).eq('id', id);
             if (error) throw error;
-            setOrders(orders.map(o => o.id === id ? { ...o, status: 'PESAJE', estado: 'PESAJE' } : o));
+            
+            if (isCharc) {
+                const rec = charcRecetas.find(r => r.id === obsData.charc_receta_id);
+                const vencimiento = new Date(Date.now() + (rec?.lead_time_dias || 30) * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+                const lote = {
+                    receta_id: obsData.charc_receta_id,
+                    codigo_lote: obsData.codigo_lote,
+                    peso_inicial_g: Number(orderToActivate.cantidad_objetivo || orderToActivate.targetAmount),
+                    peso_actual_g: Number(orderToActivate.cantidad_objetivo || orderToActivate.targetAmount),
+                    estado: 'PREPARACION',
+                    fecha_ingreso: new Date().toISOString(),
+                    fecha_vencimiento: vencimiento
+                };
+                if (addCharcLote) await addCharcLote(lote);
+            } else if (isFracc) {
+                const task = {
+                    insumo_granel_id: obsData.insumo_granel_id,
+                    cantidad_granel_consumida_g: Number(orderToActivate.cantidad_objetivo || orderToActivate.targetAmount),
+                    empaque_id: obsData.empaque_id,
+                    formato_bolsa_g: Number(obsData.formato_bolsa_g),
+                    cantidad_bolsas_obtenidas: 0,
+                    lote_pt_generado: obsData.lote_pt_generado,
+                    estado: 'PENDIENTE',
+                    fecha_tarea: new Date().toISOString()
+                };
+                if (addFraccTarea) await addFraccTarea(task);
+            }
+
+            setOrders(orders.map(o => o.id === id ? { ...o, status: targetState, estado: targetState } : o));
             setSelectedOrder(null);
-            showToast("Orden activada en Kanban de Planta.");
+            showToast(toastMsg);
         } catch (err) {
-            setOrders(orders.map(o => o.id === id ? { ...o, status: 'PESAJE', estado: 'PESAJE' } : o));
+            console.error("Error activating order:", err.message);
+            // Local fallback
+            if (isCharc) {
+                const rec = charcRecetas.find(r => r.id === obsData.charc_receta_id);
+                const vencimiento = new Date(Date.now() + (rec?.lead_time_dias || 30) * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+                const lote = {
+                    id: 'cl_' + Date.now(),
+                    receta_id: obsData.charc_receta_id,
+                    codigo_lote: obsData.codigo_lote,
+                    peso_inicial_g: Number(orderToActivate.cantidad_objetivo || orderToActivate.targetAmount),
+                    peso_actual_g: Number(orderToActivate.cantidad_objetivo || orderToActivate.targetAmount),
+                    estado: 'PREPARACION',
+                    fecha_ingreso: new Date().toISOString(),
+                    fecha_vencimiento: vencimiento
+                };
+                if (addCharcLote) addCharcLote(lote);
+            } else if (isFracc) {
+                const task = {
+                    id: 'ft_' + Date.now(),
+                    insumo_granel_id: obsData.insumo_granel_id,
+                    cantidad_granel_consumida_g: Number(orderToActivate.cantidad_objetivo || orderToActivate.targetAmount),
+                    empaque_id: obsData.empaque_id,
+                    formato_bolsa_g: Number(obsData.formato_bolsa_g),
+                    cantidad_bolsas_obtenidas: 0,
+                    lote_pt_generado: obsData.lote_pt_generado,
+                    estado: 'PENDIENTE',
+                    fecha_tarea: new Date().toISOString()
+                };
+                if (addFraccTarea) addFraccTarea(task);
+            }
+            setOrders(orders.map(o => o.id === id ? { ...o, status: targetState, estado: targetState } : o));
             setSelectedOrder(null);
-            showToast("Orden activada localmente (Offline).");
+            showToast(toastMsg + " (Local/Offline)");
         }
     };
 
@@ -250,7 +388,7 @@ export default function ProductionOrdersView({
                         
                         {sector === 'bakery' && (
                             <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
-                                {orders.filter(o => (o.status || o.estado) === 'PLANIFICADA').map(o => {
+                                {orders.filter(o => (o.status || o.estado) === 'PLANIFICADA' && (!o.receta_id || !parseObs(o.observaciones).linea || parseObs(o.observaciones).linea === 'bakery')).map(o => {
                                     const rec = recipes.find(r => r.id === (o.recipeId || o.receta_id));
                                     const unitLabel = rec?.formato_venta === 'Kg' ? 'Kg' : 'U';
                                     return (
@@ -261,7 +399,7 @@ export default function ProductionOrdersView({
                                         </div>
                                     );
                                 })}
-                                {orders.filter(o => (o.status || o.estado) === 'PLANIFICADA').length === 0 && (
+                                {orders.filter(o => (o.status || o.estado) === 'PLANIFICADA' && (!o.receta_id || !parseObs(o.observaciones).linea || parseObs(o.observaciones).linea === 'bakery')).length === 0 && (
                                     <p className="text-xs text-slate-400 italic text-center py-4">Sin órdenes pendientes</p>
                                 )}
                             </div>
@@ -269,36 +407,38 @@ export default function ProductionOrdersView({
 
                         {sector === 'charcuteria' && (
                             <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
-                                {charcLotes.filter(l => l.estado === 'EN_SECADO').map(l => {
-                                    const rec = charcRecetas.find(r => r.id === l.receta_id);
+                                {orders.filter(o => (o.status || o.estado) === 'PLANIFICADA' && parseObs(o.observaciones).linea === 'charcuteria').map(o => {
+                                    const obs = parseObs(o.observaciones);
+                                    const rec = charcRecetas.find(r => r.id === obs.charc_receta_id);
                                     return (
-                                        <div key={l.id} className="p-3 rounded-lg border border-slate-200 bg-white">
-                                            <p className="text-[9px] font-mono font-bold text-slate-400">{l.codigo_lote}</p>
-                                            <p className="text-[11px] font-black uppercase italic mt-0.5 text-slate-800 truncate">{rec?.nombre}</p>
-                                            <p className="text-[9px] font-black text-purple-600 mt-1.5 bg-purple-50 inline-block px-1.5 py-0.5 rounded">Peso: {l.peso_actual_g.toLocaleString()} g</p>
+                                        <div key={o.id} onClick={() => setSelectedOrder(o)} className={`p-3 rounded-lg border cursor-pointer transition-all ${selectedOrder?.id === o.id ? 'bg-orange-50 border-orange-400 shadow-sm' : 'hover:bg-slate-50 border-slate-200'}`}>
+                                            <p className="text-[9px] font-mono font-bold text-slate-400">{o.codigo_orden || o.id}</p>
+                                            <p className="text-[11px] font-black uppercase italic mt-0.5 text-slate-800 truncate">{rec?.nombre || 'Charcutería'}</p>
+                                            <p className="text-[9px] font-black text-purple-600 mt-1.5 bg-purple-50 inline-block px-1.5 py-0.5 rounded">Peso: {o.cantidad_objetivo.toLocaleString()} g</p>
                                         </div>
                                     );
                                 })}
-                                {charcLotes.filter(l => l.estado === 'EN_SECADO').length === 0 && (
-                                    <p className="text-xs text-slate-400 italic text-center py-4">Sin lotes en cámara</p>
+                                {orders.filter(o => (o.status || o.estado) === 'PLANIFICADA' && parseObs(o.observaciones).linea === 'charcuteria').length === 0 && (
+                                    <p className="text-xs text-slate-400 italic text-center py-4">Sin órdenes de charcutería</p>
                                 )}
                             </div>
                         )}
 
                         {sector === 'fraccionamiento' && (
                             <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
-                                {fraccTareas.filter(t => t.estado === 'PENDIENTE').map(t => {
-                                    const ing = ingredients.find(i => i.id === t.insumo_granel_id);
+                                {orders.filter(o => (o.status || o.estado) === 'PLANIFICADA' && parseObs(o.observaciones).linea === 'fraccionamiento').map(o => {
+                                    const obs = parseObs(o.observaciones);
+                                    const ing = ingredients.find(i => i.id === obs.insumo_granel_id);
                                     return (
-                                        <div key={t.id} className="p-3 rounded-lg border border-slate-200 bg-white">
-                                            <p className="text-[9px] font-mono font-bold text-slate-400">{t.lote_pt_generado}</p>
-                                            <p className="text-[11px] font-black uppercase italic mt-0.5 text-slate-800 truncate">{ing?.name}</p>
-                                            <p className="text-[9px] font-black text-emerald-600 mt-1.5 bg-emerald-50 inline-block px-1.5 py-0.5 rounded">Granel: {t.cantidad_granel_consumida_g.toLocaleString()} g</p>
+                                        <div key={o.id} onClick={() => setSelectedOrder(o)} className={`p-3 rounded-lg border cursor-pointer transition-all ${selectedOrder?.id === o.id ? 'bg-orange-50 border-orange-400 shadow-sm' : 'hover:bg-slate-50 border-slate-200'}`}>
+                                            <p className="text-[9px] font-mono font-bold text-slate-400">{o.codigo_orden || o.id}</p>
+                                            <p className="text-[11px] font-black uppercase italic mt-0.5 text-slate-800 truncate">Fracc: {ing?.name}</p>
+                                            <p className="text-[9px] font-black text-emerald-600 mt-1.5 bg-emerald-50 inline-block px-1.5 py-0.5 rounded">Granel: {o.cantidad_objetivo.toLocaleString()} g</p>
                                         </div>
                                     );
                                 })}
-                                {fraccTareas.filter(t => t.estado === 'PENDIENTE').length === 0 && (
-                                    <p className="text-xs text-slate-400 italic text-center py-4">Sin tareas planificadas</p>
+                                {orders.filter(o => (o.status || o.estado) === 'PLANIFICADA' && parseObs(o.observaciones).linea === 'fraccionamiento').length === 0 && (
+                                    <p className="text-xs text-slate-400 italic text-center py-4">Sin órdenes de fraccionamiento</p>
                                 )}
                             </div>
                         )}
@@ -306,7 +446,7 @@ export default function ProductionOrdersView({
                 </div>
 
                 {/* 2. HOJA DE PRODUCCIÓN PRINCIPAL */}
-                <Card className="fall-target lg:col-span-2 p-10 bg-white border border-slate-200 shadow-lg print:shadow-none print:border-none min-h-[600px] flex flex-col">
+                <Card id="printable-production-order" className="fall-target lg:col-span-2 p-10 bg-white border border-slate-200 shadow-lg print:shadow-none print:border-none min-h-[600px] flex flex-col">
                     {!selectedOrder ? (
                         <div className="flex-1 flex flex-col items-center justify-center text-slate-300 print:hidden">
                             <ClipboardList size={64} className="mb-4 opacity-50" />
@@ -319,10 +459,33 @@ export default function ProductionOrdersView({
                                     <h1 className="text-3xl font-black uppercase italic tracking-tighter leading-none">Hoja de Producción</h1>
                                     <p className="text-xs font-bold uppercase text-slate-500 mt-1.5 tracking-[0.2em]">{selectedOrder.codigo_orden || selectedOrder.id}</p>
                                     <h2 className="text-xl font-black uppercase mt-3 text-orange-600">
-                                        {recipes.find(r => r.id === (selectedOrder.recipeId || selectedOrder.receta_id))?.nombre_producto}
+                                        {(() => {
+                                            const obs = parseObs(selectedOrder.observaciones);
+                                            if (obs.linea === 'charcuteria') {
+                                                const rec = charcRecetas.find(r => r.id === obs.charc_receta_id);
+                                                return rec?.nombre || 'Producto Charcutería';
+                                            }
+                                            if (obs.linea === 'fraccionamiento') {
+                                                const ing = ingredients.find(i => i.id === obs.insumo_granel_id);
+                                                return `Fraccionado: ${ing?.name || 'Insumo'}`;
+                                            }
+                                            return recipes.find(r => r.id === (selectedOrder.recipeId || selectedOrder.receta_id))?.nombre_producto;
+                                        })()}
                                     </h2>
                                     <p className="text-sm font-black font-mono mt-1">
-                                        Meta: {selectedOrder.targetAmount || selectedOrder.cantidad_objetivo} {recipes.find(r => r.id === (selectedOrder.recipeId || selectedOrder.receta_id))?.formato_venta === 'Kg' ? 'Kilos' : 'Unidades'}
+                                        {(() => {
+                                            const obs = parseObs(selectedOrder.observaciones);
+                                            const targetAmt = selectedOrder.targetAmount || selectedOrder.cantidad_objetivo;
+                                            if (obs.linea === 'charcuteria') {
+                                                return `Lote Objetivo: ${(targetAmt / 1000).toFixed(1)} Kg`;
+                                            }
+                                            if (obs.linea === 'fraccionamiento') {
+                                                const bags = Math.ceil(targetAmt / (obs.formato_bolsa_g || 100));
+                                                return `Meta: ${(targetAmt / 1000).toFixed(1)} Kg (${bags} bolsas de ${obs.formato_bolsa_g}g)`;
+                                            }
+                                            const rec = recipes.find(r => r.id === (selectedOrder.recipeId || selectedOrder.receta_id));
+                                            return `Meta: ${targetAmt} ${rec?.formato_venta === 'Kg' ? 'Kilos' : 'Unidades'}`;
+                                        })()}
                                     </p>
                                 </div>
                                 <div className="text-center">
@@ -344,107 +507,221 @@ export default function ProductionOrdersView({
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-200 text-[11px] font-bold text-slate-800">
-                                        {recipes.find(r => r.id === (selectedOrder.recipeId || selectedOrder.receta_id))?.details?.flatMap((d, i) => {
-                                            const recipe = recipes.find(r => r.id === (selectedOrder.recipeId || selectedOrder.receta_id));
-                                            const ing = ingredients.find(ing => ing.id === d.ingredientId);
+                                        {(() => {
+                                            const obsData = parseObs(selectedOrder.observaciones);
+                                            const isCharc = obsData.linea === 'charcuteria';
+                                            const isFracc = obsData.linea === 'fraccionamiento';
                                             
-                                            // Cálculo de escala del lote mínimo
-                                            let baseYield = recipe.peso_final || 1;
-                                            if (recipe.formato_venta === 'Unidad' || !recipe.formato_venta) { 
-                                                baseYield = recipe.peso_final / (recipe.peso_unidad || 100); 
-                                            } else if (recipe.formato_venta === 'Kg') { 
-                                                baseYield = recipe.peso_final / 1000; 
+                                            if (isCharc) {
+                                                const rec = charcRecetas.find(r => r.id === obsData.charc_receta_id);
+                                                if (!rec) return [];
+                                                
+                                                const targetAmt = selectedOrder.targetAmount || selectedOrder.cantidad_objetivo;
+                                                let scaled = [];
+                                                
+                                                if (rec.familia_tecnologica === 'fermentado_seco' || rec.familia_tecnologica === 'emulsion_fina' || rec.familia_tecnologica === 'embutido_fresco') {
+                                                    scaled = rec.details.map(d => ({
+                                                        ...d,
+                                                        gramos_calculados: Math.round((targetAmt * Number(d.porcentaje_base || 0)) / 100)
+                                                    }));
+                                                } else if (rec.familia_tecnologica === 'salazon_cruda') {
+                                                    scaled = rec.details.map(d => ({
+                                                        ...d,
+                                                        gramos_calculados: d.categoria_tecnologica === 'magro' ? targetAmt : Math.round((targetAmt * Number(d.porcentaje_base)) / 100)
+                                                    }));
+                                                } else if (rec.familia_tecnologica === 'salazon_inyectada') {
+                                                    const injPct = Number(rec.porcentaje_inyeccion || 10);
+                                                    const w_salmuera = (targetAmt * injPct) / 100;
+                                                    let totalAditivosG = 0;
+                                                    const ingredientsScaled = rec.details
+                                                        .filter(d => d.categoria_tecnologica !== 'magro' && d.categoria_tecnologica !== 'empaque')
+                                                        .map(d => {
+                                                            const g = Math.round((targetAmt * Number(d.porcentaje_base)) / 100);
+                                                            totalAditivosG += g;
+                                                            return { ...d, gramos_calculados: g };
+                                                        });
+                                                    const waterG = w_salmuera - totalAditivosG;
+                                                    const waterDetail = {
+                                                        ingredientId: 'i3',
+                                                        porcentaje_base: null,
+                                                        categoria_tecnologica: 'vector_liquido',
+                                                        secuencia_mezcla: 1,
+                                                        gramos_calculados: Math.round(waterG)
+                                                    };
+                                                    scaled = [
+                                                        rec.details.find(d => d.categoria_tecnologica === 'magro'),
+                                                        waterDetail,
+                                                        ...ingredientsScaled
+                                                    ].filter(Boolean);
+                                                }
+                                                
+                                                return scaled.map((d, idx) => {
+                                                    const ing = ingredients.find(x => x.id === d.ingredientId);
+                                                    const displayGramos = d.gramos_calculados >= 1000 ? `${(d.gramos_calculados / 1000).toFixed(2)} Kg` : `${Math.round(d.gramos_calculados)} g`;
+                                                    
+                                                    return (
+                                                        <tr key={`charc-${idx}`}>
+                                                            <td className="px-3 py-1.5 text-center"><Square size={14} className="text-slate-300 mx-auto" /></td>
+                                                            <td className="px-3 py-1.5 uppercase font-bold flex items-center gap-1.5">
+                                                                {ing?.name || 'Insumo'}
+                                                                <span className="text-[7px] px-1.5 py-0.5 rounded font-black bg-purple-100 text-purple-800 uppercase shrink-0">
+                                                                    {d.categoria_tecnologica}
+                                                                </span>
+                                                            </td>
+                                                            <td className="px-3 py-1.5 text-right font-mono text-purple-700 bg-purple-50/50">{displayGramos}</td>
+                                                            <td className="px-3 py-1.5 text-center">
+                                                                <span className="px-1.5 py-0.5 rounded text-[8px] uppercase bg-slate-50 border flex items-center justify-center gap-1">
+                                                                    <MapPin size={8} /> {getLocation(ing)}
+                                                                </span>
+                                                            </td>
+                                                            <td className="px-3 py-1.5 text-center font-mono text-[9px] text-orange-600">
+                                                                {getFefoLot(d.ingredientId)}
+                                                            </td>
+                                                            <td className="px-3 py-1.5 text-center">
+                                                                <span className="text-slate-300">—</span>
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                });
                                             }
+                                            
+                                            if (isFracc) {
+                                                const ingGranel = ingredients.find(i => i.id === obsData.insumo_granel_id);
+                                                const ingEmpaque = ingredients.find(i => i.id === obsData.empaque_id);
+                                                const targetAmt = selectedOrder.targetAmount || selectedOrder.cantidad_objetivo;
+                                                const formatBolsa = obsData.formato_bolsa_g || 100;
+                                                const totalBags = Math.ceil(targetAmt / formatBolsa);
+                                                
+                                                const rows = [
+                                                    {
+                                                        name: `Materia Prima: ${ingGranel?.name || 'Granel'}`,
+                                                        type: 'Granel',
+                                                        qty: `${(targetAmt / 1000).toFixed(2)} Kg`,
+                                                        loc: getLocation(ingGranel),
+                                                        lot: getFefoLot(obsData.insumo_granel_id),
+                                                        color: 'bg-amber-100 text-amber-800'
+                                                    },
+                                                    {
+                                                        name: `Envase: ${ingEmpaque?.name || 'Bolsa'}`,
+                                                        type: 'Empaque',
+                                                        qty: `${totalBags} Unidades`,
+                                                        loc: getLocation(ingEmpaque),
+                                                        lot: getFefoLot(obsData.empaque_id),
+                                                        color: 'bg-blue-100 text-blue-800'
+                                                    }
+                                                ];
+                                                
+                                                return rows.map((r, idx) => (
+                                                    <tr key={`fracc-${idx}`}>
+                                                        <td className="px-3 py-1.5 text-center"><Square size={14} className="text-slate-300 mx-auto" /></td>
+                                                        <td className="px-3 py-1.5 uppercase font-bold flex items-center gap-1.5">
+                                                            {r.name}
+                                                            <span className={`text-[7px] px-1.5 py-0.5 rounded font-black uppercase shrink-0 ${r.color}`}>
+                                                                {r.type}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-3 py-1.5 text-right font-mono text-emerald-700 bg-emerald-50/50">{r.qty}</td>
+                                                        <td className="px-3 py-1.5 text-center">
+                                                            <span className="px-1.5 py-0.5 rounded text-[8px] uppercase bg-slate-50 border flex items-center justify-center gap-1">
+                                                                <MapPin size={8} /> {r.loc}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-3 py-1.5 text-center font-mono text-[9px] text-orange-600">
+                                                            {r.lot}
+                                                        </td>
+                                                        <td className="px-3 py-1.5 text-center">
+                                                            <span className="text-slate-300">—</span>
+                                                        </td>
+                                                    </tr>
+                                                ));
+                                            }
+
+                                            // Fallback: Bakery
+                                            const rec = recipes.find(r => r.id === (selectedOrder.recipeId || selectedOrder.receta_id));
+                                            if (!rec) return [];
                                             
                                             const targetAmt = selectedOrder.targetAmount || selectedOrder.cantidad_objetivo;
-                                            const factor = targetAmt / baseYield;
-                                            const gramosReales = Number(d.gramos) * factor;
-                                            const displayGramos = gramosReales >= 1000 ? `${(gramosReales / 1000).toFixed(2)} Kg` : `${gramosReales.toFixed(0)} g`;
-
-                                            // Si es un WIP (subensamble) y está marcado como explotado
-                                            if (ing?.es_subensamble && explodedWips[ing.id]) {
-                                                const subRecipe = recipes.find(r => r.codigo === ing.codigo || r.nombre_producto === ing.name?.replace('[WIP] ', ''));
+                                            let unidades_rinde = 1;
+                                            if (rec.formato_venta === 'Unidad' && Number(rec.peso_unidad) > 0) {
+                                                unidades_rinde = Math.floor(Number(rec.peso_final) / Number(rec.peso_unidad)) || 1;
+                                            } else {
+                                                unidades_rinde = (Number(rec.peso_final) / 1000) || 1;
+                                            }
+                                            const scale = targetAmt / unidades_rinde;
+                                            
+                                            const details = rec.details || [];
+                                            const rRows = [];
+                                            
+                                            details.forEach((d, idx) => {
+                                                const ing = ingredients.find(x => x.id === d.ingredientId);
+                                                const gramos = Math.round((Number(d.gramos) || 0) * scale);
+                                                const displayGramos = gramos >= 1000 ? `${(gramos / 1000).toFixed(2)} Kg` : `${gramos} g`;
+                                                const isWip = ing?.name?.startsWith('[WIP]') || ing?.tipo === 'wip';
                                                 
-                                                if (subRecipe) {
-                                                    const subFactor = gramosReales / (subRecipe.peso_final || 1);
-                                                    
-                                                    return [
-                                                        // Cabecera WIP con indicación de que fue explotado
-                                                        <tr key={`wip-hdr-${i}`} className="bg-slate-50 border-l-4 border-orange-500 opacity-60">
-                                                            <td className="px-3 py-1.5 text-center"><Square size={14} className="text-slate-300 mx-auto" /></td>
-                                                            <td className="px-3 py-1.5 uppercase font-black text-orange-600 flex items-center gap-1">
-                                                                <Layers size={10} /> {ing?.name} (Explotado)
-                                                            </td>
-                                                            <td className="px-3 py-1.5 text-right font-mono">{displayGramos}</td>
-                                                            <td className="px-3 py-1.5 text-center">—</td>
-                                                            <td className="px-3 py-1.5 text-center text-orange-600 font-bold">EXPLOSIÓN MP</td>
-                                                            <td className="px-3 py-1.5 text-center">
-                                                                <button type="button" onClick={() => toggleExplodeWip(ing.id)} className="text-slate-500 hover:text-slate-900 text-[8px] bg-slate-200 px-1.5 py-0.5 rounded font-black uppercase">Consolidar</button>
-                                                            </td>
-                                                        </tr>,
-                                                        // Filas secundarias derivadas (Explosión)
-                                                        ...subRecipe.details.map((sd, sIdx) => {
+                                                rRows.push(
+                                                    <tr key={`bakery-parent-${idx}`}>
+                                                        <td className="px-3 py-1.5 text-center"><Square size={14} className="text-slate-300 mx-auto" /></td>
+                                                        <td className="px-3 py-1.5 uppercase font-bold flex items-center gap-1.5">
+                                                            {ing?.name || 'Insumo'}
+                                                            {isWip && (
+                                                                <>
+                                                                    <span className="text-[7px] px-1.5 py-0.5 rounded font-black bg-orange-100 text-orange-800 uppercase shrink-0">WIP</span>
+                                                                    <button 
+                                                                        type="button" 
+                                                                        onClick={() => toggleExplodeWip(ing.id)}
+                                                                        className="text-[8px] bg-slate-200 px-1.5 py-0.5 rounded font-black uppercase text-slate-600 hover:bg-slate-300 ml-1.5 print:hidden"
+                                                                    >
+                                                                        {explodedWips[ing.id] ? 'Consolidar' : 'Explotar'}
+                                                                    </button>
+                                                                </>
+                                                            )}
+                                                        </td>
+                                                        <td className="px-3 py-1.5 text-right font-mono text-blue-700 bg-blue-50/50">{displayGramos}</td>
+                                                        <td className="px-3 py-1.5 text-center">
+                                                            <span className="px-1.5 py-0.5 rounded text-[8px] uppercase bg-slate-50 border flex items-center justify-center gap-1">
+                                                                <MapPin size={8} /> {getLocation(ing)}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-3 py-1.5 text-center font-mono text-[9px] text-orange-600">{getFefoLot(d.ingredientId)}</td>
+                                                        <td className="px-3 py-1.5 text-center">
+                                                            <span className="text-slate-300">—</span>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                                
+                                                if (isWip && explodedWips[ing.id]) {
+                                                    const subRecipe = recipes.find(r => r.codigo === ing.codigo || r.nombre_producto === ing.name?.replace('[WIP] ', ''));
+                                                    if (subRecipe && subRecipe.details) {
+                                                        const subScale = gramos / (Number(subRecipe.peso_final) || 1);
+                                                        subRecipe.details.forEach((sd, sIdx) => {
                                                             const subIng = ingredients.find(x => x.id === sd.ingredientId);
-                                                            const subGramos = Number(sd.gramos) * subFactor;
-                                                            const subDisplayGramos = subGramos >= 1000 ? `${(subGramos / 1000).toFixed(2)} Kg` : `${subGramos.toFixed(0)} g`;
-                                                            
-                                                            return (
-                                                                <tr key={`wip-child-${i}-${sIdx}`} className="bg-orange-50/20 border-l-4 border-orange-300 text-slate-600">
+                                                            const subGramos = Math.round((Number(sd.gramos) || 0) * subScale);
+                                                            const displaySubGramos = subGramos >= 1000 ? `${(subGramos / 1000).toFixed(2)} Kg` : `${subGramos} g`;
+                                                            rRows.push(
+                                                                <tr key={`bakery-child-${idx}-${sIdx}`} className="bg-orange-50/30">
                                                                     <td className="px-3 py-1.5 text-center"><Square size={14} className="text-slate-300 mx-auto" /></td>
-                                                                    <td className="px-3 py-1.5 uppercase pl-6 font-bold flex items-center gap-1">
-                                                                        ↳ {subIng?.name}
+                                                                    <td className="px-3 py-1.5 uppercase font-medium pl-6 text-slate-600 flex items-center gap-1.5">
+                                                                        ↳ {subIng?.name || 'Componente'}
                                                                     </td>
-                                                                    <td className="px-3 py-1.5 text-right font-mono text-slate-700 bg-orange-50/10">{subDisplayGramos}</td>
-                                                                    <td className="px-3 py-1.5 text-center"><span className="px-1.5 py-0.5 rounded text-[8px] uppercase bg-slate-50 border flex items-center justify-center gap-1"><MapPin size={8} /> {getLocation(subIng)}</span></td>
-                                                                    <td className="px-3 py-1.5 text-center font-mono text-[9px] text-orange-600">{getFefoLot(subIng?.id)}</td>
-                                                                    <td className="px-3 py-1.5 text-center">—</td>
+                                                                    <td className="px-3 py-1.5 text-right font-mono text-orange-700">{displaySubGramos}</td>
+                                                                    <td className="px-3 py-1.5 text-center">
+                                                                        <span className="px-1.5 py-0.5 rounded text-[8px] uppercase bg-slate-50 border flex items-center justify-center gap-1">
+                                                                            <MapPin size={8} /> {getLocation(subIng)}
+                                                                        </span>
+                                                                    </td>
+                                                                    <td className="px-3 py-1.5 text-center font-mono text-[9px] text-orange-600">{getFefoLot(sd.ingredientId)}</td>
+                                                                    <td className="px-3 py-1.5 text-center">
+                                                                        <span className="text-slate-300">—</span>
+                                                                    </td>
                                                                 </tr>
                                                             );
-                                                        })
-                                                    ];
+                                                        });
+                                                    }
                                                 }
-                                            }
-
-                                            // Fila estándar (Panificado normal o WIP sin explotar)
-                                            return (
-                                                <tr key={i} className={ing?.es_subensamble ? "bg-orange-50/20 border-l-4 border-amber-500" : ""}>
-                                                    <td className="px-3 py-1.5 text-center"><Square size={14} className="text-slate-300 mx-auto" /></td>
-                                                    <td className="px-3 py-1.5 uppercase font-bold flex items-center gap-1.5">
-                                                        {ing?.name} 
-                                                        {ing?.es_subensamble && (
-                                                            <span className="bg-amber-100 text-amber-800 text-[8px] font-black px-1.5 py-0.5 rounded flex items-center gap-0.5">
-                                                                <Sparkles size={8} /> WIP
-                                                            </span>
-                                                        )}
-                                                    </td>
-                                                    <td className="px-3 py-1.5 text-right font-mono text-blue-700 bg-blue-50/50">{displayGramos}</td>
-                                                    <td className="px-3 py-1.5 text-center">
-                                                        <span className="px-1.5 py-0.5 rounded text-[8px] uppercase bg-slate-50 border flex items-center justify-center gap-1">
-                                                            <MapPin size={8} /> {getLocation(ing)}
-                                                        </span>
-                                                    </td>
-                                                    <td className="px-3 py-1.5 text-center font-mono text-[9px] text-orange-600">
-                                                        {getFefoLot(ing?.id)}
-                                                    </td>
-                                                    <td className="px-3 py-1.5 text-center">
-                                                        {ing?.es_subensamble ? (
-                                                            <div className="flex flex-col gap-1 items-center">
-                                                                <span className="text-[7px] text-slate-400">Stock WIP: {(getWipStock(ing.id) / 1000).toFixed(1)} kg</span>
-                                                                <button 
-                                                                    type="button" 
-                                                                    onClick={() => toggleExplodeWip(ing.id)}
-                                                                    className="text-orange-700 hover:text-white border border-orange-300 hover:bg-orange-500 text-[8px] bg-orange-50 px-2 py-0.5 rounded font-black uppercase transition-all flex items-center gap-0.5"
-                                                                >
-                                                                    <Layers size={8} /> Explotar
-                                                                </button>
-                                                            </div>
-                                                        ) : (
-                                                            <span className="text-slate-300">—</span>
-                                                        )}
-                                                    </td>
-                                                </tr>
-                                            );
-                                        })}
+                                            });
+                                            
+                                            return rRows;
+                                        })()}
                                     </tbody>
                                 </table>
                             </div>
@@ -462,6 +739,35 @@ export default function ProductionOrdersView({
                     )}
                 </Card>
             </div>
+
+            {/* ESTILO DE IMPRESIÓN */}
+            <style>{`
+                @media print {
+                    html, body, #__next, main, .h-screen, .overflow-hidden {
+                        height: auto !important;
+                        overflow: visible !important;
+                    }
+                    body * {
+                        visibility: hidden;
+                    }
+                    #printable-production-order, #printable-production-order * {
+                        visibility: visible;
+                    }
+                    #printable-production-order {
+                        position: absolute;
+                        left: 0;
+                        top: 0;
+                        width: 100%;
+                        margin: 0;
+                        padding: 0;
+                        border: none !important;
+                        box-shadow: none !important;
+                    }
+                    .print\:hidden {
+                        display: none !important;
+                    }
+                }
+            `}</style>
         </div>
     );
 }

@@ -831,6 +831,10 @@ export default function EngineeringView({
             {/* ESTILO DE IMPRESIÓN */}
             <style>{`
                 @media print {
+                    html, body, #__next, main, .h-screen, .overflow-hidden {
+                        height: auto !important;
+                        overflow: visible !important;
+                    }
                     body * {
                         visibility: hidden;
                     }

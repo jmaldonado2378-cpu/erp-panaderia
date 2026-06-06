@@ -70,7 +70,7 @@ export default function CharcuteriaView({
                 const costPerGram = Number(ing?.costo_estandar || ing?.costPerGram || 0);
                 return acc + (Number(d.gramos || 0) * costPerGram);
             }, 0) : 0;
-            const batchWeight = (r.familia_tecnologica === 'fermentado_seco' || r.familia_tecnologica === 'emulsion_fina' || r.familia_tecnologica === 'embutido_fresco') ? 10000 : 1000;
+            const batchWeight = Number(r.tamano_lote_kg || 10) * 1000;
             const t_prep = Number(r.tiempo_preparacion || 30);
             const d_maduracion = Number(r.dias_maduracion || 21);
             const costo_mo = (t_prep / 60) * (config?.finanzas?.costoHoraHombre || 4500);
@@ -165,6 +165,7 @@ export default function CharcuteriaView({
         tiempo_estufado_dias: 0,
         tiempo_curado_salmuera_dias: 0,
         tiempo_coccion_mins: 0,
+        tamano_lote_kg: 10.0,
         details: [
             { ingredientId: '', categoria_tecnologica: 'magro', porcentaje_base: '', secuencia_mezcla: 1 }
         ]
@@ -176,6 +177,17 @@ export default function CharcuteriaView({
         peso_real_g: '',
         temperatura_c: '',
         humedad_pct: '',
+        operario: 'Supervisor Planta',
+        observaciones: ''
+    });
+
+    // --- Estados para Transiciones de Cámaras ---
+    const [transitioningLote, setTransitioningLote] = useState(null); // { lote, targetStage }
+    const [transitionForm, setTransitionForm] = useState({
+        peso_real_g: '',
+        temperatura_c: '12',
+        humedad_pct: '75',
+        pH: '5.7',
         operario: 'Supervisor Planta',
         observaciones: ''
     });
@@ -284,7 +296,7 @@ export default function CharcuteriaView({
 
         // Simular gramos para el guardado (base de referencia para asegurar constraint NOT NULL en DB)
         // Base de 10 kg (10,000g) para fermentados/emulsiones o 1 kg (1000g) para salazones
-        const baseRef = (recetaForm.familia_tecnologica === 'fermentado_seco' || recetaForm.familia_tecnologica === 'emulsion_fina' || recetaForm.familia_tecnologica === 'embutido_fresco') ? 10000 : 1000;
+        const baseRef = Number(recetaForm.tamano_lote_kg || 10) * 1000;
         
         const detailsMapped = recetaForm.details
             .filter(d => d.ingredientId && d.porcentaje_base)
@@ -325,6 +337,7 @@ export default function CharcuteriaView({
             tiempo_estufado_dias: estufado,
             tiempo_curado_salmuera_dias: curado_salmuera,
             tiempo_coccion_mins: coccion,
+            tamano_lote_kg: Number(recetaForm.tamano_lote_kg || 10.0),
             version: 1
         };
 
@@ -348,6 +361,7 @@ export default function CharcuteriaView({
             tiempo_estufado_dias: 0,
             tiempo_curado_salmuera_dias: 0,
             tiempo_coccion_mins: 0,
+            tamano_lote_kg: 10.0,
             details: [{ ingredientId: '', categoria_tecnologica: 'magro', porcentaje_base: '', secuencia_mezcla: 1 }]
         });
     };
@@ -367,6 +381,7 @@ export default function CharcuteriaView({
             tiempo_estufado_dias: rec.tiempo_estufado_dias || 0,
             tiempo_curado_salmuera_dias: rec.tiempo_curado_salmuera_dias || 0,
             tiempo_coccion_mins: rec.tiempo_coccion_mins || 0,
+            tamano_lote_kg: rec.tamano_lote_kg || 10.0,
             details: rec.details ? rec.details.map(d => ({
                 ingredientId: d.ingredientId || '',
                 categoria_tecnologica: d.categoria_tecnologica || 'aditivo',
@@ -503,7 +518,7 @@ export default function CharcuteriaView({
             codigo_lote: asistente.codigoLote.toUpperCase(),
             peso_inicial_g: Math.round(totalFarsaG),
             peso_actual_g: Math.round(totalFarsaG),
-            estado: 'EN_SECADO',
+            estado: 'PREPARACION',
             fecha_ingreso: new Date().toISOString(),
             fecha_vencimiento: asistente.fechaVencimiento
         };
@@ -610,118 +625,325 @@ export default function CharcuteriaView({
                         </Button>
                     </div>
 
-                    {/* LOTES ACTIVOS EN CÁMARAS */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {charcLotes.map(l => {
-                            const rec = charcRecetas.find(r => r.id === l.receta_id);
-                            const mermaReal = ((1 - l.peso_actual_g / l.peso_inicial_g) * 100);
-                            const targetMerma = rec?.merma_secado_objetivo || 35.00;
-                            const percentToGoal = (mermaReal / targetMerma) * 100;
-                            const isCured = mermaReal >= targetMerma;
-                            const logs = charcLogs.filter(lg => lg.lote_id === l.id);
-                            const lastLog = logs[0] || null;
-                            const familyData = FAMILIAS_CHARC[rec?.familia_tecnologica || 'fermentado_seco'];
+                    {/* BOARD KANBAN DE 5 ETAPAS */}
+                    <div className="grid grid-cols-1 xl:grid-cols-5 gap-4 overflow-x-auto pb-6">
+                        {[
+                            { id: 'PREPARACION', title: '1. Preparación', desc: 'Pesaje y mezclas iniciales' },
+                            { id: 'CURADO', title: '2. Curado / Salado', desc: 'Salazón y estabilización' },
+                            { id: 'ESTUFADO', title: '3. Estufado', desc: 'Fermentación inicial' },
+                            { id: 'MADURACION', title: '4. Maduración', desc: 'Drying y merma objetivo' },
+                            { id: 'COCCION', title: '5. Cocción', desc: 'Tratamiento térmico final' }
+                        ].map(col => {
+                            const lotesEnCol = charcLotes.filter(l => {
+                                const rec = charcRecetas.find(r => r.id === l.receta_id);
+                                const etapa = !l.estado || l.estado === 'EN_SECADO'
+                                    ? (rec?.familia_tecnologica === 'salazon_inyectada' ? 'COCCION' : 'MADURACION')
+                                    : l.estado;
+                                return etapa === col.id;
+                            });
+
+                            const getNextStage = (lote, rec) => {
+                                const fam = rec?.familia_tecnologica;
+                                if (lote.estado === 'PREPARACION') {
+                                    if (fam === 'embutido_fresco') return 'CURADO_LISTO';
+                                    if (fam === 'salazon_cruda' || fam === 'salazon_inyectada') return 'CURADO';
+                                    if (fam === 'fermentado_seco') return 'ESTUFADO';
+                                    if (fam === 'emulsion_fina') return 'COCCION';
+                                    return 'CURADO';
+                                }
+                                if (lote.estado === 'CURADO') {
+                                    if (fam === 'salazon_cruda') return 'MADURACION';
+                                    if (fam === 'salazon_inyectada') return 'COCCION';
+                                    return 'MADURACION';
+                                }
+                                if (lote.estado === 'ESTUFADO') {
+                                    return 'MADURACION';
+                                }
+                                return 'CURADO_LISTO';
+                            };
 
                             return (
-                                <Card key={l.id} className={`border-2 transition-all hover:shadow-lg rounded-2xl ${isCured && l.estado === 'EN_SECADO' ? 'border-emerald-500 bg-emerald-50/10' : 'border-slate-200'}`}>
-                                    {/* Cabecera del lote */}
-                                    <div className="p-6 border-b flex justify-between items-start bg-slate-900 text-white rounded-t-2xl">
-                                        <div>
-                                            <h5 className="font-black text-sm uppercase italic tracking-tight">{rec?.nombre || 'Charcutería'}</h5>
-                                            <div className="flex gap-2 items-center mt-1.5">
-                                                <span className="text-[9px] font-mono bg-slate-800 text-slate-300 px-2 py-0.5 rounded-lg border border-slate-700">{l.codigo_lote}</span>
-                                                <span className={`text-[8px] font-black px-2 py-0.5 rounded-lg uppercase ${
-                                                    l.estado === 'CURADO_LISTO' ? 'bg-emerald-600 text-white' : 
-                                                    l.estado === 'RECHAZADO' ? 'bg-red-600 text-white' : 'bg-amber-600 text-white animate-pulse'
-                                                }`}>{l.estado.replace('_', ' ')}</span>
-                                            </div>
+                                <div key={col.id} className="bg-slate-100/70 p-3 rounded-2xl border border-slate-200 min-h-[450px] flex flex-col w-full min-w-[240px]">
+                                    <div className="mb-3">
+                                        <div className="flex justify-between items-center">
+                                            <h4 className="text-[11px] font-black uppercase tracking-wider text-slate-800">{col.title}</h4>
+                                            <span className="bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full text-[9px] font-bold">{lotesEnCol.length}</span>
                                         </div>
-                                        <span className={`px-2 py-1 rounded-lg text-[8px] font-black text-white ${familyData?.color}`}>
-                                            {rec?.codigo}
-                                        </span>
+                                        <p className="text-[8px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">{col.desc}</p>
                                     </div>
 
-                                    {/* Detalles de Peso y Secado */}
-                                    <div className="p-6 space-y-5">
-                                        <div className="grid grid-cols-2 gap-4 text-xs">
-                                            <div>
-                                                <p className="text-slate-400 font-bold uppercase text-[9px] tracking-wider">Masa Cruda Inicial</p>
-                                                <p className="font-mono font-black text-slate-800 text-lg">{l.peso_inicial_g.toLocaleString('es-AR')} g</p>
-                                            </div>
-                                            <div>
-                                                <p className="text-slate-400 font-bold uppercase text-[9px] tracking-wider">Masa Actual</p>
-                                                <p className="font-mono font-black text-slate-900 text-lg">{l.peso_actual_g.toLocaleString('es-AR')} g</p>
-                                            </div>
-                                        </div>
+                                    <div className="flex-1 space-y-3 overflow-y-auto max-h-[600px] pr-1">
+                                        {lotesEnCol.map(l => {
+                                            const rec = charcRecetas.find(r => r.id === l.receta_id);
+                                            const mermaReal = ((1 - l.peso_actual_g / l.peso_inicial_g) * 100);
+                                            const targetMerma = rec?.merma_secado_objetivo || 35.00;
+                                            const percentToGoal = targetMerma > 0 ? (mermaReal / targetMerma) * 100 : 0;
+                                            const isCured = mermaReal >= targetMerma;
+                                            const familyData = FAMILIAS_CHARC[rec?.familia_tecnologica || 'fermentado_seco'];
+                                            
+                                            // Time calculations
+                                            const elapsedDays = Math.max(0, Math.floor((Date.now() - new Date(l.fecha_ingreso).getTime()) / (24 * 60 * 60 * 1000)));
+                                            const elapsedMinutes = Math.max(0, Math.floor((Date.now() - new Date(l.fecha_ingreso).getTime()) / 60000));
+                                            
+                                            let timeStatus = "";
+                                            let timeTargetMet = false;
+                                            
+                                            if (col.id === 'CURADO') {
+                                                const reqDays = rec?.familia_tecnologica === 'salazon_cruda' ? (rec?.tiempo_curado_salado_dias || 7) : (rec?.tiempo_curado_salmuera_dias || 3);
+                                                timeStatus = `${elapsedDays}d / ${reqDays}d curado`;
+                                                timeTargetMet = elapsedDays >= reqDays;
+                                            } else if (col.id === 'ESTUFADO') {
+                                                const reqDays = rec?.tiempo_estufado_dias || 2;
+                                                timeStatus = `${elapsedDays}d / ${reqDays}d estufado`;
+                                                timeTargetMet = elapsedDays >= reqDays;
+                                            } else if (col.id === 'MADURACION') {
+                                                const reqDays = rec?.dias_maduracion || 21;
+                                                timeStatus = `${elapsedDays}d / ${reqDays}d secado`;
+                                                timeTargetMet = elapsedDays >= reqDays;
+                                            } else if (col.id === 'COCCION') {
+                                                const reqMins = rec?.tiempo_coccion_mins || 90;
+                                                timeStatus = `${elapsedMinutes}m / ${reqMins}m cocción`;
+                                                timeTargetMet = elapsedMinutes >= reqMins;
+                                            }
 
-                                        {/* Barra de progreso de deshidratación */}
-                                        <div className="space-y-1.5">
-                                            <div className="flex justify-between items-end text-[9px] font-black uppercase text-slate-500 tracking-wider">
-                                                <span>Deshidratación (Merma)</span>
-                                                <span className={isCured ? 'text-emerald-600 font-black' : 'text-slate-700 font-mono font-bold'}>
-                                                    {mermaReal.toFixed(1)}% / {targetMerma}%
-                                                </span>
-                                            </div>
-                                            <div className="w-full bg-slate-100 rounded-full h-4 overflow-hidden border border-slate-200">
-                                                <div 
-                                                    className={`h-full rounded-full transition-all duration-500 ${isCured ? 'bg-emerald-600 animate-pulse' : 'bg-amber-500'}`} 
-                                                    style={{ width: `${Math.min(100, percentToGoal)}%` }}
-                                                />
-                                            </div>
-                                            {isCured && l.estado === 'EN_SECADO' && (
-                                                <p className="text-[9px] bg-emerald-50 border border-emerald-200 text-emerald-700 px-3 py-1.5 rounded-lg font-bold uppercase text-center flex items-center justify-center gap-1.5 shadow-sm">
-                                                    <Award size={12} /> ¡Llegó al rendimiento objetivo de maduración!
-                                                </p>
-                                            )}
-                                        </div>
+                                            // Determine next stage
+                                            const nextStage = getNextStage(l, rec);
 
-                                        {/* Clima e Historial */}
-                                        <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 text-[10px] space-y-2">
-                                            <p className="font-black text-slate-500 uppercase text-[8px] tracking-wider border-b pb-1.5 flex justify-between items-center">
-                                                <span>Última Inspección</span>
-                                                {lastLog && <span className="font-mono text-slate-400 font-normal">{new Date(lastLog.fecha_registro).toLocaleDateString('es-AR')}</span>}
-                                            </p>
-                                            {lastLog ? (
-                                                <div className="grid grid-cols-3 gap-2">
-                                                    <div className="flex flex-col"><span className="text-slate-400 uppercase text-[7px] font-bold">Peso</span><b className="text-slate-800 font-mono text-sm">{lastLog.peso_real_g.toLocaleString('es-AR')}g</b></div>
-                                                    <div className="flex flex-col"><span className="text-slate-400 uppercase text-[7px] font-bold">Temp.</span><b className="text-amber-600 font-mono text-sm">{lastLog.temperatura_c}°C</b></div>
-                                                    <div className="flex flex-col"><span className="text-slate-400 uppercase text-[7px] font-bold">Humedad</span><b className="text-blue-600 font-mono text-sm">{lastLog.humedad_pct}%</b></div>
+                                            return (
+                                                <div key={l.id} className={`bg-white p-3 rounded-xl border shadow-sm transition-all hover:shadow-md ${isCured && col.id === 'MADURACION' ? 'border-emerald-500 bg-emerald-50/10' : 'border-slate-200'}`}>
+                                                    <div className="flex justify-between items-start gap-1.5 border-b pb-1.5 mb-2">
+                                                        <div className="min-w-0 flex-1">
+                                                            <h5 className="text-[10px] font-black text-slate-800 truncate leading-tight" title={rec?.nombre}>{rec?.nombre || 'Charcutería'}</h5>
+                                                            <span className="text-[8px] font-mono text-slate-400 font-bold block mt-0.5">{l.codigo_lote}</span>
+                                                        </div>
+                                                        <span className={`px-1.5 py-0.5 rounded text-[7px] font-black text-white shrink-0 ${familyData?.color}`}>
+                                                            {rec?.codigo || 'LOTE'}
+                                                        </span>
+                                                    </div>
+
+                                                    <div className="space-y-1.5 text-[9px] font-bold text-slate-600">
+                                                        <div className="flex justify-between">
+                                                            <span>Peso Crudo:</span>
+                                                            <span className="font-mono text-slate-800">{l.peso_inicial_g.toLocaleString()} g</span>
+                                                        </div>
+                                                        <div className="flex justify-between">
+                                                            <span>Peso Actual:</span>
+                                                            <span className="font-mono text-slate-800">{l.peso_actual_g.toLocaleString()} g</span>
+                                                        </div>
+                                                        
+                                                        {/* Deshidratación / Merma para Maduración */}
+                                                        {col.id === 'MADURACION' && (
+                                                            <div className="space-y-1 mt-1">
+                                                                <div className="flex justify-between text-[8px] text-slate-400 uppercase">
+                                                                    <span>Merma:</span>
+                                                                    <span className={isCured ? 'text-emerald-600 font-black' : 'text-slate-600'}>
+                                                                        {mermaReal.toFixed(1)}% / {targetMerma}%
+                                                                    </span>
+                                                                </div>
+                                                                <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                                                                    <div className={`h-full rounded-full ${isCured ? 'bg-emerald-500' : 'bg-amber-400'}`} style={{ width: `${Math.min(100, percentToGoal)}%` }} />
+                                                                </div>
+                                                            </div>
+                                                        )}
+
+                                                        {/* Tiempo transcurrido */}
+                                                        {timeStatus && (
+                                                            <div className="flex justify-between items-center mt-1 bg-slate-50 px-1 py-0.5 rounded border">
+                                                                <span className="text-[8px] uppercase text-slate-400">Tiempo:</span>
+                                                                <span className={`font-mono text-[8px] flex items-center gap-1 ${timeTargetMet ? 'text-emerald-600 font-black' : 'text-amber-600'}`}>
+                                                                    <Clock size={8} /> {timeStatus}
+                                                                </span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+
+                                                    <div className="flex gap-1.5 mt-3 pt-2 border-t">
+                                                        {/* Button for transition */}
+                                                        {col.id === 'PREPARACION' && (
+                                                            <Button 
+                                                                onClick={() => {
+                                                                    setTransitioningLote({ lote: l, targetStage: nextStage });
+                                                                    setTransitionForm(prev => ({ ...prev, peso_real_g: l.peso_inicial_g }));
+                                                                }}
+                                                                className="flex-1 py-1 text-[8px] font-black uppercase"
+                                                                variant="primary"
+                                                            >
+                                                                Confirmar Pesaje
+                                                            </Button>
+                                                        )}
+                                                        {col.id === 'CURADO' && (
+                                                            <Button 
+                                                                onClick={() => {
+                                                                    setTransitioningLote({ lote: l, targetStage: nextStage });
+                                                                    setTransitionForm(prev => ({ ...prev, peso_real_g: l.peso_actual_g }));
+                                                                }}
+                                                                className="flex-1 py-1 text-[8px] font-black uppercase"
+                                                                variant={timeTargetMet ? "success" : "warning"}
+                                                            >
+                                                                {nextStage === 'MADURACION' ? 'A Maduración' : 'A Cocción'}
+                                                            </Button>
+                                                        )}
+                                                        {col.id === 'ESTUFADO' && (
+                                                            <Button 
+                                                                onClick={() => {
+                                                                    setTransitioningLote({ lote: l, targetStage: nextStage });
+                                                                    setTransitionForm(prev => ({ ...prev, peso_real_g: l.peso_actual_g }));
+                                                                }}
+                                                                className="flex-1 py-1 text-[8px] font-black uppercase"
+                                                                variant={timeTargetMet ? "success" : "warning"}
+                                                            >
+                                                                Pasar a Secado
+                                                            </Button>
+                                                        )}
+                                                        {col.id === 'MADURACION' && (
+                                                            <Button 
+                                                                onClick={() => {
+                                                                    setTransitioningLote({ lote: l, targetStage: nextStage });
+                                                                    setTransitionForm(prev => ({ ...prev, peso_real_g: l.peso_actual_g }));
+                                                                }}
+                                                                className="flex-1 py-1 text-[8px] font-black uppercase"
+                                                                variant={isCured ? "success" : "secondary"}
+                                                            >
+                                                                Liberar Lote
+                                                            </Button>
+                                                        )}
+                                                        {col.id === 'COCCION' && (
+                                                            <Button 
+                                                                onClick={() => {
+                                                                    setTransitioningLote({ lote: l, targetStage: nextStage });
+                                                                    setTransitionForm(prev => ({ ...prev, peso_real_g: l.peso_actual_g }));
+                                                                }}
+                                                                className="flex-1 py-1 text-[8px] font-black uppercase"
+                                                                variant="success"
+                                                            >
+                                                                Liberar Lote
+                                                            </Button>
+                                                        )}
+                                                        <Button onClick={() => triggerPrint(l, rec)} className="py-1 px-2 shrink-0" variant="ghost">
+                                                            <QrCode size={12} />
+                                                        </Button>
+                                                    </div>
                                                 </div>
-                                            ) : (
-                                                <p className="text-slate-400 italic text-center py-1">Sin inspecciones registradas aún</p>
-                                            )}
-                                        </div>
-
-                                        {/* Botones de acción del lote */}
-                                        <div className="flex gap-2 pt-2">
-                                            {l.estado === 'EN_SECADO' && (
-                                                <Button onClick={() => {
-                                                    setActiveLoteForLog(l);
-                                                    setLogForm({ ...logForm, peso_real_g: l.peso_actual_g });
-                                                }} className="flex-1 py-2 text-[10px]" variant="secondary">
-                                                    Registrar Control
-                                                </Button>
-                                            )}
-                                            {isCured && l.estado === 'EN_SECADO' && (
-                                                <Button onClick={() => updateCharcLoteEstado(l.id, 'CURADO_LISTO')} className="flex-1 py-2 text-[10px]" variant="success">
-                                                    Liberar Lote
-                                                </Button>
-                                            )}
-                                            <Button onClick={() => triggerPrint(l, rec)} className="py-2 px-4" variant="ghost">
-                                                <QrCode size={16} />
-                                            </Button>
-                                        </div>
+                                            );
+                                        })}
+                                        {lotesEnCol.length === 0 && (
+                                            <p className="text-[9px] text-slate-400 italic text-center py-8">Sin lotes en esta etapa</p>
+                                        )}
                                     </div>
-                                </Card>
+                                </div>
                             );
                         })}
-                        {charcLotes.length === 0 && (
-                            <div className="col-span-full py-24 border-4 border-dashed rounded-3xl text-center opacity-40">
-                                <ThermometerSun size={64} className="mx-auto text-slate-300 mb-4 animate-spin duration-3000" />
-                                <p className="font-black uppercase italic text-lg tracking-widest text-slate-500">Cámaras vacías. Cuelgue su primer lote.</p>
-                            </div>
-                        )}
                     </div>
+
+                    {/* MODAL DE TRANSICIÓN DE ETAPA */}
+                    {transitioningLote && (
+                        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex justify-center items-center p-4">
+                            <Card className="p-8 border-[6px] border-slate-900 bg-white shadow-2xl rounded-3xl max-w-md w-full">
+                                <h4 className="text-lg font-black uppercase italic mb-2 text-slate-800">
+                                    {transitioningLote.targetStage === 'CURADO_LISTO' ? 'Liberación de Lote' : 'Transición de Etapa'}
+                                </h4>
+                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest border-b pb-3 mb-5">
+                                    Lote: {transitioningLote.lote.codigo_lote} | Siguiente Etapa: {transitioningLote.targetStage.replace('_', ' ')}
+                                </p>
+
+                                <form onSubmit={async (e) => {
+                                    e.preventDefault();
+                                    const { lote, targetStage } = transitioningLote;
+                                    const weight = transitionForm.peso_real_g ? Number(transitionForm.peso_real_g) : lote.peso_actual_g;
+                                    const temp = transitionForm.temperatura_c ? Number(transitionForm.temperatura_c) : 12.0;
+                                    const hum = transitionForm.humedad_pct ? Number(transitionForm.humedad_pct) : 75.0;
+                                    const pH = transitionForm.pH ? Number(transitionForm.pH) : null;
+                                    const obs = transitionForm.observaciones || '';
+
+                                    // Add log
+                                    const log = {
+                                        lote_id: lote.id,
+                                        peso_real_g: weight,
+                                        temperatura_c: temp,
+                                        humedad_pct: hum,
+                                        operario: transitionForm.operario || 'Supervisor Planta',
+                                        observaciones: `Transición a ${targetStage}. ${obs} ${pH ? `[pH registrado: ${pH}]` : ''}`
+                                    };
+                                    await addCharcLog(log);
+
+                                    // Update status
+                                    await updateCharcLoteEstado(lote.id, targetStage);
+
+                                    setTransitioningLote(null);
+                                    setTransitionForm({ peso_real_g: '', temperatura_c: '12', humedad_pct: '75', pH: '5.7', operario: 'Supervisor Planta', observaciones: '' });
+                                    showToast(`✅ Lote transicionado a ${targetStage}`);
+                                }} className="space-y-4">
+                                    
+                                    {/* 1. If transitioning from PREPARACION or to CURADO_LISTO (final release), we need the measured weight */}
+                                    {(transitioningLote.lote.estado === 'PREPARACION' || targetStage === 'CURADO_LISTO' || transitioningLote.lote.estado === 'COCCION') && (
+                                        <Input 
+                                            label={targetStage === 'CURADO_LISTO' ? "Peso Final Post-Proceso (g)" : "Confirmar Peso Inicial (g)"}
+                                            type="number"
+                                            placeholder="Ej. 10250"
+                                            value={transitionForm.peso_real_g}
+                                            onChange={v => setTransitionForm({ ...transitionForm, peso_real_g: v })}
+                                            required
+                                        />
+                                    )}
+
+                                    {/* 2. If transitioning to MADURACION (from ESTUFADO) or to CURADO_LISTO (from MADURACION), we need pH and chamber data */}
+                                    {(transitioningLote.lote.estado === 'ESTUFADO' || transitioningLote.lote.estado === 'MADURACION') && (
+                                        <>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <Input 
+                                                    label="Temperatura Cámara (°C)" 
+                                                    type="number" 
+                                                    step="0.1" 
+                                                    value={transitionForm.temperatura_c} 
+                                                    onChange={v => setTransitionForm({ ...transitionForm, temperatura_c: v })}
+                                                    required
+                                                />
+                                                <Input 
+                                                    label="Humedad Relativa (%)" 
+                                                    type="number" 
+                                                    value={transitionForm.humedad_pct} 
+                                                    onChange={v => setTransitionForm({ ...transitionForm, humedad_pct: v })}
+                                                    required
+                                                />
+                                            </div>
+                                            <Input 
+                                                label="Medición de pH" 
+                                                type="number" 
+                                                step="0.01" 
+                                                placeholder="Ej. 5.3"
+                                                value={transitionForm.pH} 
+                                                onChange={v => setTransitionForm({ ...transitionForm, pH: v })}
+                                                required
+                                            />
+                                        </>
+                                    )}
+
+                                    <Input 
+                                        label="Operario Responsable" 
+                                        value={transitionForm.operario} 
+                                        onChange={v => setTransitionForm({ ...transitionForm, operario: v })}
+                                        required
+                                    />
+                                    
+                                    <div className="flex flex-col gap-1 w-full text-left">
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Notas del Proceso</label>
+                                        <textarea 
+                                            className="w-full border border-slate-200 bg-white rounded-lg px-3 py-2 outline-none text-sm font-semibold text-slate-800 transition-all focus:border-slate-400" 
+                                            rows="2"
+                                            placeholder="Observaciones de la transición..."
+                                            value={transitionForm.observaciones}
+                                            onChange={e => setTransitionForm({ ...transitionForm, observaciones: e.target.value })}
+                                        />
+                                    </div>
+
+                                    <div className="flex gap-3 justify-end pt-4 border-t">
+                                        <Button type="button" onClick={() => setTransitioningLote(null)} variant="secondary" className="px-5">Cancelar</Button>
+                                        <Button type="submit" variant="success" className="px-5">Confirmar Transición</Button>
+                                    </div>
+                                </form>
+                            </Card>
+                        </div>
+                    )}
                 </div>
             )}
 
@@ -845,18 +1067,24 @@ export default function CharcuteriaView({
                                 <div className="bg-white border-[8px] border-slate-900 rounded-[2.5rem] p-8 max-w-4xl w-full shadow-2xl animate-in zoom-in-95 duration-200 overflow-y-auto max-h-[90vh]">
                                     <h4 className="text-lg font-black uppercase mb-6 italic text-slate-800">{recetaForm.id ? "Editar Ficha Técnica Charcutera" : "Alta de Ficha Técnica Charcutera"}</h4>
                                     
-                                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-end mb-6">
+                                    <div className="grid grid-cols-1 md:grid-cols-5 gap-6 items-end mb-6">
                                         <Input label="Código Ficha (SKU)" value={recetaForm.codigo} onChange={v => setRecetaForm({ ...recetaForm, codigo: v })} placeholder="Ej: CH-SLM-01" required />
                                         <Input label="Nombre del Chacinado" placeholder="Ej: Salame tipo Milán" value={recetaForm.nombre} onChange={v => setRecetaForm({ ...recetaForm, nombre: v })} required />
                                         
                                         <Select label="Familia Tecnológica" value={recetaForm.familia_tecnologica} onChange={v => {
                                             const isFresh = v === 'embutido_fresco';
+                                            const isEmulsion = v === 'emulsion_fina';
+                                            const isInjected = v === 'salazon_inyectada';
+                                            const isDry = v === 'fermentado_seco' || v === 'salazon_cruda';
                                             setRecetaForm(prev => ({
                                                 ...prev,
                                                 familia_tecnologica: v,
-                                                lead_time_dias: isFresh ? 0 : prev.lead_time_dias,
-                                                merma_secado_objetivo: isFresh ? 0 : prev.merma_secado_objetivo,
-                                                dias_maduracion: isFresh ? 0 : prev.dias_maduracion
+                                                dias_maduracion: isFresh ? 0 : prev.dias_maduracion,
+                                                merma_secado_objetivo: isDry ? 35 : 0,
+                                                tiempo_curado_salado_dias: v === 'salazon_cruda' ? 7 : 0,
+                                                tiempo_estufado_dias: v === 'fermentado_seco' ? 2 : 0,
+                                                tiempo_curado_salmuera_dias: v === 'salazon_inyectada' ? 3 : 0,
+                                                tiempo_coccion_mins: (v === 'salazon_inyectada' || v === 'emulsion_fina') ? 90 : 0
                                             }));
                                         }}>
                                             <option value="fermentado_seco">Fermentados Secos (Salame, Chorizo)</option>
@@ -865,6 +1093,16 @@ export default function CharcuteriaView({
                                             <option value="salazon_inyectada">Salazones Inyectadas (Jamón Cocido)</option>
                                             <option value="embutido_fresco">Embutidos Frescos (Chorizo Fresco, Salchicha)</option>
                                         </Select>
+
+                                        <Input 
+                                            label="Tamaño Lote (Kg)" 
+                                            type="number" 
+                                            step="0.1" 
+                                            value={recetaForm.tamano_lote_kg} 
+                                            onChange={v => setRecetaForm({ ...recetaForm, tamano_lote_kg: Number(v) })} 
+                                            placeholder="Ej: 10.0" 
+                                            required 
+                                        />
          
                                         {recetaForm.familia_tecnologica === 'salazon_inyectada' ? (
                                             <Input label="Porcentaje de Inyección (%)" type="number" value={recetaForm.porcentaje_inyeccion} onChange={v => setRecetaForm({ ...recetaForm, porcentaje_inyeccion: v })} placeholder="Ej: 10" required />
@@ -920,7 +1158,7 @@ export default function CharcuteriaView({
                                                         label="Merma Secado Objetivo (%)" 
                                                         type="number" 
                                                         value={recetaForm.merma_secado_objetivo} 
-                                                        onChange={v => setRecetaForm({ ...recetaForm, merma_secado_objetivo: v })} 
+                                                        disabled={true} 
                                                         suffix="%" 
                                                         required 
                                                     />
@@ -950,7 +1188,7 @@ export default function CharcuteriaView({
                                                         label="Merma Secado Objetivo (%)" 
                                                         type="number" 
                                                         value={recetaForm.merma_secado_objetivo} 
-                                                        onChange={v => setRecetaForm({ ...recetaForm, merma_secado_objetivo: v })} 
+                                                        disabled={true} 
                                                         suffix="%" 
                                                         required 
                                                     />
@@ -1020,6 +1258,7 @@ export default function CharcuteriaView({
                                                                 <th className="px-4 py-3">Insumo</th>
                                                                 <th className="px-4 py-3 w-40">Categoría</th>
                                                                 <th className="px-4 py-3 w-24 text-center">% Base</th>
+                                                                <th className="px-4 py-3 w-28 text-center">Cantidad (g)</th>
                                                                 <th className="px-4 py-3 w-20 text-center">Sec.</th>
                                                                 <th className="px-4 py-3 w-28 text-right">Costo Insumo</th>
                                                                 <th className="px-4 py-3 w-28 text-center">Incidencia %</th>
@@ -1081,6 +1320,9 @@ export default function CharcuteriaView({
                                                                                 />
                                                                                 <span className="text-[9px] text-slate-400 font-bold ml-1">%</span>
                                                                             </div>
+                                                                        </td>
+                                                                        <td className="p-2 border-l border-slate-100 text-center font-mono font-black text-slate-700 text-xs w-28">
+                                                                            {grams.toLocaleString('es-AR', { maximumFractionDigits: 1 })} g
                                                                         </td>
                                                                         <td className="p-2 border-l border-slate-100">
                                                                             <input 
@@ -1221,13 +1463,6 @@ export default function CharcuteriaView({
                                                                 {isExpanded ? <ChevronUp size={14} /> : <Eye size={14} />}
                                                             </button>
                                                             <button 
-                                                                onClick={() => handleStartAsistente(r)} 
-                                                                className="p-1.5 text-blue-500 hover:bg-blue-50 rounded-md transition-colors"
-                                                                title="Pesar y Colgar Lote"
-                                                            >
-                                                                <Play size={14} className="fill-current" />
-                                                            </button>
-                                                            <button 
                                                                 onClick={() => handleEditReceta(r)} 
                                                                 className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-md transition-colors"
                                                                 title="Editar"
@@ -1320,12 +1555,6 @@ export default function CharcuteriaView({
                                                                             <div className="flex justify-between pt-1"><span>Costo Lote ({batchWeight / 1000}kg):</span> <span className="font-mono font-bold text-slate-800">{fmtCost(totalCostOfBatch)}</span></div>
                                                                         </div>
                                                                     </div>
-                                                                    
-                                                                    <div className="mt-4 pt-3 border-t print:hidden">
-                                                                        <Button onClick={() => handleStartAsistente(r)} variant="primary" className="w-full py-2 rounded-xl text-[10px] font-black uppercase tracking-wider italic flex items-center justify-center gap-1.5">
-                                                                            <Play size={12} className="fill-current" /> Pesar y Colgar Lote
-                                                                        </Button>
-                                                                    </div>
                                                                 </div>
                                                             </div>
                                                         </td>
@@ -1349,6 +1578,10 @@ export default function CharcuteriaView({
                     {/* ESTILO DE IMPRESIÓN */}
                     <style>{`
                         @media print {
+                            html, body, #__next, main, .h-screen, .overflow-hidden {
+                                height: auto !important;
+                                overflow: visible !important;
+                            }
                             body * {
                                 visibility: hidden;
                             }
