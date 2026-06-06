@@ -625,6 +625,7 @@ export const GlobalProvider = ({ children }) => {
             const localRec = { id: 'cr_' + Date.now(), ...receta, details };
             setCharcRecetas(prev => [localRec, ...prev]);
             showToast("Guardado localmente (Offline)");
+            throw err;
         }
     };
 
@@ -662,6 +663,7 @@ export const GlobalProvider = ({ children }) => {
             // Fallback: actualizar estado local para no perder los cambios del usuario
             setCharcRecetas(prev => prev.map(r => r.id === id ? { ...r, ...receta, details } : r));
             showToast("Actualizado localmente (Offline). " + (err?.message || ''), "error");
+            throw err;
         }
     };
 

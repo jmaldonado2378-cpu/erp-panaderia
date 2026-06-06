@@ -130,7 +130,7 @@ export default function InventoryView({
 
 
     // ── PROCESAMIENTO DE STOCK DE INSUMOS ──
-    const detailedLots = lots.filter(l => l.amount > 0 && !(l.codigo_lote || '').startsWith('L-FR-')).map(lot => {
+    const detailedLots = lots.filter(l => l.amount > 0).map(lot => {
         const ing = ingredients.find(i => i.id === lot.ingredientId);
         const prov = providers.find(p => p.id === lot.providerId);
         return {
