@@ -56,6 +56,33 @@ export default function ProductionOrdersView({
         }));
     };
 
+    const handleCharcRecipeChange = (recipeId) => {
+        const recipe = charcRecetas.find(r => r.id === recipeId);
+        if (!recipe) {
+            setCharcForm(prev => ({ ...prev, receta_id: recipeId, codigo_lote: '' }));
+            return;
+        }
+        const parts = (recipe.codigo || '').split('-');
+        let codePrefix = 'CH';
+        if (parts.length >= 2) {
+            codePrefix = parts[1];
+        } else if (recipe.codigo) {
+            codePrefix = recipe.codigo;
+        }
+        const now = new Date();
+        const yy = String(now.getFullYear()).slice(-2);
+        const mm = String(now.getMonth() + 1).padStart(2, '0');
+        const yymm = `${yy}${mm}`;
+        const rand3 = Math.floor(100 + Math.random() * 900);
+        const generatedLot = `${codePrefix}-${yymm}-${rand3}`;
+        setCharcForm(prev => ({
+            ...prev,
+            receta_id: recipeId,
+            codigo_lote: generatedLot.toUpperCase()
+        }));
+    };
+
+
     const toggleExplodeWip = (ingId) => {
         setExplodedWips(prev => ({ ...prev, [ingId]: !prev[ingId] }));
     };
@@ -344,7 +371,7 @@ export default function ProductionOrdersView({
                             
                             {sector === 'charcuteria' && (
                                 <>
-                                    <Select label="Ficha Técnica Charcutería" value={charcForm.receta_id} onChange={e => setCharcForm({ ...charcForm, receta_id: e })} required>
+                                    <Select label="Ficha Técnica Charcutería" value={charcForm.receta_id} onChange={handleCharcRecipeChange} required>
                                         <option value="">Seleccionar Receta...</option>
                                         {charcRecetas.map(r => <option key={r.id} value={r.id}>{r.nombre} ({r.codigo})</option>)}
                                     </Select>
@@ -743,28 +770,20 @@ export default function ProductionOrdersView({
             {/* ESTILO DE IMPRESIÓN */}
             <style>{`
                 @media print {
-                    html, body, #__next, main, .h-screen, .overflow-hidden {
+                    html, body, main, .h-screen, .overflow-hidden, div {
                         height: auto !important;
                         overflow: visible !important;
+                        min-height: 0 !important;
                     }
-                    body * {
-                        visibility: hidden;
-                    }
-                    #printable-production-order, #printable-production-order * {
-                        visibility: visible;
+                    .print\:hidden, aside, header, button {
+                        display: none !important;
                     }
                     #printable-production-order {
-                        position: absolute;
-                        left: 0;
-                        top: 0;
-                        width: 100%;
-                        margin: 0;
-                        padding: 0;
                         border: none !important;
                         box-shadow: none !important;
-                    }
-                    .print\:hidden {
-                        display: none !important;
+                        width: 100% !important;
+                        margin: 0 !important;
+                        padding: 0 !important;
                     }
                 }
             `}</style>

@@ -831,28 +831,20 @@ export default function EngineeringView({
             {/* ESTILO DE IMPRESIÓN */}
             <style>{`
                 @media print {
-                    html, body, #__next, main, .h-screen, .overflow-hidden {
+                    html, body, main, .h-screen, .overflow-hidden, div {
                         height: auto !important;
                         overflow: visible !important;
+                        min-height: 0 !important;
                     }
-                    body * {
-                        visibility: hidden;
-                    }
-                    #printable-list-container, #printable-list-container * {
-                        visibility: visible;
+                    .print\:hidden, aside, header, button, .flex-1.max-w-md {
+                        display: none !important;
                     }
                     #printable-list-container {
-                        position: absolute;
-                        left: 0;
-                        top: 0;
-                        width: 100%;
-                        margin: 0;
-                        padding: 0;
                         border: none !important;
                         box-shadow: none !important;
-                    }
-                    .print\:hidden {
-                        display: none !important;
+                        width: 100% !important;
+                        margin: 0 !important;
+                        padding: 0 !important;
                     }
                 }
             `}</style>

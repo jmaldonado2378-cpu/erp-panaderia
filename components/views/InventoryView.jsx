@@ -126,7 +126,7 @@ export default function InventoryView({
 
 
     // ── PROCESAMIENTO DE STOCK DE INSUMOS ──
-    const detailedLots = lots.filter(l => l.amount > 0).map(lot => {
+    const detailedLots = lots.filter(l => l.amount > 0 && !(l.codigo_lote || '').startsWith('L-FR-')).map(lot => {
         const ing = ingredients.find(i => i.id === lot.ingredientId);
         const prov = providers.find(p => p.id === lot.providerId);
         return {
@@ -248,8 +248,29 @@ export default function InventoryView({
             });
         });
 
+        // 4. Fraccionamiento (Lots in lots starting with L-FR-)
+        lots.filter(l => (l.codigo_lote || '').startsWith('L-FR-') && Number(l.amount || l.cantidad_actual || 0) > 0).forEach(l => {
+            const ing = ingredients.find(i => i.id === (l.ingredientId || l.ingrediente_id));
+            if (!ing) return;
+            const qty = Number(l.amount || l.cantidad_actual);
+            const unitCost = Number(l.unitPrice || l.costo_unitario || ing.costo_estandar || 0);
+            list.push({
+                id: l.id,
+                tipo: 'Fraccionado',
+                productoId: ing.id,
+                productoNombre: ing.name,
+                codigo: ing.codigo || 'FRAC',
+                codigoLote: l.codigo_lote,
+                cantidad: qty,
+                unidad: ing.unidad_base || l.unidad || 'g',
+                vencimiento: l.expiry || l.fecha_vencimiento,
+                costoUnitario: unitCost,
+                valorTotal: qty * unitCost
+            });
+        });
+
         return list.sort((a, b) => new Date(a.vencimiento) - new Date(b.vencimiento));
-    }, [lotesPT, recipes, charcLotes, charcRecetas, reventaLotes, reventaArticulos, ingredients, getRecipeUnitCost, getIngredientCost]);
+    }, [lotesPT, recipes, charcLotes, charcRecetas, reventaLotes, reventaArticulos, ingredients, getRecipeUnitCost, getIngredientCost, lots]);
 
     const groupedPT = useMemo(() => {
         return Object.values(detailedPT.reduce((acc, pt) => {
@@ -596,6 +617,7 @@ export default function InventoryView({
                                             <span className={`px-2 py-0.5 rounded-full font-black uppercase ${
                                                 group.tipo === 'Panadería' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
                                                 group.tipo === 'Charcutería' ? 'bg-purple-50 text-purple-700 border border-purple-200' :
+                                                group.tipo === 'Fraccionado' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
                                                 'bg-orange-50 text-orange-700 border border-orange-200'
                                             }`}>{group.tipo}</span>
                                         </td>

@@ -604,7 +604,7 @@ export const GlobalProvider = ({ children }) => {
                 throw error;
             }
             
-            const newId = data[0].id;
+            const newId = data && data[0] ? data[0].id : ('cr_' + Date.now());
             
             // Guardar detalles
             const detInserts = details.map(d => ({ 
@@ -617,10 +617,11 @@ export const GlobalProvider = ({ children }) => {
             }));
             await supabase.from('charc_receta_ingredientes').insert(detInserts);
 
-            setCharcRecetas(prev => [{ ...data[0], tamano_lote_kg: receta.tamano_lote_kg, details: details }, ...prev]);
+            const savedReceta = data && data[0] ? data[0] : { id: newId, ...receta };
+            setCharcRecetas(prev => [{ ...savedReceta, tamano_lote_kg: receta.tamano_lote_kg, details: details }, ...prev]);
             showToast("Receta de charcutería guardada.");
         } catch (err) {
-            console.warn("Fallo persistencia, guardando localmente:", err.message);
+            console.warn("Fallo persistencia, guardando localmente:", err?.message || err);
             const localRec = { id: 'cr_' + Date.now(), ...receta, details };
             setCharcRecetas(prev => [localRec, ...prev]);
             showToast("Guardado localmente (Offline)");
@@ -657,8 +658,8 @@ export const GlobalProvider = ({ children }) => {
             setCharcRecetas(prev => prev.map(r => r.id === id ? { ...r, ...receta, details } : r));
             showToast("Receta de charcutería actualizada.");
         } catch (err) {
-            console.error("Error actualizando receta:", err.message);
-            showToast("Error BD: " + err.message, "error");
+            console.error("Error actualizando receta:", err?.message || err);
+            showToast("Error BD: " + (err?.message || err), "error");
         }
     };
 
@@ -669,8 +670,8 @@ export const GlobalProvider = ({ children }) => {
             setCharcRecetas(prev => prev.filter(r => r.id !== id));
             showToast("Ficha de charcutería eliminada.", "error");
         } catch (err) {
-            console.error("Error eliminando receta:", err.message);
-            showToast("Error BD: " + err.message, "error");
+            console.error("Error eliminando receta:", err?.message || err);
+            showToast("Error BD: " + (err?.message || err), "error");
         }
     };
 
@@ -678,10 +679,11 @@ export const GlobalProvider = ({ children }) => {
         try {
             const { data, error } = await supabase.from('charc_lotes_maduracion').insert([lote]).select();
             if (error) throw error;
-            setCharcLotes(prev => [data[0], ...prev]);
+            const savedLote = data && data[0] ? data[0] : { id: 'cl_' + Date.now(), ...lote, fecha_ingreso: new Date().toISOString() };
+            setCharcLotes(prev => [savedLote, ...prev]);
             showToast("Lote de charcutería registrado en secado.");
         } catch (err) {
-            console.warn("Fallo persistencia, guardando localmente:", err.message);
+            console.warn("Fallo persistencia, guardando localmente:", err?.message || err);
             const localLot = { id: 'cl_' + Date.now(), ...lote, fecha_ingreso: new Date().toISOString() };
             setCharcLotes(prev => [localLot, ...prev]);
             showToast("Lote guardado localmente (Offline)");
@@ -692,12 +694,13 @@ export const GlobalProvider = ({ children }) => {
         try {
             const { data, error } = await supabase.from('charc_maduracion_log').insert([log]).select();
             if (error) throw error;
-            setCharcLogs(prev => [data[0], ...prev]);
+            const savedLog = data && data[0] ? data[0] : { id: 'clg_' + Date.now(), ...log, fecha_registro: new Date().toISOString() };
+            setCharcLogs(prev => [savedLog, ...prev]);
             // Actualizar peso actual en el lote
             setCharcLotes(prev => prev.map(l => l.id === log.lote_id ? { ...l, peso_actual_g: Number(log.peso_real_g) } : l));
             showToast("Medición registrada.");
         } catch (err) {
-            console.warn("Fallo persistencia, guardando localmente:", err.message);
+            console.warn("Fallo persistencia, guardando localmente:", err?.message || err);
             const localLog = { id: 'clg_' + Date.now(), ...log, fecha_registro: new Date().toISOString() };
             setCharcLogs(prev => [localLog, ...prev]);
             setCharcLotes(prev => prev.map(l => l.id === log.lote_id ? { ...l, peso_actual_g: Number(log.peso_real_g) } : l));
@@ -707,10 +710,12 @@ export const GlobalProvider = ({ children }) => {
 
     const updateCharcLoteEstado = async (loteId, nuevoEstado) => {
         try {
-            await supabase.from('charc_lotes_maduracion').update({ estado: nuevoEstado }).eq('id', loteId);
+            const { error } = await supabase.from('charc_lotes_maduracion').update({ estado: nuevoEstado }).eq('id', loteId);
+            if (error) throw error;
             setCharcLotes(prev => prev.map(l => l.id === loteId ? { ...l, estado: nuevoEstado } : l));
             showToast(`Lote actualizado a ${nuevoEstado}`);
         } catch (err) {
+            console.warn("Fallo persistencia, guardando localmente:", err?.message || err);
             setCharcLotes(prev => prev.map(l => l.id === loteId ? { ...l, estado: nuevoEstado } : l));
             showToast("Actualizado localmente (Offline)");
         }
@@ -911,9 +916,11 @@ export const GlobalProvider = ({ children }) => {
         try {
             const { data, error } = await supabase.from('reventa_articulos').insert([articulo]).select();
             if (error) throw error;
-            setReventaArticulos(prev => [...prev, data[0]]);
+            const savedArt = data && data[0] ? data[0] : { id: 'ra_' + Date.now(), ...articulo };
+            setReventaArticulos(prev => [...prev, savedArt]);
             showToast("Artículo de reventa registrado.");
         } catch (err) {
+            console.warn("Fallo persistencia, guardando localmente:", err?.message || err);
             const localArt = { id: 'ra_' + Date.now(), ...articulo };
             setReventaArticulos(prev => [...prev, localArt]);
             showToast("Guardado localmente (Offline)");
@@ -924,9 +931,11 @@ export const GlobalProvider = ({ children }) => {
         try {
             const { data, error } = await supabase.from('reventa_lotes').insert([lote]).select();
             if (error) throw error;
-            setReventaLotes(prev => [data[0], ...prev]);
+            const savedLote = data && data[0] ? data[0] : { id: 'rl_' + Date.now(), ...lote, fecha_ingreso: new Date().toISOString() };
+            setReventaLotes(prev => [savedLote, ...prev]);
             showToast("Lote de reventa ingresado a stock.");
         } catch (err) {
+            console.warn("Fallo persistencia, guardando localmente:", err?.message || err);
             const localLot = { id: 'rl_' + Date.now(), ...lote, fecha_ingreso: new Date().toISOString() };
             setReventaLotes(prev => [localLot, ...prev]);
             showToast("Lote guardado localmente (Offline)");
@@ -943,10 +952,11 @@ export const GlobalProvider = ({ children }) => {
         try {
             const { data, error } = await supabase.from('egresos_varios').insert([expense]).select();
             if (error) throw error;
-            setExpenses(prev => [data[0], ...prev]);
+            const savedExpense = data && data[0] ? data[0] : { id: 'exp_' + Date.now(), ...expense };
+            setExpenses(prev => [savedExpense, ...prev]);
             showToast("Egreso registrado correctamente.");
         } catch (err) {
-            console.warn("Fallo persistencia, guardando localmente:", err.message);
+            console.warn("Fallo persistencia, guardando localmente:", err?.message || err);
             const localExpense = { id: 'exp_' + Date.now(), ...expense };
             setExpenses(prev => [localExpense, ...prev]);
             showToast("✅ Egreso guardado localmente (Offline)");
@@ -958,14 +968,16 @@ export const GlobalProvider = ({ children }) => {
         try {
             const { data, error } = await supabase.from('pedidos').insert([pedido]).select();
             if (error) throw error;
-            const newPedId = data[0].id;
+            const newPedId = data && data[0] ? data[0].id : ('p_' + Date.now());
             
             const itemInserts = items.map(it => ({ ...it, pedido_id: newPedId }));
             await supabase.from('pedido_items').insert(itemInserts);
             
-            setPedidos(prev => [{ ...data[0], items }, ...prev]);
+            const savedPedido = data && data[0] ? data[0] : { id: newPedId, ...pedido };
+            setPedidos(prev => [{ ...savedPedido, items }, ...prev]);
             showToast("Pedido de reparto despachado.");
         } catch (err) {
+            console.warn("Fallo persistencia, guardando localmente:", err?.message || err);
             const localPed = { id: 'p_' + Date.now(), ...pedido, items };
             setPedidos(prev => [localPed, ...prev]);
             showToast("Pedido cargado localmente (Offline)");
