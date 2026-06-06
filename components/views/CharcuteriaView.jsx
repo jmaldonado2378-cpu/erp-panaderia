@@ -69,6 +69,25 @@ export default function CharcuteriaView({
 
     const processedRecetas = useMemo(() => {
         const list = charcRecetas.map(r => {
+            const fam = r.familia_tecnologica;
+            const curado_salado = fam === 'salazon_cruda' ? Number(r.tiempo_curado_salado_dias || 0) : 0;
+            const estufado = fam === 'fermentado_seco' ? Number(r.tiempo_estufado_dias || 0) : 0;
+            const curado_salmuera = fam === 'salazon_inyectada' ? Number(r.tiempo_curado_salmuera_dias || 0) : 0;
+            const maduracion = (fam === 'salazon_cruda' || fam === 'fermentado_seco') ? Number(r.dias_maduracion || 0) : 0;
+
+            let derivedLeadTime = 0;
+            if (fam === 'salazon_cruda') {
+                derivedLeadTime = curado_salado + maduracion;
+            } else if (fam === 'fermentado_seco') {
+                derivedLeadTime = estufado + maduracion;
+            } else if (fam === 'salazon_inyectada') {
+                derivedLeadTime = curado_salmuera;
+            } else if (fam === 'embutido_fresco' || fam === 'emulsion_fina') {
+                derivedLeadTime = 1;
+            }
+
+            const derivedMerma = (fam === 'emulsion_fina' || fam === 'embutido_fresco') ? 0 : Number(r.merma_secado_objetivo || 0);
+
             const totalBatchCost = r.details ? r.details.reduce((acc, d) => {
                 const ing = ingredients.find(i => i.id === d.ingredientId);
                 const costPerGram = Number(ing?.costo_estandar || ing?.costPerGram || 0);
@@ -76,24 +95,24 @@ export default function CharcuteriaView({
             }, 0) : 0;
             const batchWeight = Number(r.tamano_lote_kg || 10) * 1000;
             const t_prep = Number(r.tiempo_preparacion || 30);
-            const d_maduracion = Number(r.dias_maduracion || 21);
             const costo_mo = (t_prep / 60) * (config?.finanzas?.costoHoraHombre || 4500);
-            const costo_camara = d_maduracion * (config?.finanzas?.costoDiaCamara || 150);
+            const costo_camara = maduracion * (config?.finanzas?.costoDiaCamara || 150);
             const totalCostOfBatch = totalBatchCost + costo_mo + costo_camara;
-            const merma = Number(r.merma_secado_objetivo || 35);
-            const finalWeightKg = (batchWeight * (1 - merma / 100)) / 1000;
+            const finalWeightKg = (batchWeight * (1 - derivedMerma / 100)) / 1000;
             const costPerUnit = finalWeightKg > 0 ? totalCostOfBatch / finalWeightKg : 0;
 
             return {
                 ...r,
+                lead_time_dias: derivedLeadTime,
+                merma_secado_objetivo: derivedMerma,
                 totalBatchCost,
                 batchWeight,
                 t_prep,
-                d_maduracion,
+                d_maduracion: maduracion,
                 costo_mo,
                 costo_camara,
                 totalCostOfBatch,
-                merma,
+                merma: derivedMerma,
                 finalWeightKg,
                 costPerUnit
             };
@@ -619,16 +638,6 @@ export default function CharcuteriaView({
                             <h3 className="text-2xl font-black uppercase italic text-slate-800 tracking-tighter">Monitoreo de Secado Artesanal</h3>
                             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Parámetros de Inocuidad: Humedad 70-75% | Temp 12-15°C | Trazabilidad FEFO</p>
                         </div>
-                        <Button onClick={() => {
-                            if (charcRecetas.length === 0) {
-                                showToast("Cargue al menos una ficha técnica antes de colgar lotes", "error");
-                                return;
-                            }
-                            setAsistente({ active: true, step: 1 });
-                            setTab('asistente');
-                        }} variant="accent" className="py-3 px-6 rounded-xl italic">
-                            <Plus size={16} /> Colgar Lote en Cámara
-                        </Button>
                     </div>
 
                     {/* BOARD KANBAN DE 5 ETAPAS */}
@@ -642,9 +651,17 @@ export default function CharcuteriaView({
                         ].map(col => {
                             const lotesEnCol = charcLotes.filter(l => {
                                 const rec = charcRecetas.find(r => r.id === l.receta_id);
-                                const etapa = !l.estado || l.estado === 'EN_SECADO'
-                                    ? (rec?.familia_tecnologica === 'salazon_inyectada' ? 'COCCION' : 'MADURACION')
-                                    : l.estado;
+                                let etapa = l.estado;
+                                if (!etapa || etapa === 'EN_SECADO') {
+                                    const fam = rec?.familia_tecnologica;
+                                    if (fam === 'embutido_fresco') {
+                                        etapa = 'CURADO_LISTO';
+                                    } else if (fam === 'emulsion_fina' || fam === 'salazon_inyectada') {
+                                        etapa = 'COCCION';
+                                    } else {
+                                        etapa = 'MADURACION';
+                                    }
+                                }
                                 return etapa === col.id;
                             });
 
@@ -1163,8 +1180,8 @@ export default function CharcuteriaView({
                                                     <Input 
                                                         label="Merma Secado Objetivo (%)" 
                                                         type="number" 
-                                                        value={recetaForm.merma_secado_objetivo} 
-                                                        disabled={true} 
+                                                        value={recetaForm.merma_secado_objetivo}
+                                                         onChange={v => setRecetaForm({ ...recetaForm, merma_secado_objetivo: Number(v) })} 
                                                         suffix="%" 
                                                         required 
                                                     />
@@ -1193,8 +1210,8 @@ export default function CharcuteriaView({
                                                     <Input 
                                                         label="Merma Secado Objetivo (%)" 
                                                         type="number" 
-                                                        value={recetaForm.merma_secado_objetivo} 
-                                                        disabled={true} 
+                                                        value={recetaForm.merma_secado_objetivo}
+                                                         onChange={v => setRecetaForm({ ...recetaForm, merma_secado_objetivo: Number(v) })} 
                                                         suffix="%" 
                                                         required 
                                                     />
