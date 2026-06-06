@@ -307,7 +307,7 @@ export default function CharcuteriaView({
         return { alerts, blockSave };
     }, [recetaForm, ingredients]);
 
-    const handleSaveReceta = () => {
+    const handleSaveReceta = async () => {
         if (!recetaForm.codigo || !recetaForm.nombre) {
             showToast("Código y nombre son requeridos", "error");
             return;
@@ -364,10 +364,15 @@ export default function CharcuteriaView({
             version: 1
         };
 
-        if (recetaForm.id) {
-            updateCharcReceta(recetaForm.id, receta, detailsMapped);
-        } else {
-            addCharcReceta(receta, detailsMapped);
+        try {
+            if (recetaForm.id) {
+                await updateCharcReceta(recetaForm.id, receta, detailsMapped);
+            } else {
+                await addCharcReceta(receta, detailsMapped);
+            }
+        } catch (err) {
+            console.error('Error guardando ficha:', err);
+            return; // No cerrar el modal si falló
         }
         setShowAddReceta(false);
         setRecetaForm({
@@ -898,9 +903,9 @@ export default function CharcuteriaView({
                                 }} className="space-y-4">
                                     
                                     {/* 1. If transitioning from PREPARACION or to CURADO_LISTO (final release), we need the measured weight */}
-                                    {(transitioningLote.lote.estado === 'PREPARACION' || targetStage === 'CURADO_LISTO' || transitioningLote.lote.estado === 'COCCION') && (
+                                    {(transitioningLote.lote.estado === 'PREPARACION' || transitioningLote.targetStage === 'CURADO_LISTO' || transitioningLote.lote.estado === 'COCCION') && (
                                         <Input 
-                                            label={targetStage === 'CURADO_LISTO' ? "Peso Final Post-Proceso (g)" : "Confirmar Peso Inicial (g)"}
+                                            label={transitioningLote.targetStage === 'CURADO_LISTO' ? "Peso Final Post-Proceso (g)" : "Confirmar Peso Inicial (g)"}
                                             type="number"
                                             placeholder="Ej. 10250"
                                             value={transitionForm.peso_real_g}

@@ -658,8 +658,10 @@ export const GlobalProvider = ({ children }) => {
             setCharcRecetas(prev => prev.map(r => r.id === id ? { ...r, ...receta, details } : r));
             showToast("Receta de charcutería actualizada.");
         } catch (err) {
-            console.error("Error actualizando receta:", err?.message || err);
-            showToast("Error BD: " + (err?.message || err), "error");
+            console.warn("Fallo persistencia al actualizar, guardando localmente:", err?.message || err);
+            // Fallback: actualizar estado local para no perder los cambios del usuario
+            setCharcRecetas(prev => prev.map(r => r.id === id ? { ...r, ...receta, details } : r));
+            showToast("Actualizado localmente (Offline). " + (err?.message || ''), "error");
         }
     };
 
