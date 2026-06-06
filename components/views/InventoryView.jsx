@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
     Search, RotateCcw, Printer, Layers, Calendar, XCircle, 
     DollarSign, AlertTriangle, Trash2, ChevronDown, ChevronRight, 
@@ -23,6 +23,10 @@ export default function InventoryView({
     const [activeTab, setActiveTab] = useState('insumos'); // 'insumos', 'productos'
     const [searchTerm, setSearchTerm] = useState('');
     const [providerFilter, setProviderFilter] = useState('');
+    const [isMounted, setIsMounted] = useState(false);
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
     const [adjustModal, setAdjustModal] = useState(null);
     const [deleteModal, setDeleteModal] = useState(null);
     const [newStock, setNewStock] = useState('');
@@ -494,7 +498,7 @@ export default function InventoryView({
                 <Card className="overflow-hidden border-2 print:border-none print:shadow-none bg-white">
                     <div className="hidden print:block mb-6 border-b-2 border-slate-900 pb-2">
                         <h2 className="text-2xl font-black uppercase italic text-slate-900 leading-none">Planilla de Control Físico de Inventario - Insumos</h2>
-                        <p className="text-xs font-bold uppercase tracking-widest text-slate-500 mt-2">Fecha: {new Date().toLocaleDateString('es-AR')} | Turno: _______ | Firma Auditor: ______________</p>
+                        <p className="text-xs font-bold uppercase tracking-widest text-slate-500 mt-2">Fecha: {isMounted ? new Date().toLocaleDateString('es-AR') : '--'} | Turno: _______ | Firma Auditor: ______________</p>
                     </div>
                     <table className="w-full text-left print:mt-4">
                         <thead className="bg-slate-900 text-white text-[9px] uppercase tracking-widest print:bg-transparent print:text-slate-800 print:border-b-2 print:border-slate-800">
@@ -585,7 +589,7 @@ export default function InventoryView({
                 <Card className="overflow-hidden border-2 print:border-none print:shadow-none bg-white">
                     <div className="hidden print:block mb-6 border-b-2 border-slate-900 pb-2">
                         <h2 className="text-2xl font-black uppercase italic text-slate-900 leading-none">Planilla de Control Físico - Productos Terminados</h2>
-                        <p className="text-xs font-bold uppercase tracking-widest text-slate-500 mt-2">Fecha: {new Date().toLocaleDateString('es-AR')} | Turno: _______ | Firma Auditor: ______________</p>
+                        <p className="text-xs font-bold uppercase tracking-widest text-slate-500 mt-2">Fecha: {isMounted ? new Date().toLocaleDateString('es-AR') : '--'} | Turno: _______ | Firma Auditor: ______________</p>
                     </div>
                     <table className="w-full text-left print:mt-4">
                         <thead className="bg-slate-900 text-white text-[9px] uppercase tracking-widest print:bg-transparent print:text-slate-800 print:border-b-2 print:border-slate-800">

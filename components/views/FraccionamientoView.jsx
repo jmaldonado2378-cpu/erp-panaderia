@@ -13,6 +13,10 @@ export default function FraccionamientoView({
     const [tab, setTab] = useState('tareas'); // 'tareas', 'nuevo'
     const [printedLabel, setPrintedLabel] = useState(null);
     const [processingTask, setProcessingTask] = useState(null);
+    const [isMounted, setIsMounted] = useState(false);
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
 
     // Formulario de Fraccionamiento
     const [form, setForm] = useState({
@@ -251,7 +255,7 @@ export default function FraccionamientoView({
                                             <div>
                                                 <div className="flex justify-between items-start mb-2">
                                                     <span className="font-mono text-[9px] font-black text-amber-600 bg-amber-50 px-2 py-0.5 rounded uppercase">Pendiente</span>
-                                                    <span className="text-[9px] text-slate-400 font-bold">{new Date(t.fecha_tarea || t.created_at || Date.now()).toLocaleDateString('es-AR')}</span>
+                                                    <span className="text-[9px] text-slate-400 font-bold">{isMounted ? new Date(t.fecha_tarea || t.created_at || Date.now()).toLocaleDateString('es-AR') : '--'}</span>
                                                 </div>
                                                 <h4 className="text-sm font-black uppercase text-slate-800 truncate">{granelIng?.name || 'Insumo'}</h4>
                                                 <p className="text-[10px] text-slate-400 font-bold mt-1 uppercase">Bolsa: {empaqueIng?.name || 'Bolsa'} ({t.formato_bolsa_g}g)</p>
@@ -314,7 +318,7 @@ export default function FraccionamientoView({
                                                     <td className="px-4 py-3">
                                                         <span className="font-mono font-black text-blue-700">{t.lote_pt_generado}</span>
                                                         <p className="text-[8px] text-slate-400 font-bold mt-0.5">
-                                                            {new Date(t.fecha_tarea || t.created_at || Date.now()).toLocaleDateString('es-AR')}
+                                                            {isMounted ? new Date(t.fecha_tarea || t.created_at || Date.now()).toLocaleDateString('es-AR') : '--'}
                                                         </p>
                                                     </td>
                                                     <td className="px-4 py-3">

@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
     Store, Plus, Package, DollarSign, Tag, TrendingUp, 
     Calendar, ClipboardList, CheckCircle2, QrCode, Trash2, ArrowRight
@@ -12,6 +12,10 @@ export default function ReventaView({
     providers, showToast 
 }) {
     const [tab, setTab] = useState('articulos'); // articulos, lotes, nuevo_art, nuevo_lot
+    const [isMounted, setIsMounted] = useState(false);
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
     const [showAddArt, setShowAddArt] = useState(false);
     const [showAddLot, setShowAddLot] = useState(false);
 
@@ -229,7 +233,7 @@ export default function ReventaView({
                             <tbody className="divide-y divide-slate-100 bg-white">
                                 {reventaLotes.map(l => {
                                     const art = reventaArticulos.find(a => a.id === l.articulo_id);
-                                    const daysToExpiry = Math.ceil((new Date(l.fecha_vencimiento) - new Date()) / (1000 * 60 * 60 * 24));
+                                    const daysToExpiry = isMounted ? Math.ceil((new Date(l.fecha_vencimiento) - new Date()) / (1000 * 60 * 60 * 24)) : 0;
                                     
                                     return (
                                         <tr key={l.id} className="hover:bg-slate-50 transition-colors">
@@ -238,11 +242,11 @@ export default function ReventaView({
                                                 <p className="text-[10px] text-slate-800 font-bold mt-0.5">{art?.nombre || 'Artículo'}</p>
                                             </td>
                                             <td className="px-4 py-3 text-center text-slate-500">
-                                                {new Date(l.fecha_ingreso || Date.now()).toLocaleDateString('es-AR')}
+                                                {isMounted ? new Date(l.fecha_ingreso || Date.now()).toLocaleDateString('es-AR') : '--'}
                                             </td>
                                             <td className="px-4 py-3 text-center font-mono">
                                                 <span className={daysToExpiry < 15 ? 'text-red-600 animate-pulse font-black' : 'text-slate-700'}>
-                                                    {new Date(l.fecha_vencimiento).toLocaleDateString('es-AR')}
+                                                    {isMounted ? new Date(l.fecha_vencimiento).toLocaleDateString('es-AR') : '--'}
                                                 </span>
                                                 <span className="block text-[8px] text-slate-400 mt-0.5">({daysToExpiry} días restantes)</span>
                                             </td>

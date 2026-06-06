@@ -43,6 +43,10 @@ export default function CharcuteriaView({
     const [tab, setTab] = useState(initialTab);
     const [showAddReceta, setShowAddReceta] = useState(false);
     const [showBulkImport, setShowBulkImport] = useState(false);
+    const [isMounted, setIsMounted] = useState(false);
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
 
     // Sorting and searching states for recetas tab
     const [searchTerm, setSearchTerm] = useState('');
@@ -423,6 +427,7 @@ export default function CharcuteriaView({
         const rec = asistente.recetaSelected;
         let baseWeightG = 0;
         let scaled = [];
+        let calculatedBrineDetails = null;
 
         if (rec.familia_tecnologica === 'fermentado_seco' || rec.familia_tecnologica === 'emulsion_fina' || rec.familia_tecnologica === 'embutido_fresco') {
             // Algoritmo 1: Determinación de la Masa Cárnica Base (MC) con Opción 1 (Peso Total de Mezcla Cárnica)
@@ -482,7 +487,7 @@ export default function CharcuteriaView({
                 ...ingredientsScaled
             ].filter(Boolean);
 
-            asistente.brineDetails = {
+            calculatedBrineDetails = {
                 w_salmuera: Math.round(w_salmuera),
                 waterG: Math.round(waterG),
                 aditivosG: Math.round(totalAditivosG)
@@ -495,6 +500,7 @@ export default function CharcuteriaView({
         setAsistente(prev => ({
             ...prev,
             scaledDetails: scaled,
+            brineDetails: calculatedBrineDetails,
             step: 3
         }));
     };
@@ -682,8 +688,8 @@ export default function CharcuteriaView({
                                             const familyData = FAMILIAS_CHARC[rec?.familia_tecnologica || 'fermentado_seco'];
                                             
                                             // Time calculations
-                                            const elapsedDays = Math.max(0, Math.floor((Date.now() - new Date(l.fecha_ingreso).getTime()) / (24 * 60 * 60 * 1000)));
-                                            const elapsedMinutes = Math.max(0, Math.floor((Date.now() - new Date(l.fecha_ingreso).getTime()) / 60000));
+                                            const elapsedDays = isMounted ? Math.max(0, Math.floor((Date.now() - new Date(l.fecha_ingreso).getTime()) / (24 * 60 * 60 * 1000))) : 0;
+                                            const elapsedMinutes = isMounted ? Math.max(0, Math.floor((Date.now() - new Date(l.fecha_ingreso).getTime()) / 60000)) : 0;
                                             
                                             let timeStatus = "";
                                             let timeTargetMet = false;
