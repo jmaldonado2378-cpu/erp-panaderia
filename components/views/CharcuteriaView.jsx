@@ -598,9 +598,9 @@ export default function CharcuteriaView({
             title: receta?.nombre || 'Producto Charcutería',
             sku: receta?.codigo || 'SKU-UNKNOWN',
             lote: lote.codigo_lote,
-            peso: `${lote.peso_actual_g.toLocaleString()} g`,
+            peso: `${(lote.peso_actual_g || 0).toLocaleString()} g`,
             ingreso: new Date(lote.fecha_ingreso || Date.now()).toLocaleDateString('es-AR'),
-            vencimiento: new Date(lote.fecha_vencimiento).toLocaleDateString('es-AR'),
+            vencimiento: lote.fecha_vencimiento ? new Date(lote.fecha_vencimiento).toLocaleDateString('es-AR') : 'S/D',
             status: lote.estado
         });
     };
@@ -700,15 +700,19 @@ export default function CharcuteriaView({
                                     <div className="flex-1 space-y-3 overflow-y-auto max-h-[600px] pr-1">
                                         {lotesEnCol.map(l => {
                                             const rec = charcRecetas.find(r => r.id === l.receta_id);
-                                            const mermaReal = ((1 - l.peso_actual_g / l.peso_inicial_g) * 100);
+                                            const pesoInicial = l.peso_inicial_g || 1; // Guard against division by zero
+                                            const pesoActual = l.peso_actual_g || 0;
+                                            const mermaReal = ((1 - pesoActual / pesoInicial) * 100);
                                             const targetMerma = rec?.merma_secado_objetivo || 35.00;
                                             const percentToGoal = targetMerma > 0 ? (mermaReal / targetMerma) * 100 : 0;
                                             const isCured = mermaReal >= targetMerma;
                                             const familyData = FAMILIAS_CHARC[rec?.familia_tecnologica || 'fermentado_seco'];
                                             
-                                            // Time calculations
-                                            const elapsedDays = isMounted ? Math.max(0, Math.floor((Date.now() - new Date(l.fecha_ingreso).getTime()) / (24 * 60 * 60 * 1000))) : 0;
-                                            const elapsedMinutes = isMounted ? Math.max(0, Math.floor((Date.now() - new Date(l.fecha_ingreso).getTime()) / 60000)) : 0;
+                                            // Time calculations (safe date parsing)
+                                            const ingresoParsed = l.fecha_ingreso ? new Date(l.fecha_ingreso).getTime() : Date.now();
+                                            const elapsedDays = isMounted ? Math.max(0, Math.floor((Date.now() - ingresoParsed) / (24 * 60 * 60 * 1000))) : 0;
+                                            const elapsedMinutes = isMounted ? Math.max(0, Math.floor((Date.now() - ingresoParsed) / 60000)) : 0;
+
                                             
                                             let timeStatus = "";
                                             let timeTargetMet = false;
@@ -749,11 +753,11 @@ export default function CharcuteriaView({
                                                     <div className="space-y-1.5 text-[9px] font-bold text-slate-600">
                                                         <div className="flex justify-between">
                                                             <span>Peso Crudo:</span>
-                                                            <span className="font-mono text-slate-800">{l.peso_inicial_g.toLocaleString()} g</span>
+                                                            <span className="font-mono text-slate-800">{(l.peso_inicial_g || 0).toLocaleString()} g</span>
                                                         </div>
                                                         <div className="flex justify-between">
                                                             <span>Peso Actual:</span>
-                                                            <span className="font-mono text-slate-800">{l.peso_actual_g.toLocaleString()} g</span>
+                                                            <span className="font-mono text-slate-800">{(l.peso_actual_g || 0).toLocaleString()} g</span>
                                                         </div>
                                                         
                                                         {/* Deshidratación / Merma para Maduración */}
@@ -897,7 +901,7 @@ export default function CharcuteriaView({
 
                                     // 2. Actualizar estado — esto es crítico y SIEMPRE se ejecuta
                                     try {
-                                        await updateCharcLoteEstado(lote.id, targetStage);
+                                        await updateCharcLoteEstado(lote.id, targetStage, weight);
                                         setTransitioningLote(null);
                                         setTransitionForm({ peso_real_g: '', temperatura_c: '12', humedad_pct: '75', pH: '5.7', operario: 'Supervisor Planta', observaciones: '' });
                                         showToast(`✅ Lote ${lote.codigo_lote} → ${targetStage}`);
@@ -1803,7 +1807,7 @@ export default function CharcuteriaView({
                                                 </div>
                                                 <div className="text-right flex items-center gap-4">
                                                     <p className="font-mono text-3xl font-black">
-                                                        {d.gramos_calculados.toLocaleString('es-AR')}<span className="text-base text-slate-400 font-bold ml-1">g</span>
+                                                        {(d.gramos_calculados || 0).toLocaleString('es-AR')}<span className="text-base text-slate-400 font-bold ml-1">g</span>
                                                     </p>
                                                 </div>
                                             </div>
@@ -1944,7 +1948,7 @@ export default function CharcuteriaView({
                                 <div className="bg-slate-50 border p-5 rounded-2xl text-left space-y-3 font-medium text-xs text-slate-700">
                                     <div className="flex justify-between border-b pb-2"><b>Lote:</b> <span className="font-mono text-blue-700 font-bold">{asistente.codigoLote}</span></div>
                                     <div className="flex justify-between border-b pb-2"><b>Carga inicial:</b> <span className="font-mono text-slate-900 font-bold">{
-                                        asistente.scaledDetails.reduce((a,b) => a + b.gramos_calculados, 0).toLocaleString('es-AR')
+                                        asistente.scaledDetails.reduce((a,b) => a + (b.gramos_calculados || 0), 0).toLocaleString('es-AR')
                                     } g</span></div>
                                     <div className="flex justify-between pb-1"><b>Curing Lead Time:</b> <span className="font-mono text-slate-900 font-bold">{asistente.recetaSelected.lead_time_dias} días</span></div>
                                 </div>

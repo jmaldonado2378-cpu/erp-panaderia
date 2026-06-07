@@ -17,7 +17,7 @@ const EMPTY_FORM = {
 
 export default function EngineeringView({ 
     recipes = [], ingredients = [], setRecipes, setIngredients, showToast, config,
-    charcRecetas = [], addCharcReceta, setCharcRecetas
+    charcRecetas = [], addCharcReceta, updateCharcReceta, deleteCharcReceta, setCharcRecetas
 }) {
     const [subTab, setSubTab] = useState('panaderia'); // 'panaderia' | 'charcuteria'
     const [showAdd, setShowAdd] = useState(false);
@@ -355,6 +355,8 @@ export default function EngineeringView({
                 <CharcuteriaView 
                     charcRecetas={charcRecetas} 
                     addCharcReceta={addCharcReceta} 
+                    updateCharcReceta={updateCharcReceta}
+                    deleteCharcReceta={deleteCharcReceta}
                     setCharcRecetas={setCharcRecetas}
                     ingredients={ingredients} 
                     showToast={showToast} 

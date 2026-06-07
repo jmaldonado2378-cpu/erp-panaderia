@@ -716,8 +716,12 @@ export const GlobalProvider = ({ children }) => {
             if (error) throw error;
             const savedLog = data && data[0] ? data[0] : { id: 'clg_' + Date.now(), ...log, fecha_registro: new Date().toISOString() };
             setCharcLogs(prev => [savedLog, ...prev]);
-            // Actualizar peso actual en el lote
-            setCharcLotes(prev => prev.map(l => l.id === log.lote_id ? { ...l, peso_actual_g: Number(log.peso_real_g) } : l));
+            // Persistir peso_actual_g en la base de datos
+            const newPeso = Number(log.peso_real_g);
+            if (newPeso > 0) {
+                await supabase.from('charc_lotes_maduracion').update({ peso_actual_g: newPeso }).eq('id', log.lote_id);
+            }
+            setCharcLotes(prev => prev.map(l => l.id === log.lote_id ? { ...l, peso_actual_g: newPeso } : l));
             showToast("Medición registrada.");
         } catch (err) {
             console.warn("Fallo persistencia, guardando localmente:", err?.message || err);
@@ -729,15 +733,21 @@ export const GlobalProvider = ({ children }) => {
         }
     };
 
-    const updateCharcLoteEstado = async (loteId, nuevoEstado) => {
+    const updateCharcLoteEstado = async (loteId, nuevoEstado, pesoActual) => {
         try {
-            const { error } = await supabase.from('charc_lotes_maduracion').update({ estado: nuevoEstado }).eq('id', loteId);
+            const updatePayload = { estado: nuevoEstado };
+            if (pesoActual != null && Number(pesoActual) > 0) {
+                updatePayload.peso_actual_g = Number(pesoActual);
+            }
+            const { error } = await supabase.from('charc_lotes_maduracion').update(updatePayload).eq('id', loteId);
             if (error) throw error;
-            setCharcLotes(prev => prev.map(l => l.id === loteId ? { ...l, estado: nuevoEstado } : l));
+            setCharcLotes(prev => prev.map(l => l.id === loteId ? { ...l, ...updatePayload } : l));
             showToast(`Lote actualizado a ${nuevoEstado}`);
         } catch (err) {
             console.warn("Fallo persistencia, guardando localmente:", err?.message || err);
-            setCharcLotes(prev => prev.map(l => l.id === loteId ? { ...l, estado: nuevoEstado } : l));
+            const localUpdate = { estado: nuevoEstado };
+            if (pesoActual != null && Number(pesoActual) > 0) localUpdate.peso_actual_g = Number(pesoActual);
+            setCharcLotes(prev => prev.map(l => l.id === loteId ? { ...l, ...localUpdate } : l));
             showToast("Actualizado localmente (Offline)");
             throw err;
         }

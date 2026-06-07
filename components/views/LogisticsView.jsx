@@ -534,7 +534,7 @@ export default function LogisticsView({
                                                 <td className="p-2 font-mono text-blue-700">{l.codigo_lote}</td>
                                                 <td className="p-2 uppercase text-[10px]">{charcRecetas.find(r=>r.id===l.receta_id)?.nombre || 'Chacinado'}</td>
                                                 <td className="p-2 text-center font-mono">{new Date(l.fecha_vencimiento).toLocaleDateString()}</td>
-                                                <td className="p-2 text-right font-mono text-slate-900">{l.peso_actual_g.toLocaleString()} g</td>
+                                                <td className="p-2 text-right font-mono text-slate-900">{(l.peso_actual_g || 0).toLocaleString()} g</td>
                                             </tr>
                                         ))}
                                     </tbody>
