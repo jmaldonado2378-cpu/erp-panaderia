@@ -82,10 +82,12 @@ export const Button = ({ children, onClick, variant = 'primary', className = "",
         success: "bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm",
         accent: "bg-orange-600 text-white hover:bg-orange-700 shadow-sm",
         danger: "bg-red-50 text-red-600 hover:bg-red-100",
+        warning: "bg-amber-500 text-white hover:bg-amber-600 shadow-sm",
         ghost: "bg-transparent text-slate-500 hover:text-slate-900"
     };
-    return <button disabled={disabled} type={type} onClick={onClick} className={`px-3 py-1.5 rounded-md font-bold uppercase tracking-wider text-[10px] transition-all flex items-center justify-center gap-1.5 disabled:opacity-40 active:scale-95 ${styles[variant]} ${className}`}>{children}</button>;
+    return <button disabled={disabled} type={type} onClick={onClick} className={`px-3 py-1.5 rounded-md font-bold uppercase tracking-wider text-[10px] transition-all flex items-center justify-center gap-1.5 disabled:opacity-40 active:scale-95 ${styles[variant] || styles.primary} ${className}`}>{children}</button>;
 };
+
 
 export const Input = ({ label, type = "text", value, onChange, placeholder, required = false, disabled = false, suffix = null }) => (
     <div className="flex flex-col gap-1 w-full text-left">

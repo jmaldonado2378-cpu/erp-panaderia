@@ -873,15 +873,15 @@ export default function CharcuteriaView({
 
                                 <form onSubmit={async (e) => {
                                     e.preventDefault();
-                                    try {
-                                        const { lote, targetStage } = transitioningLote;
-                                        const weight = transitionForm.peso_real_g ? Number(transitionForm.peso_real_g) : lote.peso_actual_g;
-                                        const temp = transitionForm.temperatura_c ? Number(transitionForm.temperatura_c) : 12.0;
-                                        const hum = transitionForm.humedad_pct ? Number(transitionForm.humedad_pct) : 75.0;
-                                        const pH = transitionForm.pH ? Number(transitionForm.pH) : null;
-                                        const obs = transitionForm.observaciones || '';
+                                    const { lote, targetStage } = transitioningLote;
+                                    const weight = transitionForm.peso_real_g ? Number(transitionForm.peso_real_g) : lote.peso_actual_g;
+                                    const temp = transitionForm.temperatura_c ? Number(transitionForm.temperatura_c) : 12.0;
+                                    const hum = transitionForm.humedad_pct ? Number(transitionForm.humedad_pct) : 75.0;
+                                    const pH = transitionForm.pH ? Number(transitionForm.pH) : null;
+                                    const obs = transitionForm.observaciones || '';
 
-                                        // Add log
+                                    // 1. Intentar guardar el log — si falla, NO bloquear la transición
+                                    try {
                                         const log = {
                                             lote_id: lote.id,
                                             peso_real_g: weight,
@@ -891,16 +891,19 @@ export default function CharcuteriaView({
                                             observaciones: `Transición a ${targetStage}. ${obs} ${pH ? `[pH registrado: ${pH}]` : ''}`
                                         };
                                         await addCharcLog(log);
+                                    } catch (logErr) {
+                                        console.warn("Log de transición falló, continuando con cambio de estado:", logErr?.message);
+                                    }
 
-                                        // Update status
+                                    // 2. Actualizar estado — esto es crítico y SIEMPRE se ejecuta
+                                    try {
                                         await updateCharcLoteEstado(lote.id, targetStage);
-
                                         setTransitioningLote(null);
                                         setTransitionForm({ peso_real_g: '', temperatura_c: '12', humedad_pct: '75', pH: '5.7', operario: 'Supervisor Planta', observaciones: '' });
-                                        showToast(`✅ Lote transicionado a ${targetStage}`);
-                                    } catch (err) {
-                                        console.error("Error transitioning lot:", err);
-                                        showToast("Error al realizar la transición: " + (err.message || err), "error");
+                                        showToast(`✅ Lote ${lote.codigo_lote} → ${targetStage}`);
+                                    } catch (stateErr) {
+                                        console.error("Error actualizando estado del lote:", stateErr);
+                                        showToast("Error al actualizar estado: " + (stateErr?.message || stateErr), "error");
                                     }
                                 }} className="space-y-4">
                                     
