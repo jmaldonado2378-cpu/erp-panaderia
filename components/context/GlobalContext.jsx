@@ -594,9 +594,16 @@ export const GlobalProvider = ({ children }) => {
             data = res.data;
             error = res.error;
             
-            if (error && (error.code === '42703' || error.message.includes('tamano_lote_kg'))) {
-                console.warn("Columna 'tamano_lote_kg' no existe en DB, reintentando sin ella");
-                const { tamano_lote_kg, ...cleanReceta } = receta;
+            if (error && error.code === '42703') {
+                console.warn("Columnas extendidas de recetas no existen en DB, reintentando sin ellas");
+                const { 
+                    tiempo_curado_salado_dias,
+                    tiempo_estufado_dias,
+                    tiempo_curado_salmuera_dias,
+                    tiempo_coccion_mins,
+                    tamano_lote_kg,
+                    ...cleanReceta 
+                } = receta;
                 const retry = await supabase.from('charc_recetas').insert([cleanReceta]).select();
                 if (retry.error) throw retry.error;
                 data = retry.data;
@@ -632,9 +639,16 @@ export const GlobalProvider = ({ children }) => {
     const updateCharcReceta = async (id, receta, details) => {
         try {
             const { error } = await supabase.from('charc_recetas').update(receta).eq('id', id);
-            if (error && (error.code === '42703' || error.message.includes('tamano_lote_kg'))) {
-                console.warn("Columna 'tamano_lote_kg' no existe en DB, reintentando sin ella");
-                const { tamano_lote_kg, ...cleanReceta } = receta;
+            if (error && error.code === '42703') {
+                console.warn("Columnas extendidas de recetas no existen en DB, reintentando sin ellas");
+                const { 
+                    tiempo_curado_salado_dias,
+                    tiempo_estufado_dias,
+                    tiempo_curado_salmuera_dias,
+                    tiempo_coccion_mins,
+                    tamano_lote_kg,
+                    ...cleanReceta 
+                } = receta;
                 const retry = await supabase.from('charc_recetas').update(cleanReceta).eq('id', id);
                 if (retry.error) throw retry.error;
             } else if (error) {
@@ -686,11 +700,13 @@ export const GlobalProvider = ({ children }) => {
             const savedLote = data && data[0] ? data[0] : { id: 'cl_' + Date.now(), ...lote, fecha_ingreso: new Date().toISOString() };
             setCharcLotes(prev => [savedLote, ...prev]);
             showToast("Lote de charcutería registrado en secado.");
+            return savedLote;
         } catch (err) {
             console.warn("Fallo persistencia, guardando localmente:", err?.message || err);
             const localLot = { id: 'cl_' + Date.now(), ...lote, fecha_ingreso: new Date().toISOString() };
             setCharcLotes(prev => [localLot, ...prev]);
             showToast("Lote guardado localmente (Offline)");
+            return localLot;
         }
     };
 
@@ -709,6 +725,7 @@ export const GlobalProvider = ({ children }) => {
             setCharcLogs(prev => [localLog, ...prev]);
             setCharcLotes(prev => prev.map(l => l.id === log.lote_id ? { ...l, peso_actual_g: Number(log.peso_real_g) } : l));
             showToast("Medición registrada localmente (Offline)");
+            throw err;
         }
     };
 
@@ -722,6 +739,7 @@ export const GlobalProvider = ({ children }) => {
             console.warn("Fallo persistencia, guardando localmente:", err?.message || err);
             setCharcLotes(prev => prev.map(l => l.id === loteId ? { ...l, estado: nuevoEstado } : l));
             showToast("Actualizado localmente (Offline)");
+            throw err;
         }
     };
 

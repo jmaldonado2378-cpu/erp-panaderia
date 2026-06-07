@@ -529,7 +529,7 @@ export default function CharcuteriaView({
         }));
     };
 
-    const handleSaveLoteAsistente = () => {
+    const handleSaveLoteAsistente = async () => {
         if (!asistente.codigoLote) {
             showToast("Código de lote es obligatorio", "error");
             return;
@@ -539,9 +539,6 @@ export default function CharcuteriaView({
         const totalFarsaG = asistente.scaledDetails
             .filter(d => d.categoria_tecnologica !== 'empaque')
             .reduce((acc, d) => acc + Number(d.gramos_calculados || 0), 0);
-
-        // M_final_batch = M_tot_farsa * (1 - % merma / 100)
-        const finalExpectedG = totalFarsaG * (1 - Number(rec.merma_secado_objetivo) / 100);
 
         const lote = {
             receta_id: rec.id,
@@ -553,28 +550,28 @@ export default function CharcuteriaView({
             fecha_vencimiento: asistente.fechaVencimiento
         };
 
-        // Agregar log inicial con el control HACCP ingresado
-        addCharcLote(lote);
+        try {
+            // Guardar lote y obtener el lote guardado (con su ID persistido)
+            const savedLote = await addCharcLote(lote);
 
-        // Si se cargó un valor de control (pH o temp cutter)
-        if (asistente.haccpVal) {
-            setTimeout(() => {
-                const logsForRec = charcLotes.find(l => l.codigo_lote === lote.codigo_lote);
-                if (logsForRec) {
-                    addCharcLog({
-                        lote_id: logsForRec.id,
-                        peso_real_g: Math.round(totalFarsaG),
-                        temperatura_c: rec.familia_tecnologica === 'emulsion_fina' ? Number(asistente.haccpVal) : 12.0,
-                        humedad_pct: 75.0,
-                        operario: 'Sistema MES',
-                        observaciones: `Registro inicial de control. PCC inicial cargado: ${asistente.haccpVal} ${rec.familia_tecnologica === 'salazon_cruda' ? 'pH' : '°C cutter'}`
-                    });
-                }
-            }, 1000);
+            // Si se cargó un valor de control (pH o temp cutter) y el lote se guardó correctamente
+            if (asistente.haccpVal && savedLote) {
+                await addCharcLog({
+                    lote_id: savedLote.id,
+                    peso_real_g: Math.round(totalFarsaG),
+                    temperatura_c: rec.familia_tecnologica === 'emulsion_fina' ? Number(asistente.haccpVal) : 12.0,
+                    humedad_pct: 75.0,
+                    operario: 'Sistema MES',
+                    observaciones: `Registro inicial de control. PCC inicial cargado: ${asistente.haccpVal} ${rec.familia_tecnologica === 'salazon_cruda' ? 'pH' : '°C cutter'}`
+                });
+            }
+
+            setAsistente({ active: false, step: 1, recetaSelected: null, scaledDetails: [] });
+            setTab('lotes');
+        } catch (err) {
+            console.error("Error guardando lote asistente:", err);
+            showToast("Error al guardar lote en la base de datos: " + (err.message || err), "error");
         }
-
-        setAsistente({ active: false, step: 1, recetaSelected: null, scaledDetails: [] });
-        setTab('lotes');
     };
 
     // --- Registrar medición manual de control ---
@@ -876,30 +873,35 @@ export default function CharcuteriaView({
 
                                 <form onSubmit={async (e) => {
                                     e.preventDefault();
-                                    const { lote, targetStage } = transitioningLote;
-                                    const weight = transitionForm.peso_real_g ? Number(transitionForm.peso_real_g) : lote.peso_actual_g;
-                                    const temp = transitionForm.temperatura_c ? Number(transitionForm.temperatura_c) : 12.0;
-                                    const hum = transitionForm.humedad_pct ? Number(transitionForm.humedad_pct) : 75.0;
-                                    const pH = transitionForm.pH ? Number(transitionForm.pH) : null;
-                                    const obs = transitionForm.observaciones || '';
+                                    try {
+                                        const { lote, targetStage } = transitioningLote;
+                                        const weight = transitionForm.peso_real_g ? Number(transitionForm.peso_real_g) : lote.peso_actual_g;
+                                        const temp = transitionForm.temperatura_c ? Number(transitionForm.temperatura_c) : 12.0;
+                                        const hum = transitionForm.humedad_pct ? Number(transitionForm.humedad_pct) : 75.0;
+                                        const pH = transitionForm.pH ? Number(transitionForm.pH) : null;
+                                        const obs = transitionForm.observaciones || '';
 
-                                    // Add log
-                                    const log = {
-                                        lote_id: lote.id,
-                                        peso_real_g: weight,
-                                        temperatura_c: temp,
-                                        humedad_pct: hum,
-                                        operario: transitionForm.operario || 'Supervisor Planta',
-                                        observaciones: `Transición a ${targetStage}. ${obs} ${pH ? `[pH registrado: ${pH}]` : ''}`
-                                    };
-                                    await addCharcLog(log);
+                                        // Add log
+                                        const log = {
+                                            lote_id: lote.id,
+                                            peso_real_g: weight,
+                                            temperatura_c: temp,
+                                            humedad_pct: hum,
+                                            operario: transitionForm.operario || 'Supervisor Planta',
+                                            observaciones: `Transición a ${targetStage}. ${obs} ${pH ? `[pH registrado: ${pH}]` : ''}`
+                                        };
+                                        await addCharcLog(log);
 
-                                    // Update status
-                                    await updateCharcLoteEstado(lote.id, targetStage);
+                                        // Update status
+                                        await updateCharcLoteEstado(lote.id, targetStage);
 
-                                    setTransitioningLote(null);
-                                    setTransitionForm({ peso_real_g: '', temperatura_c: '12', humedad_pct: '75', pH: '5.7', operario: 'Supervisor Planta', observaciones: '' });
-                                    showToast(`✅ Lote transicionado a ${targetStage}`);
+                                        setTransitioningLote(null);
+                                        setTransitionForm({ peso_real_g: '', temperatura_c: '12', humedad_pct: '75', pH: '5.7', operario: 'Supervisor Planta', observaciones: '' });
+                                        showToast(`✅ Lote transicionado a ${targetStage}`);
+                                    } catch (err) {
+                                        console.error("Error transitioning lot:", err);
+                                        showToast("Error al realizar la transición: " + (err.message || err), "error");
+                                    }
                                 }} className="space-y-4">
                                     
                                     {/* 1. If transitioning from PREPARACION or to CURADO_LISTO (final release), we need the measured weight */}
@@ -914,8 +916,8 @@ export default function CharcuteriaView({
                                         />
                                     )}
 
-                                    {/* 2. If transitioning to MADURACION (from ESTUFADO) or to CURADO_LISTO (from MADURACION), we need pH and chamber data */}
-                                    {(transitioningLote.lote.estado === 'ESTUFADO' || transitioningLote.lote.estado === 'MADURACION') && (
+                                    {/* 2. If transitioning to MADURACION (from ESTUFADO) or to CURADO_LISTO (from MADURACION / EN_SECADO), we need pH and chamber data */}
+                                    {(transitioningLote.lote.estado === 'ESTUFADO' || transitioningLote.lote.estado === 'MADURACION' || transitioningLote.lote.estado === 'EN_SECADO') && (
                                         <>
                                             <div className="grid grid-cols-2 gap-4">
                                                 <Input 
