@@ -326,18 +326,15 @@ export default function DashboardView({
             ) : (
                 <div className="flex justify-between items-center">
                     <div className="flex items-center gap-3">
-                        <div>
-                            <h2 className="text-xl font-black uppercase italic text-slate-800 leading-none">Monitor Central</h2>
-                            <div className="flex items-center gap-2 mt-1">
-                                {activePresetData && (
-                                    <span className="text-[9px] font-black uppercase bg-slate-900 text-white px-2 py-0.5 rounded-full">
-                                        {activePresetData.label}
-                                    </span>
-                                )}
-                                <span className="text-[9px] text-slate-400 font-bold">
-                                    {visibleKpis.length} KPIs · {Object.values(visibleTablas).filter(Boolean).length} tablas activas
+                        <div className="flex items-center gap-2">
+                            {activePresetData && (
+                                <span className="text-[9px] font-black uppercase bg-slate-900 text-white px-2 py-0.5 rounded-full">
+                                    {activePresetData.label}
                                 </span>
-                            </div>
+                            )}
+                            <span className="text-[9px] text-slate-400 font-bold">
+                                {visibleKpis.length} KPIs · {Object.values(visibleTablas).filter(Boolean).length} tablas activas
+                            </span>
                         </div>
                     </div>
                     <button
