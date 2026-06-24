@@ -8,7 +8,7 @@ import { DEFAULT_DASHBOARD_CONFIG } from '../dashboard_config';
    DATOS ESTÁTICOS DE CONFIGURACIÓN Y MOCKS (Resiliencia Offline)
    ==================================================================== */
 const INITIAL_CONFIG = {
-    companyName: 'ERP Panificadoras',
+    companyName: 'Sistema Casa Maldonado',
     appName: 'MES PRO',
     branches: ['Morón Centro', 'Castelar'],
     finanzas: {

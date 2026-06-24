@@ -161,7 +161,7 @@ export default function ERPLayout({ children }) {
                 }`}>
                     {isMaldonado ? (
                         <div className="h-24 flex flex-col justify-center items-center px-4 border-b border-[#1a1a1a] mb-2 select-none">
-                            <h1 className="font-sans text-[#e2c97d] text-2xl font-bold tracking-wide">Casa Maldonado</h1>
+                            <h1 className="font-sans text-[#e2c97d] text-lg font-bold tracking-wide text-center">Sistema Casa Maldonado</h1>
                             <span className="text-[9px] text-[#8a8a8a] font-sans tracking-[0.2em] uppercase mt-1">Taller Artesanal</span>
                         </div>
                     ) : (
