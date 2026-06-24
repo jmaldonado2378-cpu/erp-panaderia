@@ -5,7 +5,7 @@ import { Card, Button, Input, Select } from '../bakery_erp';
 import { WIDGET_CATALOG, PRESETS } from '../dashboard_config';
 
 export default function SettingsView({ config, setConfig, showToast, dashboardConfig, setDashboardConfig }) {
-    const { theme } = useGlobalContext();
+    const { theme, changeTheme } = useGlobalContext();
     const [form, setForm] = useState(config);
     const [newBranch, setNewBranch] = useState('');
 
@@ -58,6 +58,28 @@ export default function SettingsView({ config, setConfig, showToast, dashboardCo
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
                     <Input label="Nombre de la Empresa / Marca" value={form.companyName} onChange={v => setForm({ ...form, companyName: v })} />
                     <Input label="Subtítulo / Versión del Sistema" value={form.appName} onChange={v => setForm({ ...form, appName: v })} />
+                </div>
+            </Card>
+
+            {/* Apariencia y Tema */}
+            <Card className="fall-target p-6 border-t-8 border-slate-900 bg-white shadow-md">
+                <div className="flex items-center gap-3 mb-5 border-b pb-3">
+                    <Sparkles className="text-slate-800" size={24} />
+                    <h4 className="text-xl font-black uppercase italic text-slate-800">Apariencia y Tema</h4>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+                    <Select 
+                        label="Tema de Interfaz" 
+                        value={theme || 'maldonado-contraste'} 
+                        onChange={v => changeTheme(v)}
+                    >
+                        <option value="maldonado-contraste">Casa Maldonado (Contraste Optimizado - Oscuro)</option>
+                        <option value="classic">Clásico (Luminoso)</option>
+                        <option value="artisan">Artisan Industrial (Oscuro)</option>
+                        <option value="terminal">Bakery OS Terminal (Verde Neón)</option>
+                        <option value="executive">Executive Neo-Dark (Púrpura)</option>
+                        <option value="artisanflow">ArtisanFlow Glassmorphic (Luminoso)</option>
+                    </Select>
                 </div>
             </Card>
 
