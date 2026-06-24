@@ -12,7 +12,8 @@ const EMPTY_FORM = {
     id: null, codigo: '', nombre: '', familia: 'F', ver: 1, wip: false, merma: 15,
     formato_venta: 'Unidad', peso_unidad: 100, horas_hombre: 1,
     loteMinimo: 1, logica_formula: 'panadero', details: [],
-    tiempo_pesaje: 5, tiempo_amasado: 15, tiempo_armado: 20, tiempo_fermentacion: 60, tiempo_horneado: 25, capacidad_horno: 100
+    tiempo_pesaje: 5, tiempo_amasado: 15, tiempo_armado: 20, tiempo_fermentacion: 60, tiempo_horneado: 25, capacidad_horno: 100,
+    frecuencia_vueltas: '', tiempo_por_vuelta: ''
 };
 
 export default function EngineeringView({ 
@@ -62,6 +63,33 @@ export default function EngineeringView({
         }
     }, [form.familia, form.wip, showAdd, recipes]);
 
+    // Auto-adjust form based on family selection
+    useEffect(() => {
+        if (!showAdd) return;
+        if (form.familia === 'A') {
+            setForm(prev => ({
+                ...prev,
+                formato_venta: 'Unidad',
+                logica_formula: 'batch',
+                tiempo_fermentacion: 0,
+                frecuencia_vueltas: '',
+                tiempo_por_vuelta: ''
+            }));
+        } else if (form.familia === 'D') {
+            setForm(prev => ({
+                ...prev,
+                logica_formula: 'panadero'
+            }));
+        } else {
+            setForm(prev => ({
+                ...prev,
+                logica_formula: 'panadero',
+                frecuencia_vueltas: '',
+                tiempo_por_vuelta: ''
+            }));
+        }
+    }, [form.familia, showAdd]);
+
     // Fetch published price for right panel (Opción A)
     useEffect(() => {
         if (!form.id) { setPublishedPrice(null); return; }
@@ -97,8 +125,9 @@ export default function EngineeringView({
         const t_armado = Number(recipe.tiempo_armado || 20);
         const t_horneado = Number(recipe.tiempo_horneado || 25);
         const cap_horno = Number(recipe.capacidad_horno || 100);
+        const t_vueltas = recipe.familia === 'D' ? (Number(recipe.frecuencia_vueltas || 0) * Number(recipe.tiempo_por_vuelta || 0)) : 0;
 
-        const costo_mo = ((t_pesaje + t_amasado + t_armado + t_horneado) / 60) * (config?.finanzas?.costoHoraHombre || 4500);
+        const costo_mo = ((t_pesaje + t_amasado + t_armado + t_horneado + t_vueltas) / 60) * (config?.finanzas?.costoHoraHombre || 4500);
         const recipeLoteUnidades = recipe.formato_venta === 'Unidad' && Number(recipe.peso_unidad) > 0
             ? Number(recipe.lote_minimo || 1)
             : (Number(recipe.lote_minimo || 1) * 1000) / (Number(recipe.peso_unidad) || 1);
@@ -211,14 +240,55 @@ export default function EngineeringView({
 
     const hasFlourBase = form.details.some(d => Number(d.porcentaje) === 100);
     const validDetails = detailsConGramos.filter(d => d.ingredientId && d.gramos > 0);
-    const canSave = form.nombre && form.codigo && (isBatchFormula ? validDetails.length > 0 : hasFlourBase);
-
+    
     // Suma de % Batch — debe ser exactamente 100%
     const pctBatchSum = isBatchFormula
-        ? form.details.reduce((a, d) => a + Number(d.pctBatchInput || 0), 0)
+        ? form.details.reduce((a, d) => a + Number(d.pctBatchInput || d.porcentaje || 0), 0)
         : 0;
 
+    const canSave = useMemo(() => {
+        if (!form.nombre || !form.codigo) return false;
+        
+        // Timings are required (*)
+        const t_pesaje = Number(form.tiempo_pesaje);
+        const t_amasado = Number(form.tiempo_amasado);
+        const t_armado = Number(form.tiempo_armado);
+        const t_horneado = Number(form.tiempo_horneado);
+        const cap_horno = Number(form.capacidad_horno);
 
+        if (isNaN(t_pesaje) || t_pesaje <= 0) return false;
+        if (isNaN(t_amasado) || t_amasado <= 0) return false;
+        if (isNaN(t_armado) || t_armado <= 0) return false;
+        if (isNaN(t_horneado) || t_horneado <= 0) return false;
+        if (isNaN(cap_horno) || cap_horno <= 0) return false;
+
+        // Weight validation: required if sold envasado
+        if (form.formato_venta === 'Unidad' && Number(form.peso_unidad || 0) <= 0) return false;
+
+        if (form.familia === 'A') {
+            // Batidos logic
+            if (validDetails.length === 0) return false;
+            // Sum of % Batch must be strictly 100% (within 0.1% tolerance)
+            if (Math.abs(pctBatchSum - 100) > 0.1) return false;
+        } else {
+            // Panadero logic
+            if (!hasFlourBase) return false;
+
+            // Fermentation timing is required for non-batidos
+            const t_ferm = Number(form.tiempo_fermentacion);
+            if (isNaN(t_ferm) || t_ferm <= 0) return false;
+
+            // Laminados logic
+            if (form.familia === 'D') {
+                const vueltas = Number(form.frecuencia_vueltas);
+                const t_vuelta = Number(form.tiempo_por_vuelta);
+                if (isNaN(vueltas) || vueltas <= 0) return false;
+                if (isNaN(t_vuelta) || t_vuelta <= 0) return false;
+            }
+        }
+
+        return true;
+    }, [form, pctBatchSum, hasFlourBase, validDetails]);
 
     // Panel de costos en tiempo real (Opción A) — usa detailsConGramos
     const panelCostos = useMemo(() => {
@@ -233,7 +303,8 @@ export default function EngineeringView({
         const tiempo_horneado = Number(form.tiempo_horneado || 25);
         const capacidad_horno = Number(form.capacidad_horno || 100);
 
-        const costo_mo = ((tiempo_pesaje + tiempo_amasado + tiempo_armado + tiempo_horneado) / 60) * (config?.finanzas?.costoHoraHombre || 4500);
+        const tiempo_vueltas = form.familia === 'D' ? (Number(form.frecuencia_vueltas || 0) * Number(form.tiempo_por_vuelta || 0)) : 0;
+        const costo_mo = ((tiempo_pesaje + tiempo_amasado + tiempo_armado + tiempo_horneado + tiempo_vueltas) / 60) * (config?.finanzas?.costoHoraHombre || 4500);
         
         const loteUnidades = form.formato_venta === 'Unidad' && Number(form.peso_unidad) > 0
             ? Number(form.loteMinimo)
@@ -248,29 +319,35 @@ export default function EngineeringView({
             : pesoFinal / 1000;
         unidades = unidades || 1;
         return { costo_mp, costo_mo, costo_horno, costo_cif, costo_total, costo_unitario: costo_total / unidades, unidades };
-    }, [detailsConGramos, form.tiempo_pesaje, form.tiempo_amasado, form.tiempo_armado, form.tiempo_horneado, form.capacidad_horno, form.formato_venta, form.peso_unidad, form.loteMinimo, pesoFinal, ingredients, config, getIngredientCost]);
+    }, [detailsConGramos, form.tiempo_pesaje, form.tiempo_amasado, form.tiempo_armado, form.tiempo_horneado, form.capacidad_horno, form.formato_venta, form.peso_unidad, form.loteMinimo, form.frecuencia_vueltas, form.tiempo_por_vuelta, form.familia, pesoFinal, ingredients, config, getIngredientCost]);
 
     const save = async () => {
         if (!canSave) return;
         // CRIT-1: nunca insertar filas con ingrediente vacío
         // Usar detailsConGramos: para Panadero tienen gramos calculados, para Batch los ingresados
         const safeDetails = detailsConGramos.filter(d => d.ingredientId && d.gramos > 0);
+        
+        const tiempo_vueltas = form.familia === 'D' ? (Number(form.frecuencia_vueltas || 0) * Number(form.tiempo_por_vuelta || 0)) : 0;
+        const totalLaborMins = Number(form.tiempo_pesaje || 5) + Number(form.tiempo_amasado || 15) + Number(form.tiempo_armado || 20) + Number(form.tiempo_horneado || 25) + tiempo_vueltas;
+
         const recipeData = {
             codigo: form.codigo.toUpperCase(), nombre_producto: form.nombre, familia: form.familia,
             version: form.ver, es_subensamble: form.wip, merma: form.merma,
             formato_venta: form.formato_venta,
             peso_unidad: form.formato_venta === 'Unidad' ? Number(form.peso_unidad) : null,
             peso_crudo: pesoCrudo, peso_final: pesoFinal,
-            horas_hombre: (Number(form.tiempo_pesaje || 5) + Number(form.tiempo_amasado || 15) + Number(form.tiempo_armado || 20) + Number(form.tiempo_horneado || 25)) / 60, 
+            horas_hombre: totalLaborMins / 60, 
             costo_empaque: 0,
             lote_minimo: Number(form.loteMinimo), unidad_lote: 'kg',
             logica_formula: form.logica_formula,
             tiempo_pesaje: Number(form.tiempo_pesaje || 5),
             tiempo_amasado: Number(form.tiempo_amasado || 15),
             tiempo_armado: Number(form.tiempo_armado || 20),
-            tiempo_fermentacion: Number(form.tiempo_fermentacion || 60),
+            tiempo_fermentacion: form.familia === 'A' ? null : Number(form.tiempo_fermentacion || 60),
             tiempo_horneado: Number(form.tiempo_horneado || 25),
             capacidad_horno: Number(form.capacidad_horno || 100),
+            frecuencia_vueltas: form.familia === 'D' ? Number(form.frecuencia_vueltas) : null,
+            tiempo_por_vuelta: form.familia === 'D' ? Number(form.tiempo_por_vuelta) : null,
         };
         if (form.id && typeof form.id === 'string' && (form.id.includes('-') || form.id.length > 20)) {
             const { error: errRec } = await supabase.from('recetas').update(recipeData).eq('id', form.id);
@@ -312,14 +389,16 @@ export default function EngineeringView({
             formato_venta: rec.formato_venta || 'Unidad', peso_unidad: rec.peso_unidad || 100,
             horas_hombre: rec.horas_hombre || 1,
             loteMinimo: rec.loteMinimo || rec.lote_minimo || 1,
-            logica_formula: rec.logica_formula || (['A', 'B', 'C'].includes(rec.familia) ? 'batch' : 'panadero'),
+            logica_formula: rec.logica_formula || (rec.familia === 'A' ? 'batch' : 'panadero'),
             details: rec.details ? [...rec.details] : [],
             tiempo_pesaje: rec.tiempo_pesaje || 5,
             tiempo_amasado: rec.tiempo_amasado || 15,
             tiempo_armado: rec.tiempo_armado || 20,
             tiempo_fermentacion: rec.tiempo_fermentacion || 60,
             tiempo_horneado: rec.tiempo_horneado || 25,
-            capacidad_horno: rec.capacidad_horno || 100
+            capacidad_horno: rec.capacidad_horno || 100,
+            frecuencia_vueltas: rec.frecuencia_vueltas || '',
+            tiempo_por_vuelta: rec.tiempo_por_vuelta || ''
         });
         setShowAdd(true);
     };
@@ -421,20 +500,20 @@ export default function EngineeringView({
                                         </Select>
                                     </div>
                                     <div className="md:col-span-3">
-                                        <Select label="Lógica de Fórmula" value={form.logica_formula} onChange={e => setForm({ ...form, logica_formula: e })}>
+                                        <Select label="Lógica de Fórmula" value={form.logica_formula} onChange={e => setForm({ ...form, logica_formula: e })} disabled>
                                             <option value="panadero">% Panadero</option>
                                             <option value="batch">% Batch</option>
                                         </Select>
                                     </div>
                                     <div className="md:col-span-2">
-                                        <Select label="Formato Venta" value={form.formato_venta} onChange={e => setForm({ ...form, formato_venta: e })}>
+                                        <Select label="Formato Venta" value={form.formato_venta} onChange={e => setForm({ ...form, formato_venta: e })} disabled={form.familia === 'A'}>
                                             <option value="Unidad">Envasados</option>
                                             <option value="Kg">Granel</option>
                                         </Select>
                                     </div>
                                     <div className="md:col-span-2">
                                         {form.formato_venta === 'Unidad'
-                                            ? <Input label="Peso (g)" type="number" value={form.peso_unidad} onChange={v => setForm({ ...form, peso_unidad: v })} required />
+                                            ? <Input label="Peso Unidad (g) *" type="number" value={form.peso_unidad} onChange={v => setForm({ ...form, peso_unidad: v })} required />
                                             : <div className="text-[10px] font-bold text-slate-400 uppercase h-[38px] flex items-center justify-center border border-dashed border-slate-200 rounded-lg bg-slate-100/50">Granel</div>
                                         }
                                     </div>
@@ -445,49 +524,57 @@ export default function EngineeringView({
                                         </label>
                                     </div>
                                 </div>
-
-                                {/* Lote mínimo + Kg del Lote calculado */}
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white p-3 rounded-lg border border-slate-200">
-                                    <div className="flex flex-col gap-1">
-                                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">
-                                            Lote Mínimo a Producir <span className="text-slate-300">({form.formato_venta === 'Unidad' ? 'unidades' : 'kg'})</span>
-                                        </label>
-                                        <input type="number" min="0.1" step="0.1" value={form.loteMinimo}
-                                            onChange={e => setForm({ ...form, loteMinimo: e.target.value })}
-                                            className="w-full border border-slate-200 bg-slate-50 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-slate-900/5 text-sm font-semibold text-slate-800 shadow-sm" />
-                                    </div>
-                                    <div className="flex flex-col gap-1">
-                                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">
-                                            Kg del Lote <span className="text-slate-300 font-normal normal-case">(masa cruda)</span>
-                                        </label>
-                                        <div className="flex items-center gap-3 bg-slate-100 border border-slate-200 rounded-lg px-3 py-2 h-[42px]">
-                                            <span className="text-sm font-black text-slate-800 font-mono">
-                                                {kgLoteBruto >= 1 ? `${kgLoteBruto.toFixed(2)} kg` : `${(kgLoteBruto * 1000).toFixed(0)} g`}
-                                            </span>
-                                            {form.formato_venta === 'Unidad' && (
-                                                <span className="text-[10px] text-slate-400 font-bold">
-                                                    rinde {form.loteMinimo} u × {form.peso_unidad}g
-                                                </span>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* COSTOS OPERATIVOS (sin campo Empaque) */}
-                            <div className="bg-emerald-50/50 p-4 rounded-xl border border-emerald-100 mb-6">
-                                <div className="flex items-center gap-2 border-b border-emerald-200 pb-2 mb-4">
-                                    <Calculator size={16} className="text-emerald-500" />
-                                    <h4 className="text-[10px] font-black uppercase tracking-widest text-emerald-800">Cronometría y Eficiencia de Elaboración</h4>
-                                </div>
-                                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4">
-                                    <Input label="Pesado y Prep. (min)" type="number" value={form.tiempo_pesaje} onChange={v => setForm({ ...form, tiempo_pesaje: Number(v) })} suffix="min" required />
-                                    <Input label="Amasado y Batido (min)" type="number" value={form.tiempo_amasado} onChange={v => setForm({ ...form, tiempo_amasado: Number(v) })} suffix="min" required />
-                                    <Input label="División y Armado (min)" type="number" value={form.tiempo_armado} onChange={v => setForm({ ...form, tiempo_armado: Number(v) })} suffix="min" required />
-                                    <Input label="Fermentación (min)" type="number" value={form.tiempo_fermentacion} onChange={v => setForm({ ...form, tiempo_fermentacion: Number(v) })} suffix="min" required />
-                                    <Input label="Cocción/Horneado (min)" type="number" value={form.tiempo_horneado} onChange={v => setForm({ ...form, tiempo_horneado: Number(v) })} suffix="min" required />
-                                    <Input label="Capacidad Horno (u/lote)" type="number" value={form.capacidad_horno} onChange={v => setForm({ ...form, capacidad_horno: Number(v) })} suffix="u" required />
-                                </div>
+ 
+                                 {/* Lote mínimo + Kg del Lote calculado */}
+                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white p-3 rounded-lg border border-slate-200">
+                                     <div className="flex flex-col gap-1">
+                                         <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">
+                                             Lote de Referencia <span className="text-slate-300">({form.formato_venta === 'Unidad' ? 'unidades' : 'kg'}) *</span>
+                                         </label>
+                                         <input type="number" min="0.1" step="0.1" value={form.loteMinimo}
+                                             onChange={e => setForm({ ...form, loteMinimo: e.target.value })}
+                                             className="w-full border border-slate-200 bg-slate-50 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-slate-900/5 text-sm font-semibold text-slate-800 shadow-sm" required />
+                                     </div>
+                                     <div className="flex flex-col gap-1">
+                                         <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">
+                                             Masa Total del Lote <span className="text-slate-300 font-normal normal-case">(en crudo)</span>
+                                         </label>
+                                         <div className="flex items-center gap-3 bg-slate-100 border border-slate-200 rounded-lg px-3 py-2 h-[42px]">
+                                             <span className="text-sm font-black text-slate-800 font-mono">
+                                                 {kgLoteBruto >= 1 ? `${kgLoteBruto.toFixed(2)} kg` : `${(kgLoteBruto * 1000).toFixed(0)} g`}
+                                             </span>
+                                             {form.formato_venta === 'Unidad' && (
+                                                 <span className="text-[10px] text-slate-400 font-bold">
+                                                     rinde {form.loteMinimo} u × {form.peso_unidad}g
+                                                 </span>
+                                             )}
+                                         </div>
+                                     </div>
+                                 </div>
+                             </div>
+ 
+                             {/* COSTOS OPERATIVOS (sin campo Empaque) */}
+                             <div className="bg-emerald-50/50 p-4 rounded-xl border border-emerald-100 mb-6">
+                                 <div className="flex items-center gap-2 border-b border-emerald-200 pb-2 mb-4">
+                                     <Calculator size={16} className="text-emerald-500" />
+                                     <h4 className="text-[10px] font-black uppercase tracking-widest text-emerald-800">Cronometría y Eficiencia de Elaboración</h4>
+                                 </div>
+                                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4">
+                                     <Input label="Preparación y Pesaje (min) *" type="number" value={form.tiempo_pesaje} onChange={v => setForm({ ...form, tiempo_pesaje: Number(v) })} suffix="min" required />
+                                     <Input label="Procesos de Amasado y Batido (min) *" type="number" value={form.tiempo_amasado} onChange={v => setForm({ ...form, tiempo_amasado: Number(v) })} suffix="min" required />
+                                     <Input label="Etapas de División y Armado (min) *" type="number" value={form.tiempo_armado} onChange={v => setForm({ ...form, tiempo_armado: Number(v) })} suffix="min" required />
+                                     {form.familia !== 'A' && (
+                                         <Input label="Tiempo de Fermentación (min) *" type="number" value={form.tiempo_fermentacion} onChange={v => setForm({ ...form, tiempo_fermentacion: Number(v) })} suffix="min" required />
+                                     )}
+                                     <Input label="Tiempo de Cocción/Horneado (min) *" type="number" value={form.tiempo_horneado} onChange={v => setForm({ ...form, tiempo_horneado: Number(v) })} suffix="min" required />
+                                     <Input label="Capacidad del Horno (u/lote) *" type="number" value={form.capacidad_horno} onChange={v => setForm({ ...form, capacidad_horno: Number(v) })} suffix="u" required />
+                                     {form.familia === 'D' && (
+                                         <>
+                                             <Input label="Frecuencia de Vueltas (u) *" type="number" value={form.frecuencia_vueltas} onChange={v => setForm({ ...form, frecuencia_vueltas: Number(v) })} suffix="vueltas" required />
+                                             <Input label="Tiempo por Vuelta (min) *" type="number" value={form.tiempo_por_vuelta} onChange={v => setForm({ ...form, tiempo_por_vuelta: Number(v) })} suffix="min" required />
+                                         </>
+                                     )}
+                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <Input label="% Merma Horno" type="number" value={form.merma} onChange={v => setForm({ ...form, merma: v })} suffix="%" />
                                 </div>
@@ -803,6 +890,13 @@ export default function EngineeringView({
                                                                 <div className="flex justify-between"><span className="text-slate-500 font-bold">Mano de Obra</span><span className="font-mono text-slate-800">{fmt(costo_mo)}</span></div>
                                                                 <div className="flex justify-between"><span className="text-slate-500 font-bold">CIF</span><span className="font-mono text-slate-800">{fmt(costo_cif)}</span></div>
                                                                 <div className="flex justify-between font-black border-t border-slate-200 pt-2"><span className="text-slate-800">Total Batch</span><span className="font-mono text-red-600 text-xs">{fmt(costo_total_batch)}</span></div>
+                                                                {r.familia === 'D' && (
+                                                                    <div className="border-t border-slate-100 pt-2 mt-2 space-y-1 bg-amber-50/40 p-2 rounded-lg border border-amber-100/50">
+                                                                        <div className="flex justify-between"><span className="text-slate-500 font-bold">Vueltas (u)</span><span className="font-mono text-slate-700">{r.frecuencia_vueltas || 0}</span></div>
+                                                                        <div className="flex justify-between"><span className="text-slate-500 font-bold">Tiempo por Vuelta</span><span className="font-mono text-slate-700">{r.tiempo_por_vuelta || 0} min</span></div>
+                                                                        <div className="flex justify-between font-bold border-t border-dashed border-slate-200 pt-1"><span className="text-slate-600">Total Vueltas</span><span className="font-mono text-slate-800">{(r.frecuencia_vueltas || 0) * (r.tiempo_por_vuelta || 0)} min</span></div>
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                         </div>
                                                     </div>

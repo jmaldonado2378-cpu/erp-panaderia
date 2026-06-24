@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { Card, Button, Input, Select } from '../bakery_erp';
 import { supabase } from '../../lib/supabase';
+import { useGlobalContext } from '../context/GlobalContext';
 
 export default function LogisticsView({ 
     recipes, charcRecetas, reventaArticulos,
@@ -15,6 +16,8 @@ export default function LogisticsView({
     reventaLotes, setReventaLotes,
     clientes, ventas, setVentas, showToast, addPedidoConsolidado
 }) {
+    const { theme } = useGlobalContext();
+    const isMaldonado = theme === 'maldonado-contraste';
     const [view, setView] = useState('list'); // 'list', 'new', 'fulfill'
     const [selectedOrder, setSelectedOrder] = useState(null);
     const [showStockModal, setShowStockModal] = useState(false);
@@ -428,8 +431,15 @@ export default function LogisticsView({
                     <p className="text-xs font-bold text-slate-500 uppercase mt-1">Hoja de ruta unificada: Panificados, Fiambres, Secos y Conservas</p>
                 </div>
                 <div className="flex gap-3">
-                    <button onClick={() => setShowStockModal(true)} className="px-4 hover:bg-slate-100 border p-2 rounded-xl transition-all cursor-pointer bg-white text-xs font-black flex items-center gap-1">
-                        <Warehouse size={16} className="text-blue-600"/> Ver Stock PT
+                    <button 
+                        onClick={() => setShowStockModal(true)} 
+                        className={`px-4 border p-2 rounded-xl transition-all cursor-pointer text-xs font-black flex items-center gap-1 ${
+                            isMaldonado 
+                                ? 'bg-[#1a1a1a]/40 border-[#1a1a1a] text-[#8a8a8a] hover:text-[#f5f5f5] hover:bg-[#1a1a1a]/85' 
+                                : 'bg-white hover:bg-slate-100'
+                        }`}
+                    >
+                        <Warehouse size={16} className={isMaldonado ? 'text-[#e2c97d]' : 'text-blue-600'}/> Ver Stock PT
                     </button>
                     <Button onClick={() => setView('new')} variant="primary" className="shadow-lg"><Plus size={16} /> Cargar Pedido DSD</Button>
                 </div>
@@ -438,41 +448,71 @@ export default function LogisticsView({
             {/* TABLERO DE PEDIDOS */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 print:hidden">
                 {['PEDIDO', 'DESPACHADO', 'ENTREGADO'].map(estado => (
-                    <div key={estado} className="flex flex-col rounded-xl bg-slate-100/50 border border-slate-200 p-3 shadow-inner">
-                        <div className="p-3 mb-2 font-black uppercase text-[10px] tracking-wider flex justify-between items-center border-b border-slate-300 text-slate-600">
+                    <div key={estado} className={`flex flex-col rounded-xl p-3 shadow-inner ${
+                        isMaldonado 
+                            ? 'bg-[#1a1a1a]/20 border border-[#1a1a1a]' 
+                            : 'bg-slate-100/50 border border-slate-200'
+                    }`}>
+                        <div className={`p-3 mb-2 font-black uppercase text-[10px] tracking-wider flex justify-between items-center border-b ${
+                            isMaldonado 
+                                ? 'border-[#1a1a1a] text-[#f5f5f5]' 
+                                : 'border-slate-300 text-slate-600'
+                        }`}>
                             {estado === 'PEDIDO' ? '🛒 Nuevos Pedidos' : estado === 'DESPACHADO' ? '🚚 En Reparto' : '💰 Entregados'}
-                            <span className="bg-slate-900 text-white px-2.5 rounded-full py-0.5 text-[9px] font-mono">{pedidos.filter(p => p.estado === estado).length}</span>
+                            <span className={
+                                isMaldonado 
+                                    ? 'text-[#e2c97d] bg-[#e2c97d]/10 border border-[#e2c97d]/20 px-2.5 rounded-full py-0.5 text-[9px] font-mono' 
+                                    : 'bg-slate-900 text-white px-2.5 rounded-full py-0.5 text-[9px] font-mono'
+                            }>{pedidos.filter(p => p.estado === estado).length}</span>
                         </div>
                         <div className="space-y-3 overflow-y-auto max-h-[65vh]">
                             {pedidos.filter(p => p.estado === estado).map(p => {
                                 const cli = clientes.find(c => c.id === (p.clientId || p.cliente_id));
                                 return (
-                                    <Card key={p.id} className="p-4 bg-white hover:border-slate-400 shadow-sm transition-all group">
+                                    <Card key={p.id} className={`p-4 shadow-sm transition-all group ${
+                                        isMaldonado 
+                                            ? 'bg-[#1a1a1a]/40 border-[#1a1a1a] hover:border-[#e2c97d]/50' 
+                                            : 'bg-white hover:border-slate-400'
+                                    }`}>
                                         <div className="flex justify-between mb-2">
                                             <span className="text-[8px] font-mono font-black text-slate-400">{p.num_orden || p.id}</span>
                                             <span className="text-[8px] font-black text-slate-400">Total: ${Number(p.total).toLocaleString('es-AR')}</span>
                                         </div>
                                         <h4 className="font-black text-xs uppercase text-slate-800 mb-3 truncate leading-tight">{cli?.nombre || cli?.razon_social}</h4>
-                                        <div className="space-y-1 mb-3 border-t pt-2">
+                                        <div className={`space-y-1 mb-3 border-t pt-2 ${isMaldonado ? 'border-[#1a1a1a]' : ''}`}>
                                             {p.items?.map((item, i) => {
                                                 const cant = estado === 'PEDIDO' ? (item.cantidad_solicitada || item.cantidadPedida) : item.cantidadEnviada;
                                                 return (
                                                     <p key={i} className="text-[9px] font-bold text-slate-500 flex justify-between">
                                                         <span className="truncate w-3/4">[{item.product_type?.toUpperCase()}] {item.nombre_producto}</span>
-                                                        <span className="font-mono text-blue-600 font-bold">{cant}u</span>
+                                                        <span className={`font-mono font-bold ${isMaldonado ? 'text-[#e2c97d]' : 'text-blue-600'}`}>{cant}u</span>
                                                     </p>
                                                 );
                                             })}
                                         </div>
-                                        <div className="border-t pt-3 flex justify-between items-center">
+                                        <div className={`border-t pt-3 flex justify-between items-center ${isMaldonado ? 'border-[#1a1a1a]' : ''}`}>
                                             <span className="text-[8px] font-bold text-slate-400">{new Date(p.fecha || p.fecha_creacion).toLocaleDateString()}</span>
                                             {estado === 'PEDIDO' && (
-                                                <button onClick={() => startFulfillment(p)} className="bg-blue-600 hover:bg-blue-700 text-white text-[9px] font-black px-3 py-1.5 rounded uppercase flex items-center gap-1 active:scale-95 transition-all shadow-sm">
+                                                <button 
+                                                    onClick={() => startFulfillment(p)} 
+                                                    className={`text-[9px] px-3 py-1.5 rounded uppercase flex items-center gap-1 active:scale-95 transition-all shadow-sm ${
+                                                        isMaldonado 
+                                                            ? 'bg-[#e2c97d] text-[#0c0c0c] hover:bg-[#d4ba6c] font-medium border border-[#e2c97d]' 
+                                                            : 'bg-blue-600 hover:bg-blue-700 text-white font-black'
+                                                    }`}
+                                                >
                                                     Preparar
                                                 </button>
                                             )}
                                             {estado === 'DESPACHADO' && (
-                                                <button onClick={() => markAsDelivered(p)} className="bg-emerald-600 hover:bg-emerald-700 text-white text-[9px] font-black px-3 py-1.5 rounded uppercase flex items-center gap-1 active:scale-95 transition-all shadow-sm">
+                                                <button 
+                                                    onClick={() => markAsDelivered(p)} 
+                                                    className={`text-[9px] px-3 py-1.5 rounded uppercase flex items-center gap-1 active:scale-95 transition-all shadow-sm ${
+                                                        isMaldonado 
+                                                            ? 'bg-[#065f46] text-[#a7f3d0] hover:bg-[#047857] font-medium border border-[#065f46]' 
+                                                            : 'bg-emerald-600 hover:bg-emerald-700 text-white font-black'
+                                                    }`}
+                                                >
                                                     Entregado
                                                 </button>
                                             )}

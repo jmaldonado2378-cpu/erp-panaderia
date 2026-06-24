@@ -39,7 +39,8 @@ export default function CharcuteriaView({
     initialTab = 'lotes',
     hideMaduracionTab = false
 }) {
-    const { config } = useGlobalContext();
+    const { config, theme } = useGlobalContext();
+    const isMaldonado = theme === 'maldonado-contraste';
     const [tab, setTab] = useState(initialTab);
     const [showAddReceta, setShowAddReceta] = useState(false);
     const [showBulkImport, setShowBulkImport] = useState(false);
@@ -613,13 +614,21 @@ export default function CharcuteriaView({
                     <div className="flex gap-2">
                         <button 
                             onClick={() => { setTab('lotes'); setAsistente(p => ({ ...p, active: false })); }} 
-                            className={`px-6 py-2.5 rounded-xl font-black uppercase text-xs tracking-wider transition-all ${tab === 'lotes' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-100'}`}
+                            className={`px-6 py-2.5 rounded-xl font-medium uppercase text-xs tracking-wider transition-all ${
+                                tab === 'lotes' 
+                                    ? isMaldonado ? 'bg-[#e2c97d] text-[#0c0c0c]' : 'bg-slate-900 text-white shadow-lg' 
+                                    : isMaldonado ? 'text-[#8a8a8a] hover:text-[#f5f5f5] hover:bg-[#1a1a1a]/30 border border-transparent' : 'text-slate-500 hover:bg-slate-100'
+                            }`}
                         >
                             Cámaras de Maduración ({charcLotes.length})
                         </button>
                         <button 
                             onClick={() => { setTab('recetas'); setAsistente(p => ({ ...p, active: false })); }} 
-                            className={`px-6 py-2.5 rounded-xl font-black uppercase text-xs tracking-wider transition-all ${tab === 'recetas' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-100'}`}
+                            className={`px-6 py-2.5 rounded-xl font-medium uppercase text-xs tracking-wider transition-all ${
+                                tab === 'recetas' 
+                                    ? isMaldonado ? 'bg-[#e2c97d] text-[#0c0c0c]' : 'bg-slate-900 text-white shadow-lg' 
+                                    : isMaldonado ? 'text-[#8a8a8a] hover:text-[#f5f5f5] hover:bg-[#1a1a1a]/30 border border-transparent' : 'text-slate-500 hover:bg-slate-100'
+                            }`}
                         >
                             Fichas Técnicas ({charcRecetas.length})
                         </button>
@@ -688,11 +697,19 @@ export default function CharcuteriaView({
                             };
 
                             return (
-                                <div key={col.id} className="bg-slate-100/70 p-3 rounded-2xl border border-slate-200 min-h-[450px] flex flex-col w-full min-w-[240px]">
+                                <div key={col.id} className={`p-3 rounded-2xl min-h-[450px] flex flex-col w-full min-w-[240px] ${
+                                    isMaldonado 
+                                        ? 'bg-[#1a1a1a]/20 border border-[#1a1a1a]' 
+                                        : 'bg-slate-100/70 border border-slate-200'
+                                }`}>
                                     <div className="mb-3">
                                         <div className="flex justify-between items-center">
-                                            <h4 className="text-[11px] font-black uppercase tracking-wider text-slate-800">{col.title}</h4>
-                                            <span className="bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full text-[9px] font-bold">{lotesEnCol.length}</span>
+                                            <h4 className={`text-[11px] font-medium uppercase tracking-wider ${isMaldonado ? 'text-[#f5f5f5]' : 'text-slate-800'}`}>{col.title}</h4>
+                                            <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${
+                                                isMaldonado 
+                                                    ? 'text-[#e2c97d] bg-[#e2c97d]/10 border border-[#e2c97d]/20' 
+                                                    : 'bg-slate-200 text-slate-700'
+                                            }`}>{lotesEnCol.length}</span>
                                         </div>
                                         <p className="text-[8px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">{col.desc}</p>
                                     </div>

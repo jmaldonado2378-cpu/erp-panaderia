@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { Card, Button, Input } from '../bakery_erp';
 import { supabase } from '../../lib/supabase';
+import { useGlobalContext } from '../context/GlobalContext';
 
 // Unifica la misma función de formato que PurchasesView
 const fmtCantidad = (cantidad, unidad_base = 'g') => {
@@ -20,6 +21,8 @@ export default function InventoryView({
     ingredients, lots, providers, setLots, showToast, inventoryLogs, setInventoryLogs,
     lotesPT = [], recipes = [], charcLotes = [], charcRecetas = [], reventaLotes = [], reventaArticulos = []
 }) {
+    const { theme } = useGlobalContext();
+    const isMaldonado = theme === 'maldonado-contraste';
     const [activeTab, setActiveTab] = useState('insumos'); // 'insumos', 'productos'
     const [searchTerm, setSearchTerm] = useState('');
     const [providerFilter, setProviderFilter] = useState('');
@@ -439,13 +442,19 @@ export default function InventoryView({
                 </div>
                 
                 {/* Valorización total visible */}
-                <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-2 flex items-center gap-2">
-                    <DollarSign size={16} className="text-emerald-600" />
+                <div className={`${
+                    isMaldonado 
+                        ? 'bg-[#e2c97d]/10 border border-[#e2c97d]/20 text-[#e2c97d]' 
+                        : 'bg-emerald-50 border border-emerald-200 text-emerald-800'
+                } rounded-xl px-4 py-2 flex items-center gap-2`}>
+                    <DollarSign size={16} className={isMaldonado ? 'text-[#e2c97d]' : 'text-emerald-600'} />
                     <div>
-                        <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">
+                        <p className={`text-[9px] uppercase tracking-widest ${isMaldonado ? 'text-[#e2c97d]/80' : 'text-emerald-600 font-black'}`}>
                             {activeTab === 'insumos' ? 'Valor Stock Insumos' : 'Valor Stock Productos'}
                         </p>
-                        <p className="text-lg font-black text-emerald-800 font-mono">${valorTotalStock.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</p>
+                        <p className={`text-lg font-mono ${isMaldonado ? 'text-[#e2c97d]' : 'text-emerald-800 font-black'}`}>
+                            ${valorTotalStock.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                        </p>
                     </div>
                 </div>
 

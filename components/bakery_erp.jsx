@@ -22,10 +22,8 @@ export const ROLES = { ADMIN: 'Gerencia_Total', STAFF: 'Supervisor_Planta' };
 export const FAMILIAS = {
     F: { id: 'F', nombre: 'Panificados Fermentados', color: 'bg-orange-600', border: 'border-orange-600' },
     A: { id: 'A', nombre: 'Batidos (Químicos)', color: 'bg-blue-600', border: 'border-blue-600' },
-    B: { id: 'B', nombre: 'Ensamblados/Almuerzo', color: 'bg-emerald-600', border: 'border-emerald-600' },
-    C: { id: 'C', nombre: 'Pastelería/Decorados', color: 'bg-purple-600', border: 'border-purple-600' },
-    D: { id: 'D', nombre: 'Laminados/Hojaldres', color: 'bg-amber-600', border: 'border-amber-600' },
-    E: { id: 'E', nombre: 'Secos y Galletería', color: 'bg-slate-600', border: 'border-slate-600' }
+    D: { id: 'D', nombre: 'Laminados y Hojaldres', color: 'bg-amber-600', border: 'border-amber-600' },
+    E: { id: 'E', nombre: 'Galletería y Productos Secos', color: 'bg-slate-600', border: 'border-slate-600' }
 };
 
 export const ETAPAS_KANBAN = [
@@ -125,7 +123,7 @@ const Toast = ({ message, type = 'success', onClose }) => {
 // APLICACIÓN PRINCIPAL (ERP LAYOUT SHELL)
 // ============================================================================
 export default function ERPLayout({ children }) {
-    const { config, toastMsg, showToast } = useGlobalContext();
+    const { config, toastMsg, showToast, theme } = useGlobalContext();
     const pathname = usePathname();
 
     const menuItems = [
@@ -149,42 +147,97 @@ export default function ERPLayout({ children }) {
     ];
 
     const currentMenu = menuItems.find(m => m.id === pathname) || menuItems[0];
+    const isMaldonado = theme === 'maldonado-contraste';
 
     return (
         <AntigravitySystem>
-            <div className="flex h-screen bg-slate-50 font-sans text-slate-900 overflow-hidden text-left">
+            <div className={`flex h-screen font-sans overflow-hidden text-left ${isMaldonado ? 'bg-[#0c0c0c] text-[#f5f5f5]' : 'bg-slate-50 text-slate-900'}`}>
                 <Toast message={toastMsg?.msg} type={toastMsg?.type} onClose={() => showToast(null)} />
 
-                <aside className="w-64 bg-slate-950 text-white flex flex-col shrink-0 shadow-2xl z-10 border-r border-slate-900 print:hidden fall-target">
-                    <div className="p-6 border-b border-slate-900 flex items-center gap-3 mb-2">
-                        <div className="bg-orange-600 p-2 rounded-xl text-white"><Factory size={20} /></div>
-                        <div className="overflow-hidden">
-                            <h1 className="text-xl font-black italic uppercase leading-none truncate max-w-[140px]">{config?.companyName || 'ERP'}</h1>
-                            <p className="text-orange-500 text-[9px] font-black uppercase tracking-widest mt-1 truncate">{config?.appName || 'MES'}</p>
+                <aside className={`w-64 flex flex-col shrink-0 relative z-20 print:hidden fall-target ${
+                    isMaldonado 
+                        ? 'bg-[#0c0c0c] border-r border-[#1a1a1a] text-[#f5f5f5]' 
+                        : 'bg-slate-950 text-white shadow-2xl z-10 border-r border-slate-900'
+                }`}>
+                    {isMaldonado ? (
+                        <div className="h-24 flex flex-col justify-center items-center px-4 border-b border-[#1a1a1a] mb-2 select-none">
+                            <h1 className="font-sans text-[#e2c97d] text-2xl font-bold tracking-wide">Casa Maldonado</h1>
+                            <span className="text-[9px] text-[#8a8a8a] font-sans tracking-[0.2em] uppercase mt-1">Taller Artesanal</span>
                         </div>
-                    </div>
-                    <nav className="flex-1 p-4 flex flex-col gap-1 overflow-y-auto">
-                        {menuItems.map(item => (
-                            <Link key={item.id} href={item.id} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-black text-[10px] uppercase tracking-wider ${pathname === item.id || (pathname === '/' && item.id === '/dashboard') ? 'bg-orange-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-900 hover:text-slate-200'}`}>
-                                {item.icon} {item.label}
-                            </Link>
-                        ))}
+                    ) : (
+                        <div className="p-6 border-b border-slate-900 flex items-center gap-3 mb-2">
+                            <div className="bg-orange-600 p-2 rounded-xl text-white"><Factory size={20} /></div>
+                            <div className="overflow-hidden">
+                                <h1 className="text-xl font-black italic uppercase leading-none truncate max-w-[140px]">{config?.companyName || 'ERP'}</h1>
+                                <p className="text-orange-500 text-[9px] font-black uppercase tracking-widest mt-1 truncate">{config?.appName || 'MES'}</p>
+                            </div>
+                        </div>
+                    )}
+                    <nav className={`flex-1 overflow-y-auto ${isMaldonado ? 'py-6 px-3 space-y-1' : 'p-4 flex flex-col gap-1'}`}>
+                        {menuItems.map(item => {
+                            const isActive = pathname === item.id || (pathname === '/' && item.id === '/dashboard');
+                            if (isMaldonado) {
+                                return (
+                                    <Link 
+                                        key={item.id} 
+                                        href={item.id} 
+                                        className={`flex items-center px-4 py-3 rounded-sm font-sans text-[11px] font-medium tracking-widest uppercase transition-colors ${
+                                            isActive 
+                                                ? 'text-[#e2c97d] bg-[#1a1a1a]/50 border-l-2 border-[#e2c97d]' 
+                                                : 'text-[#8a8a8a] hover:text-[#f5f5f5] hover:bg-[#1a1a1a]/30'
+                                        }`}
+                                    >
+                                        {React.cloneElement(item.icon, { 
+                                            size: 16, 
+                                            className: `mr-3 transition-opacity ${isActive ? 'opacity-70 text-[#e2c97d]' : 'opacity-50'}` 
+                                        })}
+                                        {item.label}
+                                    </Link>
+                                );
+                            }
+                            return (
+                                <Link key={item.id} href={item.id} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-black text-[10px] uppercase tracking-wider ${isActive ? 'bg-orange-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-900 hover:text-slate-200'}`}>
+                                    {item.icon} {item.label}
+                                </Link>
+                            );
+                        })}
                     </nav>
-                    <div className="p-4 border-t border-slate-900 text-center opacity-40">
-                        <p className="text-[8px] font-mono tracking-widest uppercase">Modo: Rutas Nativas</p>
-                    </div>
+                    {isMaldonado ? (
+                        <div className="mt-auto p-6 border-t border-[#1a1a1a] text-[9px] text-[#8a8a8a] uppercase tracking-[0.2em] text-center select-none">
+                            MODO: COMANDO OPERATIVO
+                        </div>
+                    ) : (
+                        <div className="p-4 border-t border-slate-900 text-center opacity-40">
+                            <p className="text-[8px] font-mono tracking-widest uppercase">Modo: Rutas Nativas</p>
+                        </div>
+                    )}
                 </aside>
 
-                <main className="flex-1 overflow-y-auto p-10 relative bg-slate-50 print:p-0 print:bg-white">
-                    <header className="flex justify-between items-center mb-6 border-b border-slate-200 pb-4 print:hidden fall-target">
-                        <div>
-                            <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tighter italic leading-none">{currentMenu?.label}</h2>
-                            <p className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.2em] mt-1.5 leading-none italic">Sistema Integral de Manufactura Panadera</p>
+                {isMaldonado ? (
+                    <main className="flex-1 flex flex-col bg-[#0c0c0c] h-screen overflow-hidden relative text-[#f5f5f5]">
+                        {/* Background Image with Overlay */}
+                        <div className="absolute inset-0 z-0 pointer-events-none select-none">
+                            <img alt="Background" className="w-full h-full object-cover opacity-20" src="https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&q=80&w=1280"/>
+                            <div className="absolute inset-0 bg-gradient-to-b from-[#0c0c0c]/80 via-[#0c0c0c]/95 to-[#0c0c0c]"></div>
                         </div>
-                    </header>
+                        
+                        {/* Scrollable Content Area */}
+                        <div className="flex-1 overflow-y-auto p-8 lg:p-12 custom-scrollbar relative z-10 text-left">
+                            {children}
+                        </div>
+                    </main>
+                ) : (
+                    <main className="flex-1 overflow-y-auto p-10 relative bg-slate-50 print:p-0 print:bg-white text-left">
+                        <header className="flex justify-between items-center mb-6 border-b border-slate-200 pb-4 print:hidden fall-target">
+                            <div>
+                                <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tighter italic leading-none">{currentMenu?.label}</h2>
+                                <p className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.2em] mt-1.5 leading-none italic">Sistema Integral de Manufactura Panadera</p>
+                            </div>
+                        </header>
 
-                    {children}
-                </main>
+                        {children}
+                    </main>
+                )}
             </div>
         </AntigravitySystem>
     );

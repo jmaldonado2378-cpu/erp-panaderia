@@ -280,7 +280,7 @@ export const GlobalProvider = ({ children }) => {
         setTimeout(() => setToastMsg(null), 4000);
     };
 
-    const [theme, setTheme] = useState('classic');
+    const [theme, setTheme] = useState('maldonado-contraste');
     const [stitchProjectId, setStitchProjectId] = useState('15115760904171156066');
     const [stitchApiKey, setStitchApiKey] = useState('');
     const [stitchDesignSystems, setStitchDesignSystems] = useState([]);
@@ -337,22 +337,20 @@ export const GlobalProvider = ({ children }) => {
 
     useEffect(() => {
         if (typeof window !== 'undefined') {
-            const savedTheme = localStorage.getItem('erpTheme');
-            if (savedTheme) {
-                setTheme(savedTheme);
-                document.documentElement.setAttribute('data-theme', savedTheme);
+            const savedTheme = localStorage.getItem('erpTheme') || 'maldonado-contraste';
+            setTheme(savedTheme);
+            document.documentElement.setAttribute('data-theme', savedTheme);
                 
-                if (savedTheme === 'stitch-custom') {
-                    const savedStitchConfig = localStorage.getItem('stitchThemeConfig');
-                    if (savedStitchConfig) {
-                        try {
-                            const parsed = JSON.parse(savedStitchConfig);
-                            setStitchThemeConfig(parsed);
-                            // Se ejecuta después de un breve delay para que la UI se monte
-                            setTimeout(() => applyStitchTheme(parsed), 50);
-                        } catch (e) {
-                            console.error("Error cargando el diseño guardado de Stitch", e);
-                        }
+            if (savedTheme === 'stitch-custom') {
+                const savedStitchConfig = localStorage.getItem('stitchThemeConfig');
+                if (savedStitchConfig) {
+                    try {
+                        const parsed = JSON.parse(savedStitchConfig);
+                        setStitchThemeConfig(parsed);
+                        // Se ejecuta después de un breve delay para que la UI se monte
+                        setTimeout(() => applyStitchTheme(parsed), 50);
+                    } catch (e) {
+                        console.error("Error cargando el diseño guardado de Stitch", e);
                     }
                 }
             }

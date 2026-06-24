@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { Card, Button, Input, Select, FAMILIAS } from '../bakery_erp';
 import { supabase } from '../../lib/supabase';
+import { useGlobalContext } from '../context/GlobalContext';
 
 /* ================================================================
    HELPER: Calcula árbol de costos de una receta (Bakery)
@@ -196,6 +197,8 @@ export default function PricingView({
     reventaArticulos,
     fraccTareas
 }) {
+    const { theme } = useGlobalContext();
+    const isMaldonado = theme === 'maldonado-contraste';
     const [tabTipo, setTabTipo] = useState('elaborados'); // elaborados, fraccionados, reventa
     const [selectedProduct, setSelectedProduct] = useState(null); // Producto mapeado seleccionado
     const [listaPreciosMap, setListaPreciosMap] = useState({});   // { receta_id: lista_precios_row }
@@ -794,8 +797,10 @@ export default function PricingView({
                 <div className="flex gap-2">
                     <button 
                         onClick={() => saveTaxSettings({ ...taxSettings, regimen: taxSettings.regimen === 'Monotributo' ? 'Responsable Inscripto' : 'Monotributo' })}
-                        className={`px-4 py-2 rounded-xl text-xs font-black uppercase transition-all ${
-                            taxSettings.regimen === 'Monotributo' ? 'bg-orange-500 text-white shadow' : 'bg-blue-600 text-white shadow'
+                        className={`px-4 py-2 rounded-xl text-xs font-medium uppercase transition-all ${
+                            isMaldonado 
+                                ? taxSettings.regimen === 'Monotributo' ? 'bg-[#806f47] text-[#e2c97d] border border-[#e2c97d]/30' : 'bg-[#1a1a1a]/80 text-[#8a8a8a] border border-[#1a1a1a]'
+                                : taxSettings.regimen === 'Monotributo' ? 'bg-orange-500 text-white shadow' : 'bg-blue-600 text-white shadow'
                         }`}
                     >
                         Régimen: {taxSettings.regimen}
@@ -925,7 +930,7 @@ export default function PricingView({
                 <div className="lg:col-span-4 space-y-3">
                     <Card className="p-4 border shadow-sm bg-white rounded-2xl">
                         {/* Selector de Typology */}
-                        <div className="grid grid-cols-3 gap-1 mb-3 bg-slate-100 p-1 rounded-xl">
+                        <div className={`grid grid-cols-3 gap-1 mb-3 p-1 rounded-xl ${isMaldonado ? 'bg-[#1a1a1a]/30 border border-[#1a1a1a]' : 'bg-slate-100'}`}>
                             {[
                                 { id: 'elaborados', label: 'Elaborados', Icon: Layers },
                                 { id: 'fraccionados', label: 'Fracc', Icon: Scale },
@@ -933,8 +938,10 @@ export default function PricingView({
                             ].map(t => (
                                 <button 
                                     key={t.id} onClick={() => { setTabTipo(t.id); setSelectedProduct(null); }}
-                                    className={`flex items-center justify-center gap-1 py-2 rounded-lg text-[9px] font-black uppercase transition-all ${
-                                        tabTipo === t.id ? 'bg-white text-slate-900 shadow' : 'text-slate-500 hover:bg-white/40'
+                                    className={`flex items-center justify-center gap-1 py-2 rounded-lg text-[9px] font-medium uppercase transition-all ${
+                                        tabTipo === t.id 
+                                            ? isMaldonado ? 'bg-[#e2c97d] text-[#0c0c0c]' : 'bg-white text-slate-900 shadow' 
+                                            : isMaldonado ? 'text-[#8a8a8a] hover:text-[#f5f5f5]' : 'text-slate-500 hover:bg-white/40'
                                     }`}
                                 >
                                     <t.Icon size={12} />
