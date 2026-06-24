@@ -750,6 +750,7 @@ export default function PricingView({
         };
 
         let savedRow = null;
+        let persistedToDb = false;
         try {
             const { data, error } = await supabase
                 .from('lista_precios')
@@ -758,12 +759,15 @@ export default function PricingView({
                 .single();
             if (error) throw error;
             savedRow = data;
+            persistedToDb = true;
         } catch (err) {
-            console.warn("Fallo persistencia Supabase, guardando en cache local (Offline):", err.message);
+            console.error("Error persistencia Supabase:", err.message, err.code, err.details);
+            // Guardar en caché local como fallback
             savedRow = {
                 ...payload,
                 id: payload.id || 'lp_' + Date.now(),
-                updated_at: new Date().toISOString()
+                updated_at: new Date().toISOString(),
+                _offline: true
             };
         }
 
@@ -774,7 +778,11 @@ export default function PricingView({
                 return newMap;
             });
             setLocalPricing(prev => ({ ...prev, estado: savedRow.estado, precio_publicado: savedRow.precio_publicado }));
-            showToast(publicar ? '✅ Precio PUBLICADO correctamente.' : '💾 Borrador guardado.');
+            if (persistedToDb) {
+                showToast(publicar ? '✅ Precio PUBLICADO correctamente.' : '💾 Borrador guardado.');
+            } else {
+                showToast('⚠️ Error de BD: cambios guardados solo en caché local. Recargue la página e intente de nuevo.', 'error');
+            }
         }
         setSavingId(null);
     };
