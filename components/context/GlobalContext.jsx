@@ -337,7 +337,16 @@ export const GlobalProvider = ({ children }) => {
 
     useEffect(() => {
         if (typeof window !== 'undefined') {
-            const savedTheme = localStorage.getItem('erpTheme') || 'maldonado-contraste';
+            let savedTheme = localStorage.getItem('erpTheme');
+            const migrated = localStorage.getItem('erpThemeMigrated');
+            if (migrated !== 'true') {
+                savedTheme = 'maldonado-contraste';
+                localStorage.setItem('erpTheme', 'maldonado-contraste');
+                localStorage.setItem('erpThemeMigrated', 'true');
+            }
+            if (!savedTheme) {
+                savedTheme = 'maldonado-contraste';
+            }
             setTheme(savedTheme);
             document.documentElement.setAttribute('data-theme', savedTheme);
                 

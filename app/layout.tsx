@@ -7,7 +7,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="es">
+    <html lang="es" data-theme="maldonado-contraste">
       <body className="bg-slate-900 m-0 p-0 overflow-hidden">
         <GlobalProvider>
           {children}
