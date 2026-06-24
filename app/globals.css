@@ -790,3 +790,59 @@ body, html {
   background-color: rgba(226, 201, 125, 0.1) !important;
 }
 
+/* Explicit text color overrides for elements using dark classes on dark cards */
+[data-theme='maldonado-contraste'] .text-slate-950,
+[data-theme='maldonado-contraste'] .text-slate-900,
+[data-theme='maldonado-contraste'] .text-slate-850,
+[data-theme='maldonado-contraste'] .text-slate-800,
+[data-theme='maldonado-contraste'] .text-gray-900,
+[data-theme='maldonado-contraste'] .text-gray-800,
+[data-theme='maldonado-contraste'] .text-zinc-900,
+[data-theme='maldonado-contraste'] .text-zinc-800 {
+  color: #ffffff !important;
+}
+
+[data-theme='maldonado-contraste'] .text-slate-700,
+[data-theme='maldonado-contraste'] .text-gray-700,
+[data-theme='maldonado-contraste'] .text-zinc-700 {
+  color: #e5e5e5 !important;
+}
+
+[data-theme='maldonado-contraste'] .text-indigo-950,
+[data-theme='maldonado-contraste'] .text-indigo-900,
+[data-theme='maldonado-contraste'] .text-indigo-800,
+[data-theme='maldonado-contraste'] .text-purple-900,
+[data-theme='maldonado-contraste'] .text-purple-800 {
+  color: #ffffff !important;
+}
+
+[data-theme='maldonado-contraste'] .text-indigo-700,
+[data-theme='maldonado-contraste'] .text-indigo-600,
+[data-theme='maldonado-contraste'] .text-purple-700,
+[data-theme='maldonado-contraste'] .text-purple-600,
+[data-theme='maldonado-contraste'] .text-blue-700,
+[data-theme='maldonado-contraste'] .text-blue-600,
+[data-theme='maldonado-contraste'] .text-blue-500 {
+  color: #e2c97d !important; /* Maldonado gold accent */
+}
+
+/* Disabled and Read-only Inputs for Maldonado contrast */
+[data-theme='maldonado-contraste'] input:disabled,
+[data-theme='maldonado-contraste'] select:disabled,
+[data-theme='maldonado-contraste'] input[readonly],
+[data-theme='maldonado-contraste'] select[readonly] {
+  background-color: rgba(26, 26, 26, 0.6) !important;
+  color: #d4d4d4 !important;
+  border-color: #333333 !important;
+}
+
+[data-theme='maldonado-contraste'] input::placeholder,
+[data-theme='maldonado-contraste'] textarea::placeholder {
+  color: #666666 !important;
+}
+
+[data-theme='maldonado-contraste'] select option {
+  background-color: #121212 !important;
+  color: #ffffff !important;
+}
+
