@@ -14,7 +14,8 @@ export default function LogisticsView({
     lotesPT, setLotesPT, 
     charcLotes, setCharcLotes,
     reventaLotes, setReventaLotes,
-    clientes, ventas, setVentas, showToast, addPedidoConsolidado
+    clientes, ventas, setVentas, showToast, addPedidoConsolidado,
+    updatePedidoConsolidado, deletePedidoConsolidado
 }) {
     const { theme } = useGlobalContext();
     const isMaldonado = theme === 'maldonado-contraste';
@@ -22,6 +23,7 @@ export default function LogisticsView({
     const [selectedOrder, setSelectedOrder] = useState(null);
     const [showStockModal, setShowStockModal] = useState(false);
     const [saving, setSaving] = useState(false);
+    const [editOrderId, setEditOrderId] = useState(null);
 
     // Form states for New Order
     const [newClient, setNewClient] = useState('');
@@ -46,7 +48,7 @@ export default function LogisticsView({
         return list;
     }, [recipes, charcRecetas, reventaArticulos]);
 
-    // === NEW ORDER LOGIC ===
+    // === NEW/EDIT ORDER LOGIC ===
     const addToCart = () => {
         if (!newItem.catalogId || !newItem.amount) return;
         const prod = catalog.find(p => p.id === newItem.catalogId);
@@ -63,18 +65,47 @@ export default function LogisticsView({
         setNewItem({ catalogId: '', amount: '' });
     };
 
+    const startEditOrder = (order) => {
+        setEditOrderId(order.id);
+        setNewClient(order.cliente_id || order.clientId || '');
+        setNewCart(order.items.map(it => {
+            const catalogId = it.receta_id || it.charc_receta_id || it.reventa_articulo_id;
+            return {
+                catalogId,
+                nombre_producto: it.nombre_producto,
+                codigo: it.codigo,
+                type: it.product_type || it.type,
+                precio: it.precio_unitario || it.precio,
+                cantidadPedida: it.cantidad_solicitada || it.cantidadPedida
+            };
+        }));
+        setView('new');
+    };
+
+    const handleDeleteOrder = async (order) => {
+        if (window.confirm(`¿Está seguro de que desea eliminar el pedido ${order.num_orden || order.id}?`)) {
+            if (deletePedidoConsolidado) {
+                await deletePedidoConsolidado(order.id);
+            } else {
+                setPedidos(pedidos.filter(x => x.id !== order.id));
+                showToast("Pedido eliminado localmente", "error");
+            }
+        }
+    };
+
     const saveOrder = async () => {
         if (!newClient || newCart.length === 0) return;
         setSaving(true);
         
-        const numOrden = `PED-${Date.now().toString(36).toUpperCase()}`;
+        const existingOrder = editOrderId ? pedidos.find(p => p.id === editOrderId) : null;
+        const numOrden = existingOrder ? existingOrder.num_orden : `PED-${Date.now().toString(36).toUpperCase()}`;
         const totalPedido = newCart.reduce((sum, item) => sum + (item.cantidadPedida * item.precio), 0);
 
         const pedido = {
             num_orden: numOrden,
             cliente_id: newClient,
-            fecha_creacion: new Date().toISOString(),
-            estado: 'PEDIDO',
+            fecha_creacion: existingOrder ? (existingOrder.fecha_creacion || existingOrder.fecha) : new Date().toISOString(),
+            estado: existingOrder ? existingOrder.estado : 'PEDIDO',
             total: totalPedido
         };
 
@@ -90,13 +121,23 @@ export default function LogisticsView({
             product_type: i.type
         }));
 
-        if (addPedidoConsolidado) {
-            await addPedidoConsolidado(pedido, items);
+        if (editOrderId) {
+            if (updatePedidoConsolidado) {
+                await updatePedidoConsolidado(editOrderId, pedido, items);
+            } else {
+                setPedidos(pedidos.map(p => p.id === editOrderId ? { ...p, ...pedido, items } : p));
+                showToast("Pedido actualizado localmente");
+            }
+            setEditOrderId(null);
         } else {
-            // local state only fallback
-            const localPed = { id: 'ped_' + Date.now(), ...pedido, items };
-            setPedidos(prev => [localPed, ...prev]);
-            showToast("Pedido guardado en memoria (Local)");
+            if (addPedidoConsolidado) {
+                await addPedidoConsolidado(pedido, items);
+            } else {
+                // local state only fallback
+                const localPed = { id: 'ped_' + Date.now(), ...pedido, items };
+                setPedidos(prev => [localPed, ...prev]);
+                showToast("Pedido guardado en memoria (Local)");
+            }
         }
 
         setNewClient(''); 
@@ -174,22 +215,106 @@ export default function LogisticsView({
 
         setSaving(true);
 
+        // Separar el faltante (Backorder)
+        const backorderItems = updatedItems
+            .filter(item => item.faltante > 0)
+            .map(item => ({
+                receta_id: item.receta_id,
+                charc_receta_id: item.charc_receta_id,
+                reventa_articulo_id: item.reventa_articulo_id,
+                cantidad_solicitada: item.faltante,
+                cantidad_enviada: 0,
+                faltante: item.faltante,
+                precio_unitario: item.precio_unitario || item.precio || 350,
+                nombre_producto: item.nombre_producto,
+                product_type: item.product_type
+            }));
+
+        const originalItemsForDispatch = updatedItems
+            .map(item => ({
+                ...item,
+                cantidad_solicitada: item.cantidadEnviada, // Ajustamos la solicitud original a lo que realmente se envía
+                faltante: 0
+            }))
+            .filter(item => item.cantidad_solicitada > 0);
+
+        const newOriginalTotal = originalItemsForDispatch.reduce((sum, item) => sum + (item.cantidad_solicitada * item.precio_unitario), 0);
+
+        // Guardar el backorder en Supabase/local si corresponde
+        let savedBackorder = null;
+        if (backorderItems.length > 0) {
+            const boNumOrden = selectedOrder.num_orden.includes('-PEND') 
+                ? `${selectedOrder.num_orden.split('-PEND')[0]}-PEND${Date.now().toString(36).slice(-3).toUpperCase()}` 
+                : `${selectedOrder.num_orden}-PEND`;
+            const boTotal = backorderItems.reduce((sum, item) => sum + (item.cantidad_solicitada * item.precio_unitario), 0);
+            
+            const backorder = {
+                num_orden: boNumOrden,
+                cliente_id: selectedOrder.cliente_id || selectedOrder.clientId,
+                fecha_creacion: new Date().toISOString(),
+                estado: 'PEDIDO',
+                total: boTotal
+            };
+
+            try {
+                const { data: boData, error: boErr } = await supabase.from('pedidos').insert([backorder]).select();
+                if (boErr) throw boErr;
+                const newBoId = boData && boData[0] ? boData[0].id : ('p_bo_' + Date.now());
+                const boItemInserts = backorderItems.map(it => ({ ...it, pedido_id: newBoId }));
+                const { error: boItemsErr } = await supabase.from('pedido_items').insert(boItemInserts);
+                if (boItemsErr) throw boItemsErr;
+                savedBackorder = boData && boData[0] ? { ...boData[0], items: backorderItems } : { id: newBoId, ...backorder, items: backorderItems };
+            } catch (err) {
+                console.warn("Fallo crear backorder en Supabase, creando localmente:", err.message);
+                savedBackorder = { id: 'p_bo_' + Date.now(), ...backorder, items: backorderItems };
+            }
+        }
+
         // Actualizar estados locales de forma reactiva e instantánea
         setLotesPT(updatedLotesPT);
         setCharcLotes(updatedCharcLotes);
         setReventaLotes(updatedReventaLotes);
-        setPedidos(pedidos.map(p => p.id === selectedOrder.id ? { ...selectedOrder, estado: 'DESPACHADO', items: updatedItems } : p));
-        
+
+        const finalDispatchedOrder = { 
+            ...selectedOrder, 
+            estado: 'DESPACHADO', 
+            total: newOriginalTotal,
+            items: originalItemsForDispatch 
+        };
+
+        setPedidos(prev => {
+            let newPeds = prev.map(p => p.id === selectedOrder.id ? finalDispatchedOrder : p);
+            if (savedBackorder) {
+                newPeds = [savedBackorder, ...newPeds];
+            }
+            return newPeds;
+        });
+
         // Intentar actualizar Supabase en segundo plano
         try {
-            await supabase.from('pedidos').update({ estado: 'DESPACHADO' }).eq('id', selectedOrder.id);
-            for (const item of updatedItems) {
+            await supabase.from('pedidos').update({ estado: 'DESPACHADO', total: newOriginalTotal }).eq('id', selectedOrder.id);
+            
+            // Eliminar de pedido_items los que quedaron en 0 cantidades (se movieron completamente al backorder)
+            const itemsToDelete = updatedItems.filter(item => item.cantidadEnviada === 0);
+            for (const item of itemsToDelete) {
+                const queryCol = item.product_type === 'bakery' ? 'receta_id' : 
+                                 item.product_type === 'charcuteria' ? 'charc_receta_id' : 'reventa_articulo_id';
+                const fKey = item.receta_id || item.charc_receta_id || item.reventa_articulo_id;
+                await supabase.from('pedido_items').delete().eq('pedido_id', selectedOrder.id).eq(queryCol, fKey);
+            }
+
+            // Actualizar los ítems que sí se enviaron
+            for (const item of originalItemsForDispatch) {
                 const queryCol = item.product_type === 'bakery' ? 'receta_id' : 
                                  item.product_type === 'charcuteria' ? 'charc_receta_id' : 'reventa_articulo_id';
                 const fKey = item.receta_id || item.charc_receta_id || item.reventa_articulo_id;
                 
                 await supabase.from('pedido_items')
-                    .update({ cantidad_enviada: item.cantidadEnviada, faltante: item.faltante })
+                    .update({ 
+                        cantidad_solicitada: item.cantidad_solicitada,
+                        cantidad_enviada: item.cantidadEnviada, 
+                        faltante: 0 
+                    })
                     .eq('pedido_id', selectedOrder.id)
                     .eq(queryCol, fKey);
             }
@@ -209,7 +334,7 @@ export default function LogisticsView({
                     await supabase.from('reventa_lotes').update({ cantidad_actual: Math.max(0, rLote.cantidad_actual - alloc.cantidad) }).eq('id', alloc.loteId);
                 }
             }
-            showToast("✅ Despacho confirmado y sincronizado con Supabase.");
+            showToast(savedBackorder ? "✅ Despachado parcial. Restante re-encolado como pedido pendiente." : "✅ Despacho confirmado y sincronizado con Supabase.");
         } catch (err) {
             console.warn("Fallo persistencia despacho en nube, guardado localmente:", err.message);
             showToast("✅ Despachado localmente (Offline)", "success");
@@ -257,9 +382,14 @@ export default function LogisticsView({
     };
 
     if (view === 'new') {
+        const isEdit = !!editOrderId;
+        const currentOrder = isEdit ? pedidos.find(p => p.id === editOrderId) : null;
+        
         return (
             <Card className="max-w-4xl mx-auto p-8 bg-white shadow-2xl animate-in zoom-in-95">
-                <h4 className="text-2xl font-black uppercase italic mb-8 border-b pb-4 flex items-center gap-3 text-slate-800"><Plus className="text-blue-600" size={28} /> Generar Nuevo Pedido DSD</h4>
+                <h4 className="text-2xl font-black uppercase italic mb-8 border-b pb-4 flex items-center gap-3 text-slate-800">
+                    <Plus className="text-blue-600" size={28} /> {isEdit ? `Editar Pedido ${currentOrder?.num_orden || ''}` : 'Generar Nuevo Pedido DSD'}
+                </h4>
                 <div className="mb-8">
                     <Select label="Seleccionar Cliente" value={newClient} onChange={setNewClient}>
                         <option value="">Seleccionar...</option>
@@ -280,7 +410,16 @@ export default function LogisticsView({
                 </div>
                 {newCart.length > 0 && (
                     <div className="mb-6">
-                        <h5 className="font-bold text-slate-600 mb-2 uppercase text-xs">Detalle del Pedido</h5>
+                        <div className="flex justify-between items-center mb-2">
+                            <h5 className="font-bold text-slate-600 uppercase text-xs">Detalle del Pedido</h5>
+                            <button 
+                                type="button" 
+                                onClick={() => setNewCart([])}
+                                className="text-[10px] text-red-500 font-bold uppercase hover:underline"
+                            >
+                                Limpiar Detalle
+                            </button>
+                        </div>
                         <table className="w-full text-left border">
                             <thead className="bg-slate-100 text-[10px] uppercase font-black text-slate-600">
                                 <tr>
@@ -289,6 +428,7 @@ export default function LogisticsView({
                                     <th className="p-3 text-right">Precio unitario</th>
                                     <th className="p-3 text-right">Cantidad</th>
                                     <th className="p-3 text-right">Subtotal</th>
+                                    <th className="p-3 text-center">Acciones</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y text-xs">
@@ -299,6 +439,19 @@ export default function LogisticsView({
                                         <td className="p-3 text-right font-mono">${Number(c.precio).toLocaleString('es-AR')}</td>
                                         <td className="p-3 text-right font-mono font-bold">{c.cantidadPedida} u</td>
                                         <td className="p-3 text-right font-mono font-bold text-slate-900">${(c.cantidadPedida * c.precio).toLocaleString('es-AR')}</td>
+                                        <td className="p-3 text-center">
+                                            <button 
+                                                type="button"
+                                                onClick={() => {
+                                                    const updated = [...newCart];
+                                                    updated.splice(i, 1);
+                                                    setNewCart(updated);
+                                                }}
+                                                className="text-red-500 hover:text-red-700 font-bold uppercase text-[10px]"
+                                            >
+                                                Quitar
+                                            </button>
+                                        </td>
                                     </tr>
                                 ))}
                                 <tr className="bg-slate-50 font-black">
@@ -306,14 +459,17 @@ export default function LogisticsView({
                                     <td className="p-3 text-right font-mono text-emerald-600 text-sm">
                                         ${newCart.reduce((sum, item) => sum + (item.cantidadPedida * item.precio), 0).toLocaleString('es-AR')}
                                     </td>
+                                    <td></td>
                                 </tr>
                             </tbody>
                         </table>
                     </div>
                 )}
                 <div className="flex justify-end gap-3 pt-4 border-t">
-                    <Button variant="secondary" onClick={() => setView('list')}>Cancelar</Button>
-                    <Button variant="primary" disabled={!newClient || newCart.length === 0 || saving} onClick={saveOrder}>Confirmar Pedido DSD</Button>
+                    <Button variant="secondary" onClick={() => { setView('list'); setEditOrderId(null); setNewClient(''); setNewCart([]); }}>Cancelar</Button>
+                    <Button variant="primary" disabled={!newClient || newCart.length === 0 || saving} onClick={saveOrder}>
+                        {isEdit ? 'Guardar Cambios' : 'Confirmar Pedido DSD'}
+                    </Button>
                 </div>
             </Card>
         );
@@ -474,8 +630,32 @@ export default function LogisticsView({
                                             ? 'bg-[#1a1a1a]/40 border-[#1a1a1a] hover:border-[#e2c97d]/50' 
                                             : 'bg-white hover:border-slate-400'
                                     }`}>
-                                        <div className="flex justify-between mb-2">
+                                        <div className="flex justify-between items-center mb-2">
                                             <span className="text-[8px] font-mono font-black text-slate-400">{p.num_orden || p.id}</span>
+                                            {estado === 'PEDIDO' && (
+                                                <div className="flex gap-2">
+                                                    <button 
+                                                        onClick={() => startEditOrder(p)} 
+                                                        className="text-[8px] text-slate-400 hover:text-blue-500 font-black uppercase transition-colors"
+                                                    >
+                                                        Editar
+                                                    </button>
+                                                    <button 
+                                                        onClick={() => handleDeleteOrder(p)} 
+                                                        className="text-[8px] text-slate-400 hover:text-red-500 font-black uppercase transition-colors"
+                                                    >
+                                                        Eliminar
+                                                    </button>
+                                                </div>
+                                            )}
+                                            {estado !== 'PEDIDO' && (
+                                                <button 
+                                                    onClick={() => handleDeleteOrder(p)} 
+                                                    className="text-[8px] text-slate-400 hover:text-red-500 font-black uppercase transition-colors"
+                                                >
+                                                    Eliminar
+                                                </button>
+                                            )}
                                             <span className="text-[8px] font-black text-slate-400">Total: ${Number(p.total).toLocaleString('es-AR')}</span>
                                         </div>
                                         <h4 className="font-black text-xs uppercase text-slate-800 mb-3 truncate leading-tight">{cli?.nombre || cli?.razon_social}</h4>

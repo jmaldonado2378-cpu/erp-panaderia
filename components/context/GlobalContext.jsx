@@ -1023,6 +1023,48 @@ export const GlobalProvider = ({ children }) => {
         }
     };
 
+    const updatePedidoConsolidado = async (id, pedido, items) => {
+        try {
+            if (id.toString().startsWith('p_') || id.toString().startsWith('ped_')) {
+                throw new Error("Local ID - No se puede actualizar en la base de datos.");
+            }
+            const { error: pedError } = await supabase.from('pedidos').update(pedido).eq('id', id);
+            if (pedError) throw pedError;
+
+            const { error: delError } = await supabase.from('pedido_items').delete().eq('pedido_id', id);
+            if (delError) throw delError;
+
+            // Remove id from items to avoid primary key conflicts if they were generated/copied
+            const itemInserts = items.map(({ id: itemId, ...it }) => ({ ...it, pedido_id: id }));
+            const { error: insError } = await supabase.from('pedido_items').insert(itemInserts);
+            if (insError) throw insError;
+
+            setPedidos(prev => prev.map(p => p.id === id ? { ...p, ...pedido, items } : p));
+            showToast("Pedido actualizado correctamente.");
+        } catch (err) {
+            console.warn("Fallo persistencia actualización, actualizando localmente:", err?.message || err);
+            setPedidos(prev => prev.map(p => p.id === id ? { ...p, ...pedido, items } : p));
+            showToast("Actualizado localmente (Offline)");
+        }
+    };
+
+    const deletePedidoConsolidado = async (id) => {
+        try {
+            if (!id.toString().startsWith('p_') && !id.toString().startsWith('ped_')) {
+                const { error: delError } = await supabase.from('pedido_items').delete().eq('pedido_id', id);
+                if (delError) throw delError;
+
+                const { error: pedError } = await supabase.from('pedidos').delete().eq('id', id);
+                if (pedError) throw pedError;
+            }
+            setPedidos(prev => prev.filter(p => p.id !== id));
+            showToast("Pedido eliminado.", "error");
+        } catch (err) {
+            console.error("Error eliminando pedido:", err?.message || err);
+            showToast("Error BD: " + (err?.message || err), "error");
+        }
+    };
+
     /* ==============================================================
        PROVIDER
        ============================================================== */
@@ -1049,6 +1091,8 @@ export const GlobalProvider = ({ children }) => {
             pedidos, setPedidos,
             logistics, setLogistics,
             addPedidoConsolidado,
+            updatePedidoConsolidado,
+            deletePedidoConsolidado,
 
             // Finanzas
             ventas, setVentas,

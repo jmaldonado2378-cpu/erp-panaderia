@@ -11,7 +11,8 @@ export default function LogisticsPage() {
         reventaLotes, setReventaLotes,
         clientes, 
         ventas, setVentas, 
-        showToast, addPedidoConsolidado
+        showToast, addPedidoConsolidado,
+        updatePedidoConsolidado, deletePedidoConsolidado
     } = useGlobalContext();
     
     return (
@@ -32,6 +33,8 @@ export default function LogisticsPage() {
             setVentas={setVentas} 
             showToast={showToast} 
             addPedidoConsolidado={addPedidoConsolidado}
+            updatePedidoConsolidado={updatePedidoConsolidado}
+            deletePedidoConsolidado={deletePedidoConsolidado}
         />
     );
 }
