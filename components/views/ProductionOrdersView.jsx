@@ -3,12 +3,16 @@ import React, { useState } from 'react';
 import { ClipboardList, QrCode, Square, MapPin, Printer, Layers, Sparkles, Check, CheckCircle2 } from 'lucide-react';
 import { Card, Button, Input, Select } from '../bakery_erp';
 import { supabase } from '../../lib/supabase';
+import { useGlobalContext } from '../context/GlobalContext';
+import PrintPreviewModal from '../PrintPreviewModal';
 
 export default function ProductionOrdersView({ 
     recipes, ingredients, lots, orders, setOrders, showToast,
     charcRecetas = [], charcLotes = [], addCharcLote,
     fraccTareas = [], addFraccTarea
 }) {
+    const { theme } = useGlobalContext();
+    const [printData, setPrintData] = useState(null);
     const [sector, setSector] = useState('bakery'); // 'bakery', 'charcuteria', 'fraccionamiento'
     
     // Helper to parse observations
@@ -324,6 +328,138 @@ export default function ProductionOrdersView({
         const total = lots.filter(x => (x.ingredientId || x.ingrediente_id) === ingId)
             .reduce((acc, curr) => acc + (Number(curr.amount || curr.cantidad_actual) || 0), 0);
         return total;
+    };
+
+    const handlePrintProductionOrder = () => {
+        if (!selectedOrder) return;
+        const obsData = parseObs(selectedOrder.observaciones);
+        const isCharc = obsData.linea === 'charcuteria';
+        const isFracc = obsData.linea === 'fraccionamiento';
+        const targetAmt = selectedOrder.targetAmount || selectedOrder.cantidad_objetivo;
+
+        let receta_nombre = '';
+        let meta_unidad = 'Unidades';
+        let insumosList = [];
+
+        if (isCharc) {
+            const rec = charcRecetas.find(r => r.id === obsData.charc_receta_id);
+            receta_nombre = rec?.nombre || 'Producto Charcutería';
+            meta_unidad = 'Kg';
+            
+            let scaled = [];
+            if (rec) {
+                if (rec.familia_tecnologica === 'fermentado_seco' || rec.familia_tecnologica === 'emulsion_fina' || rec.familia_tecnologica === 'embutido_fresco') {
+                    scaled = rec.details.map(d => ({
+                        ...d,
+                        gramos_calculados: Math.round((targetAmt * Number(d.porcentaje_base || 0)) / 100)
+                    }));
+                } else if (rec.familia_tecnologica === 'salazon_cruda') {
+                    scaled = rec.details.map(d => ({
+                        ...d,
+                        gramos_calculados: d.categoria_tecnologica === 'magro' ? targetAmt : Math.round((targetAmt * Number(d.porcentaje_base)) / 100)
+                    }));
+                } else if (rec.familia_tecnologica === 'salazon_inyectada') {
+                    const injPct = Number(rec.porcentaje_inyeccion || 10);
+                    const w_salmuera = (targetAmt * injPct) / 100;
+                    let totalAditivosG = 0;
+                    const ingredientsScaled = rec.details
+                        .filter(d => d.categoria_tecnologica !== 'magro' && d.categoria_tecnologica !== 'empaque')
+                        .map(d => {
+                            const g = Math.round((targetAmt * Number(d.porcentaje_base)) / 100);
+                            totalAditivosG += g;
+                            return { ...d, gramos_calculados: g };
+                        });
+                    const waterG = w_salmuera - totalAditivosG;
+                    const waterDetail = {
+                        ingredientId: 'i3',
+                        porcentaje_base: null,
+                        categoria_tecnologica: 'vector_liquido',
+                        secuencia_mezcla: 1,
+                        gramos_calculados: Math.round(waterG)
+                    };
+                    scaled = [
+                        rec.details.find(d => d.categoria_tecnologica === 'magro'),
+                        waterDetail,
+                        ...ingredientsScaled
+                    ].filter(Boolean);
+                }
+            }
+
+            insumosList = scaled.map(d => {
+                const ing = ingredients.find(x => x.id === d.ingredientId);
+                return {
+                    name: ing?.name || 'Insumo',
+                    cantidad: d.gramos_calculados >= 1000 ? (d.gramos_calculados / 1000) : d.gramos_calculados,
+                    unidad: d.gramos_calculados >= 1000 ? 'Kg' : 'g',
+                    lote: getFefoLot(d.ingredientId),
+                    ubicacion: getLocation(ing)
+                };
+            });
+        } else if (isFracc) {
+            const ingGranel = ingredients.find(i => i.id === obsData.insumo_granel_id);
+            const ingEmpaque = ingredients.find(i => i.id === obsData.empaque_id);
+            const formatBolsa = obsData.formato_bolsa_g || 100;
+            const totalBags = Math.ceil(targetAmt / formatBolsa);
+
+            receta_nombre = `Fraccionado: ${ingGranel?.name || 'Insumo'}`;
+            meta_unidad = 'Kg';
+            
+            insumosList = [
+                {
+                    name: `Materia Prima: ${ingGranel?.name || 'Granel'}`,
+                    cantidad: targetAmt / 1000,
+                    unidad: 'Kg',
+                    lote: getFefoLot(obsData.insumo_granel_id),
+                    ubicacion: getLocation(ingGranel)
+                },
+                {
+                    name: `Envase: ${ingEmpaque?.name || 'Bolsa'}`,
+                    cantidad: totalBags,
+                    unidad: 'Unidades',
+                    lote: getFefoLot(obsData.empaque_id),
+                    ubicacion: getLocation(ingEmpaque)
+                }
+            ];
+        } else {
+            const rec = recipes.find(r => r.id === (selectedOrder.recipeId || selectedOrder.receta_id));
+            receta_nombre = rec?.nombre_producto || 'Receta Panadería';
+            meta_unidad = rec?.formato_venta === 'Kg' ? 'Kg' : 'Unidades';
+
+            let unidades_rinde = 1;
+            if (rec?.formato_venta === 'Unidad' && Number(rec.peso_unidad) > 0) {
+                unidades_rinde = Math.floor(Number(rec.peso_final) / Number(rec.peso_unidad)) || 1;
+            } else {
+                unidades_rinde = (Number(rec?.peso_final) / 1000) || 1;
+            }
+            const scale = targetAmt / unidades_rinde;
+            const details = rec?.details || [];
+
+            insumosList = details.map(d => {
+                const ing = ingredients.find(x => x.id === d.ingredientId);
+                const gramos = Math.round((Number(d.gramos) || 0) * scale);
+                return {
+                    name: ing?.name || 'Insumo',
+                    cantidad: gramos >= 1000 ? (gramos / 1000) : gramos,
+                    unidad: gramos >= 1000 ? 'Kg' : 'g',
+                    lote: getFefoLot(d.ingredientId),
+                    ubicacion: getLocation(ing)
+                };
+            });
+        }
+
+        setPrintData({
+            type: 'production_order',
+            payload: {
+                codigo_orden: selectedOrder.codigo_orden || selectedOrder.id,
+                receta_nombre,
+                meta_cantidad: isCharc || isFracc ? (targetAmt / 1000).toFixed(1) : targetAmt,
+                meta_unidad,
+                estado: selectedOrder.estado,
+                fecha_tarea: selectedOrder.fecha_tarea || selectedOrder.date || selectedOrder.created_at,
+                insumos: insumosList,
+                observaciones: selectedOrder.observaciones && !isCharc && !isFracc ? selectedOrder.observaciones : ''
+            }
+        });
     };
 
     return (
@@ -759,7 +895,7 @@ export default function ProductionOrdersView({
                             </div>
 
                             <div className="flex justify-end gap-3 print:hidden mt-auto border-t pt-4">
-                                <Button variant="secondary" onClick={() => window.print()} className="py-2"><Printer size={14} /> Imprimir Hoja</Button>
+                                <Button variant="secondary" onClick={handlePrintProductionOrder} className="py-2"><Printer size={14} /> Imprimir Hoja</Button>
                                 <Button variant="success" onClick={() => activateOrder(selectedOrder.id)} className="py-2">Activar Kanban</Button>
                             </div>
                         </div>
@@ -767,26 +903,13 @@ export default function ProductionOrdersView({
                 </Card>
             </div>
 
-            {/* ESTILO DE IMPRESIÓN */}
-            <style>{`
-                @media print {
-                    html, body, main, .h-screen, .overflow-hidden, div {
-                        height: auto !important;
-                        overflow: visible !important;
-                        min-height: 0 !important;
-                    }
-                    .print\:hidden, aside, header, button {
-                        display: none !important;
-                    }
-                    #printable-production-order {
-                        border: none !important;
-                        box-shadow: none !important;
-                        width: 100% !important;
-                        margin: 0 !important;
-                        padding: 0 !important;
-                    }
-                }
-            `}</style>
+            <PrintPreviewModal
+                isOpen={!!printData}
+                onClose={() => setPrintData(null)}
+                type={printData?.type}
+                data={printData?.payload}
+                theme={theme}
+            />
         </div>
     );
 }

@@ -1,14 +1,37 @@
 import React, { useState } from 'react';
 import { Card, Button, Input, Select } from '../bakery_erp';
-import { DollarSign, History, Landmark, ReceiptText } from 'lucide-react';
+import { DollarSign, History, Landmark, ReceiptText, Edit2, Trash2, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
-export default function SupplierAccountsView({ providers, pagosProveedores, setPagosProveedores, showToast }) {
+const parseDecimal = (val) => {
+    if (val === null || val === undefined || val === '') return null;
+    if (typeof val === 'number') return val;
+    const clean = val.toString().replace(/,/g, '.').trim();
+    const parsed = parseFloat(clean);
+    return isNaN(parsed) ? null : parsed;
+};
+
+const parseDecimalOrZero = (val) => {
+    const res = parseDecimal(val);
+    return res === null ? 0 : res;
+};
+
+export default function SupplierAccountsView({ providers, pagosProveedores, setPagosProveedores, updatePagoProveedor, deletePagoProveedor, showToast }) {
     // Nota: 'pagosProveedores' representa el ledger completo de deudas_proveedor
     const [selectedProvider, setSelectedProvider] = useState('');
     const [montoPago, setMontoPago] = useState('');
     const [concepto, setConcepto] = useState('');
     const [saving, setSaving] = useState(false);
+    const [editingPago, setEditingPago] = useState(null);
+    const [editForm, setEditForm] = useState({ concepto: '', monto: '', fecha: '' });
+
+    const handleDeletePago = async (p) => {
+        if (window.confirm("¿Está seguro de eliminar este movimiento? Esta acción recalculará los saldos y se registrará en el historial de auditoría.")) {
+            if (deletePagoProveedor) {
+                await deletePagoProveedor(p.id, p);
+            }
+        }
+    };
 
     const calcularSaldo = (providerId) => {
         return pagosProveedores
@@ -18,7 +41,8 @@ export default function SupplierAccountsView({ providers, pagosProveedores, setP
 
     const registrarPago = async (e) => {
         e.preventDefault();
-        if (!selectedProvider || !montoPago || Number(montoPago) <= 0) return;
+        const parsedMonto = parseDecimalOrZero(montoPago);
+        if (!selectedProvider || !montoPago || parsedMonto <= 0) return;
         
         setSaving(true);
         const conceptoFinal = concepto || 'Pago a Proveedor';
@@ -29,7 +53,7 @@ export default function SupplierAccountsView({ providers, pagosProveedores, setP
                 .insert([{
                     proveedor_id: selectedProvider,
                     concepto: conceptoFinal,
-                    monto: -Number(montoPago), // Pago resta deuda
+                    monto: -parsedMonto, // Pago resta deuda
                     estado: 'PAGADO',
                     fecha: new Date().toISOString().split('T')[0]
                 }])
@@ -134,6 +158,7 @@ export default function SupplierAccountsView({ providers, pagosProveedores, setP
                                             <th className="px-3 py-2">Proveedor</th>
                                             <th className="px-3 py-2">Concepto</th>
                                             <th className="px-3 py-2 text-right">Monto</th>
+                                            <th className="px-3 py-2 text-center">Acciones</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-100 font-bold text-xs">
@@ -148,11 +173,38 @@ export default function SupplierAccountsView({ providers, pagosProveedores, setP
                                                     <td className={`px-3 py-2 text-right font-mono ${monto > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
                                                         ${monto.toLocaleString('es-AR')}
                                                     </td>
+                                                    <td className="px-3 py-2 text-center">
+                                                        <div className="flex items-center justify-center gap-1">
+                                                            <button 
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    setEditingPago(p);
+                                                                    setEditForm({
+                                                                        concepto: p.concepto || '',
+                                                                        monto: Math.abs(monto).toString(),
+                                                                        fecha: (p.fecha || p.created_at || new Date().toISOString()).split('T')[0]
+                                                                    });
+                                                                }}
+                                                                className="p-1 hover:bg-slate-100 rounded text-amber-500 transition-colors"
+                                                                title="Editar"
+                                                            >
+                                                                <Edit2 size={12} />
+                                                            </button>
+                                                            <button 
+                                                                type="button"
+                                                                onClick={() => handleDeletePago(p)}
+                                                                className="p-1 hover:bg-rose-50 rounded text-rose-600 transition-colors"
+                                                                title="Eliminar"
+                                                            >
+                                                                <Trash2 size={12} />
+                                                            </button>
+                                                        </div>
+                                                    </td>
                                                 </tr>
                                             );
                                         })}
                                         {pagosProveedores.length === 0 && (
-                                            <tr><td colSpan="4" className="text-center py-8 text-slate-300 italic">No hay registros cargados.</td></tr>
+                                            <tr><td colSpan="5" className="text-center py-8 text-slate-300 italic">No hay registros cargados.</td></tr>
                                         )}
                                     </tbody>
                                 </table>
@@ -161,6 +213,105 @@ export default function SupplierAccountsView({ providers, pagosProveedores, setP
                     </div>
                 </div>
             </Card>
+
+            {/* MODAL EDICION MOVIMIENTO PROVEEDOR */}
+            {editingPago && (
+                <div className="fixed inset-0 bg-slate-950/80 flex items-center justify-center p-8 z-50 animate-in fade-in">
+                    <Card className="max-w-md w-full p-8 border border-slate-200 shadow-2xl rounded-2xl bg-white text-slate-700">
+                        <h3 className="text-lg font-black uppercase italic mb-4 flex items-center gap-1.5 text-slate-800">
+                            <Edit2 className="text-amber-500" /> Editar Movimiento de Proveedor
+                        </h3>
+                        <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 mb-6 space-y-2 text-xs">
+                            <div className="flex justify-between">
+                                <span className="text-slate-400 font-bold uppercase">Proveedor:</span> 
+                                <span className="font-black uppercase">
+                                    {providers.find(pr => pr.id === (editingPago.providerId || editingPago.proveedor_id))?.nombre || 'Proveedor'}
+                                </span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="text-slate-400 font-bold uppercase">Tipo Original:</span> 
+                                <span className={`font-black uppercase ${Number(editingPago.monto || 0) > 0 ? 'text-rose-500' : 'text-emerald-500'}`}>
+                                    {Number(editingPago.monto || 0) > 0 ? 'Deuda / Factura' : 'Pago Efectuado'}
+                                </span>
+                            </div>
+                        </div>
+
+                        <form onSubmit={async (e) => {
+                            e.preventDefault();
+                            const parsedMonto = parseDecimalOrZero(editForm.monto);
+                            if (!editForm.monto || parsedMonto <= 0) {
+                                showToast("Monto inválido", "error");
+                                return;
+                            }
+                            setSaving(true);
+                            const oldMonto = Number(editingPago.monto || 0);
+                            const isPago = oldMonto < 0;
+                            const newMonto = isPago ? -parsedMonto : parsedMonto;
+                            
+                            const updatedPago = {
+                                concepto: editForm.concepto,
+                                monto: newMonto,
+                                fecha: editForm.fecha
+                            };
+                            
+                            try {
+                                if (updatePagoProveedor) {
+                                    await updatePagoProveedor(editingPago.id, updatedPago, editingPago);
+                                }
+                                setEditingPago(null);
+                            } catch (err) {
+                                showToast("Error al actualizar: " + err.message, "error");
+                            } finally {
+                                setSaving(false);
+                            }
+                        }} className="space-y-4">
+                            <Input 
+                                label="Concepto / Comprobante" 
+                                placeholder="Concepto..." 
+                                value={editForm.concepto} 
+                                onChange={v => setEditForm({ ...editForm, concepto: v })} 
+                                required
+                            />
+                            <Input 
+                                label="Monto ($)" 
+                                type="number" 
+                                step="0.01" 
+                                placeholder="Ej: 1500" 
+                                value={editForm.monto} 
+                                onChange={v => setEditForm({ ...editForm, monto: v })} 
+                                required
+                            />
+                            <Input 
+                                label="Fecha" 
+                                type="date" 
+                                value={editForm.fecha} 
+                                onChange={v => setEditForm({ ...editForm, fecha: v })} 
+                                required
+                            />
+
+                            <div className="flex gap-4 pt-6">
+                                <Button 
+                                    type="submit"
+                                    variant="warning" 
+                                    className="flex-1 py-3 h-[38px] shadow-md shadow-amber-100"
+                                    disabled={saving}
+                                >
+                                    {saving ? 'Guardando...' : 'Guardar Cambios'}
+                                </Button>
+                                <Button 
+                                    type="button"
+                                    onClick={() => { setEditingPago(null); }} 
+                                    variant="secondary" 
+                                    className="px-6 h-[38px]"
+                                    disabled={saving}
+                                >
+                                    Cancelar
+                                </Button>
+                            </div>
+                        </form>
+                    </Card>
+                </div>
+            )}
         </div>
     );
 }

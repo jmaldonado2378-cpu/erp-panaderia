@@ -5,6 +5,8 @@ import { supabase } from '../../lib/supabase';
 import Link from 'next/link';
 import CharcuteriaView from './CharcuteriaView';
 import BulkImportModal from '../BulkImportModal';
+import { useGlobalContext } from '../context/GlobalContext';
+import PrintPreviewModal from '../PrintPreviewModal';
 
 const fmt = (n) => `$${Number(n || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -20,6 +22,8 @@ export default function EngineeringView({
     recipes = [], ingredients = [], setRecipes, setIngredients, showToast, config,
     charcRecetas = [], addCharcReceta, updateCharcReceta, deleteCharcReceta, setCharcRecetas
 }) {
+    const { theme } = useGlobalContext();
+    const [printData, setPrintData] = useState(null);
     const [subTab, setSubTab] = useState('panaderia'); // 'panaderia' | 'charcuteria'
     const [showAdd, setShowAdd] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
@@ -31,6 +35,33 @@ export default function EngineeringView({
     // Sorting states
     const [sortKey, setSortKey] = useState('nombre_producto');
     const [sortDesc, setSortDesc] = useState(false);
+
+    const handlePrintRecipes = () => {
+        const recipeListItems = processedRecipes.map(r => {
+            const rinde = r.formato_venta === 'Kg' 
+                ? `${(Number(r.peso_final || 0) / 1000).toFixed(1)} Kg` 
+                : `${Math.floor(Number(r.peso_final || 0) / (Number(r.peso_unidad) || 1))} U`;
+            
+            const margin = r.margen_ganancia || config?.finanzas?.margenGanancia || 120;
+            
+            return {
+                name: r.nombre_producto,
+                sku: r.codigo,
+                family: FAMILIAS[r.familia]?.nombre || r.familia,
+                rinde,
+                costo: r.costo_unitario,
+                margen: margin,
+                precio: r.precio_sugerido
+            };
+        });
+
+        setPrintData({
+            type: 'recipe_list',
+            payload: {
+                recipes: recipeListItems
+            }
+        });
+    };
 
     const handleSort = (key) => {
         if (sortKey === key) {
@@ -455,7 +486,7 @@ export default function EngineeringView({
                     <input type="text" placeholder="Buscar por código o nombre..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg text-xs font-bold outline-none focus:border-orange-500 bg-slate-50 focus:bg-white transition-all" />
                 </div>
                 <div className="flex gap-2">
-                    <Button onClick={() => window.print()} variant="secondary" className="flex items-center gap-1.5"><Printer size={16} /> Imprimir Listado</Button>
+                    <Button onClick={handlePrintRecipes} variant="secondary" className="flex items-center gap-1.5"><Printer size={16} /> Imprimir Listado</Button>
                     <Button onClick={() => setShowBulkImport(true)} variant="secondary"><Plus size={16} /> Carga Masiva</Button>
                     <Button onClick={() => { setShowAdd(!showAdd); if (!showAdd) setForm(EMPTY_FORM); }} variant={showAdd ? "secondary" : "accent"}>
                         {showAdd ? "Cancelar Edición" : <><Plus size={16} /> Nueva Ficha</>}
@@ -924,26 +955,13 @@ export default function EngineeringView({
                 onSuccess={{ setRecipes, setIngredients }}
             />
 
-            {/* ESTILO DE IMPRESIÓN */}
-            <style>{`
-                @media print {
-                    html, body, main, .h-screen, .overflow-hidden, div {
-                        height: auto !important;
-                        overflow: visible !important;
-                        min-height: 0 !important;
-                    }
-                    .print\:hidden, aside, header, button, .flex-1.max-w-md {
-                        display: none !important;
-                    }
-                    #printable-list-container {
-                        border: none !important;
-                        box-shadow: none !important;
-                        width: 100% !important;
-                        margin: 0 !important;
-                        padding: 0 !important;
-                    }
-                }
-            `}</style>
+            <PrintPreviewModal
+                isOpen={!!printData}
+                onClose={() => setPrintData(null)}
+                type={printData?.type}
+                data={printData?.payload}
+                theme={theme}
+            />
         </div>
     );
 }

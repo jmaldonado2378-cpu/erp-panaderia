@@ -6,6 +6,19 @@ import {
 } from 'lucide-react';
 import { Card, Button, Input, Select } from '../bakery_erp';
 
+const parseDecimal = (val) => {
+    if (val === null || val === undefined || val === '') return null;
+    if (typeof val === 'number') return val;
+    const clean = val.toString().replace(/,/g, '.').trim();
+    const parsed = parseFloat(clean);
+    return isNaN(parsed) ? null : parsed;
+};
+
+const parseDecimalOrZero = (val) => {
+    const res = parseDecimal(val);
+    return res === null ? 0 : res;
+};
+
 export default function ReventaView({ 
     reventaArticulos, addReventaArticulo,
     reventaLotes, addReventaLote, addStockReventaLote,
@@ -42,8 +55,8 @@ export default function ReventaView({
             return;
         }
 
-        const cost = Number(artForm.costo_compra);
-        const margin = Number(artForm.margen_ganancia_pct);
+        const cost = parseDecimalOrZero(artForm.costo_compra);
+        const margin = parseDecimalOrZero(artForm.margen_ganancia_pct);
         const price = cost * (1 + margin / 100);
 
         const articulo = {
@@ -75,7 +88,7 @@ export default function ReventaView({
         const lote = {
             articulo_id: loteForm.articulo_id,
             codigo_lote: loteForm.codigo_lote.toUpperCase(),
-            cantidad_actual: Number(loteForm.cantidad_actual),
+            cantidad_actual: Math.round(parseDecimalOrZero(loteForm.cantidad_actual)),
             fecha_vencimiento: loteForm.fecha_vencimiento
         };
 

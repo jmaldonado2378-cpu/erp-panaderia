@@ -10,6 +10,19 @@ import { Card, Button, Input, Select, FAMILIAS } from '../bakery_erp';
 import { supabase } from '../../lib/supabase';
 import { useGlobalContext } from '../context/GlobalContext';
 
+const parseDecimal = (val) => {
+    if (val === null || val === undefined || val === '') return null;
+    if (typeof val === 'number') return val;
+    const clean = val.toString().replace(/,/g, '.').trim();
+    const parsed = parseFloat(clean);
+    return isNaN(parsed) ? null : parsed;
+};
+
+const parseDecimalOrZero = (val) => {
+    const res = parseDecimal(val);
+    return res === null ? 0 : res;
+};
+
 /* ================================================================
    HELPER: Calcula árbol de costos de una receta (Bakery)
    ================================================================ */
@@ -552,7 +565,7 @@ export default function PricingView({
         const activeDescKey = localPricing.canal_principal === 'mostrador' ? 'desc_mostrador' : localPricing.canal_principal === 'distribuidor' ? 'desc_distribuidor' : 'desc_cadena';
         const activeDesc = Number(taxSettings[activeDescKey] || 0);
         const canalSugeridoConDescuento = precioNetoSugerido * (1 - activeDesc / 100);
-        const precioCanalFijado = Number(localPricing[activeCanalKey]) || canalSugeridoConDescuento;
+        const precioCanalFijado = parseDecimalOrZero(localPricing[activeCanalKey]) || canalSugeridoConDescuento;
 
         // Distribución del precio fijado en pesos
         const comisionesP = precioCanalFijado * (comisionesPct / 100);
@@ -722,7 +735,7 @@ export default function PricingView({
         setSavingId(selectedProduct.id);
 
         const activeCanalKey = `precio_${localPricing.canal_principal}`;
-        const precioDelCanal = Number(localPricing[activeCanalKey]) || simulacionPrecio.precioNetoSugerido;
+        const precioDelCanal = parseDecimalOrZero(localPricing[activeCanalKey]) || simulacionPrecio.precioNetoSugerido;
 
         // Payload serializando el estado local en la columna `notas`
         const payload = {
@@ -730,11 +743,11 @@ export default function PricingView({
             estado: publicar ? 'PUBLICADO' : localPricing.estado,
             margen_pct: Number(localPricing.margen_pct),
             costo_empaque_total: costos.costo_empaque_total,
-            precio_mostrador: localPricing.precio_mostrador ? Number(localPricing.precio_mostrador) : null,
-            precio_distribuidor: localPricing.precio_distribuidor ? Number(localPricing.precio_distribuidor) : null,
-            precio_cadena: localPricing.precio_cadena ? Number(localPricing.precio_cadena) : null,
+            precio_mostrador: parseDecimal(localPricing.precio_mostrador),
+            precio_distribuidor: parseDecimal(localPricing.precio_distribuidor),
+            precio_cadena: parseDecimal(localPricing.precio_cadena),
             canal_principal: localPricing.canal_principal,
-            precio_publicado: publicar ? precioDelCanal : localPricing.precio_publicado,
+            precio_publicado: publicar ? precioDelCanal : parseDecimal(localPricing.precio_publicado),
             empaques: localPricing.empaques,
             notas: JSON.stringify({
                 user_notes: localPricing.user_notes || '',
@@ -835,29 +848,29 @@ export default function PricingView({
                     <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-6 gap-4 items-end">
                         <Input 
                             label="Luz, Gas y Agua ($/Mes)" type="number" value={fixedCosts.servicios} 
-                            onChange={v => saveFixedCosts({ ...fixedCosts, servicios: Number(v) })} 
+                            onChange={v => saveFixedCosts({ ...fixedCosts, servicios: parseDecimalOrZero(v) })} 
                         />
                         <Input 
                             label="Alquiler y Combustible ($/Mes)" type="number" value={fixedCosts.alquiler_logistica} 
-                            onChange={v => saveFixedCosts({ ...fixedCosts, alquiler_logistica: Number(v) })} 
+                            onChange={v => saveFixedCosts({ ...fixedCosts, alquiler_logistica: parseDecimalOrZero(v) })} 
                         />
                         <Input 
                             label="Mano de Obra ($/Mes)" type="number" value={fixedCosts.mano_obra} 
-                            onChange={v => saveFixedCosts({ ...fixedCosts, mano_obra: Number(v) })} 
+                            onChange={v => saveFixedCosts({ ...fixedCosts, mano_obra: parseDecimalOrZero(v) })} 
                         />
                         {taxSettings.regimen === 'Monotributo' && (
                             <Input 
                                 label="Monotributo ($/Mes)" type="number" value={fixedCosts.monotributo} 
-                                onChange={v => saveFixedCosts({ ...fixedCosts, monotributo: Number(v) })} 
+                                onChange={v => saveFixedCosts({ ...fixedCosts, monotributo: parseDecimalOrZero(v) })} 
                             />
                         )}
                         <Input 
                             label="Volumen (Unid/Mes)" type="number" value={fixedCosts.volumen_mensual} 
-                            onChange={v => saveFixedCosts({ ...fixedCosts, volumen_mensual: Number(v) })} 
+                            onChange={v => saveFixedCosts({ ...fixedCosts, volumen_mensual: parseDecimalOrZero(v) })} 
                         />
                         <Input 
                             label="CIF (% sobre MP)" type="number" suffix="%" value={fixedCosts.costosIndirectosPct ?? 20} 
-                            onChange={v => saveFixedCosts({ ...fixedCosts, costosIndirectosPct: Number(v) })} 
+                            onChange={v => saveFixedCosts({ ...fixedCosts, costosIndirectosPct: parseDecimalOrZero(v) })} 
                         />
                     </div>
 
@@ -891,15 +904,15 @@ export default function PricingView({
                 </div>
                 <Input 
                     label="Ingresos Brutos (IIBB %)" type="number" suffix="%" value={taxSettings.iibb_pct}
-                    onChange={v => saveTaxSettings({ ...taxSettings, iibb_pct: Number(v) })}
+                    onChange={v => saveTaxSettings({ ...taxSettings, iibb_pct: parseDecimalOrZero(v) })}
                 />
                 <Input 
                     label="Comisión Canal/Pasarela (%)" type="number" suffix="%" value={taxSettings.comision_canal}
-                    onChange={v => saveTaxSettings({ ...taxSettings, comision_canal: Number(v) })}
+                    onChange={v => saveTaxSettings({ ...taxSettings, comision_canal: parseDecimalOrZero(v) })}
                 />
                 <Input 
                     label="Costo de Envío Incluido ($)" type="number" value={taxSettings.costo_envio}
-                    onChange={v => saveTaxSettings({ ...taxSettings, costo_envio: Number(v) })}
+                    onChange={v => saveTaxSettings({ ...taxSettings, costo_envio: parseDecimalOrZero(v) })}
                 />
                 
                 <div className="col-span-1 md:col-span-4 border-b border-t pt-3 mt-1 pb-2 flex justify-between items-center">
@@ -907,15 +920,15 @@ export default function PricingView({
                 </div>
                 <Input 
                     label="Descuento Mostrador (%)" type="number" suffix="%" value={taxSettings.desc_mostrador ?? 0}
-                    onChange={v => saveTaxSettings({ ...taxSettings, desc_mostrador: Number(v) })}
+                    onChange={v => saveTaxSettings({ ...taxSettings, desc_mostrador: parseDecimalOrZero(v) })}
                 />
                 <Input 
                     label="Descuento Distribuidor (%)" type="number" suffix="%" value={taxSettings.desc_distribuidor ?? 15}
-                    onChange={v => saveTaxSettings({ ...taxSettings, desc_distribuidor: Number(v) })}
+                    onChange={v => saveTaxSettings({ ...taxSettings, desc_distribuidor: parseDecimalOrZero(v) })}
                 />
                 <Input 
                     label="Descuento Cadenas (%)" type="number" suffix="%" value={taxSettings.desc_cadena ?? 25}
-                    onChange={v => saveTaxSettings({ ...taxSettings, desc_cadena: Number(v) })}
+                    onChange={v => saveTaxSettings({ ...taxSettings, desc_cadena: parseDecimalOrZero(v) })}
                 />
                 <div className="text-xs bg-slate-50 border p-3 rounded-xl flex items-center gap-2">
                     <Info className="text-blue-500 flex-shrink-0" size={16} />

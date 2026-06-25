@@ -5,11 +5,14 @@ import {
     AlertTriangle, CheckCircle2, QrCode, ArrowRight, RefreshCw
 } from 'lucide-react';
 import { Card, Button, Input, Select } from '../bakery_erp';
+import PrintPreviewModal from '../PrintPreviewModal';
+import { useGlobalContext } from '../context/GlobalContext';
 
 export default function FraccionamientoView({ 
     fraccTareas, addFraccTarea,
     ingredients, lots, showToast 
 }) {
+    const { theme } = useGlobalContext();
     const [tab, setTab] = useState('tareas'); // 'tareas', 'nuevo'
     const [printedLabel, setPrintedLabel] = useState(null);
     const [processingTask, setProcessingTask] = useState(null);
@@ -540,52 +543,13 @@ export default function FraccionamientoView({
                 </div>
             )}
 
-            {/* VISTA DE ETIQUETA IMPRIMIBLE (MODAL FLOTANTE) */}
-            {printedLabel && (
-                <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex justify-center items-center p-4 print:p-0 print:static print:bg-white print:z-auto">
-                    <div className="bg-white border-[12px] border-slate-900 rounded-[2.5rem] p-10 max-w-sm w-full text-center shadow-2xl print:border-none print:shadow-none print:rounded-none print:p-0">
-                        <div className="border-b-[6px] border-slate-900 pb-4 mb-6">
-                            <h2 className="text-2xl font-black uppercase tracking-tight text-slate-900">{printedLabel.title}</h2>
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">PRODUCTO FRACCIONADO EN ORIGEN</p>
-                        </div>
-
-                        <div className="space-y-3 text-left border-b border-dashed pb-6 mb-6">
-                            <div className="flex justify-between text-xs">
-                                <span className="text-slate-400 font-bold uppercase">SKU:</span>
-                                <span className="font-mono font-black text-slate-800">{printedLabel.sku}</span>
-                            </div>
-                            <div className="flex justify-between text-xs">
-                                <span className="text-slate-400 font-bold uppercase">Lote:</span>
-                                <span className="font-mono font-black text-blue-700">{printedLabel.lote}</span>
-                            </div>
-                            <div className="flex justify-between text-xs">
-                                <span className="text-slate-400 font-bold uppercase">Peso Neto:</span>
-                                <span className="font-mono font-black text-slate-900">{printedLabel.peso}</span>
-                            </div>
-                            <div className="flex justify-between text-xs">
-                                <span className="text-slate-400 font-bold uppercase">Envasado:</span>
-                                <span className="font-mono font-black text-slate-800">{printedLabel.ingreso}</span>
-                            </div>
-                            <div className="flex justify-between text-xs">
-                                <span className="text-slate-400 font-bold uppercase">Vencimiento:</span>
-                                <span className="font-mono font-black text-red-600">{printedLabel.vencimiento}</span>
-                            </div>
-                        </div>
-
-                        <div className="flex flex-col items-center justify-center gap-3">
-                            <div className="border border-slate-200 p-3 rounded-2xl bg-slate-50 flex items-center justify-center">
-                                <QrCode size={120} className="text-slate-800" />
-                            </div>
-                            <p className="text-[8px] font-mono text-slate-400 uppercase">Escanear para trazabilidad FEFO</p>
-                        </div>
-
-                        <div className="flex gap-3 justify-end mt-8 pt-4 border-t print:hidden">
-                            <Button onClick={() => window.print()} variant="success">Imprimir</Button>
-                            <Button onClick={() => setPrintedLabel(null)} variant="secondary">Cerrar</Button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <PrintPreviewModal
+                isOpen={!!printedLabel}
+                onClose={() => setPrintedLabel(null)}
+                type="label"
+                data={printedLabel}
+                theme={theme}
+            />
         </div>
     );
 }

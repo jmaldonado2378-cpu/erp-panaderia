@@ -3,8 +3,12 @@ import { Plus, Briefcase, Wrench, Layers, Building, Store, Printer, Search } fro
 import { Card, Button, Input, Select, CATEGORIAS_INSUMO, UBICACIONES_ALMACEN, PRESENTACIONES_COMPRA } from '../bakery_erp';
 import { supabase } from '../../lib/supabase';
 import BulkImportModal from '../BulkImportModal';
+import { useGlobalContext } from '../context/GlobalContext';
+import PrintPreviewModal from '../PrintPreviewModal';
 
 export default function MasterDataView({ ingredients, setIngredients, providers, setProviders, clientes, setClientes, showToast }) {
+    const { theme } = useGlobalContext();
+    const [printData, setPrintData] = useState(null);
     const [tab, setTab] = useState('prov');
     const [form, setForm] = useState({ id: null, codigo: '', nombre: '', cuit: '', rubro: '' });
     const [showAdd, setShowAdd] = useState(false);
@@ -17,6 +21,72 @@ export default function MasterDataView({ ingredients, setIngredients, providers,
 
     const [showBulkImport, setShowBulkImport] = useState(false);
     const [bulkImportType, setBulkImportType] = useState('proveedores'); // 'ingredientes' | 'proveedores' | 'clientes'
+
+    const handlePrintProviders = () => {
+        setPrintData({
+            type: 'master_list',
+            payload: {
+                title: 'Listado Maestro de Proveedores',
+                headers: ['Código', 'Nombre / Razón Social', 'CUIT', 'Rubro Principal'],
+                rows: filteredAndSortedProviders.map(p => ({
+                    codigo: p.codigo || 'PRV',
+                    nombre: p.nombre || p.razon_social || '',
+                    cuit: p.cuit || '',
+                    rubro: p.rubro || ''
+                }))
+            }
+        });
+    };
+
+    const handlePrintIngredients = () => {
+        setPrintData({
+            type: 'master_list',
+            payload: {
+                title: 'Listado Maestro de Insumos',
+                headers: ['Código SKU', 'Nombre / Insumo', 'Familia', 'Almacén de Depósito', 'Costo Estándar'],
+                rows: filteredAndSortedInsumos.map(i => ({
+                    codigo: i.codigo || 'RAW',
+                    nombre: i.name || '',
+                    familia: i.familia || '',
+                    almacen: i.almacen || '',
+                    costo: `$${Number(i.costo_estandar || 0).toLocaleString('es-AR', { minimumFractionDigits: 4, maximumFractionDigits: 4 })} / ${i.unidad_base || 'g'}`
+                }))
+            }
+        });
+    };
+
+    const handlePrintClientes = () => {
+        setPrintData({
+            type: 'master_list',
+            payload: {
+                title: 'Listado Maestro de Clientes',
+                headers: ['Código', 'Nombre / Razón Social', 'CUIT', 'Tipo de Cliente', 'Dirección'],
+                rows: filteredAndSortedClientes.map(c => ({
+                    codigo: c.codigo || 'CLI',
+                    nombre: c.nombre || c.razon_social || '',
+                    cuit: c.cuit || '',
+                    tipo: c.tipo || '',
+                    direccion: c.direccion || ''
+                }))
+            }
+        });
+    };
+
+    const handlePrintEmpaques = () => {
+        setPrintData({
+            type: 'master_list',
+            payload: {
+                title: 'Listado Maestro de Empaques',
+                headers: ['Código SKU', 'Nombre del Material', 'Presentación', 'Costo Estándar / Unidad'],
+                rows: filteredAndSortedEmpaques.map(e => ({
+                    codigo: e.codigo || 'EMP',
+                    nombre: e.name || '',
+                    presentacion: e.unidad_compra || 'unidad',
+                    costo: `$${Number(e.costo_estandar || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                }))
+            }
+        });
+    };
 
     // Filtros y Ordenamiento
     const [provSearch, setProvSearch] = useState('');
@@ -340,7 +410,7 @@ export default function MasterDataView({ ingredients, setIngredients, providers,
                             />
                         </div>
                         <Button 
-                            onClick={() => window.print()} 
+                            onClick={handlePrintProviders} 
                             variant="secondary" 
                             className="w-full md:w-auto py-2 px-4 flex items-center justify-center gap-1.5 text-xs font-black uppercase"
                         >
@@ -442,7 +512,7 @@ export default function MasterDataView({ ingredients, setIngredients, providers,
                             />
                         </div>
                         <Button 
-                            onClick={() => window.print()} 
+                            onClick={handlePrintIngredients} 
                             variant="secondary" 
                             className="w-full md:w-auto py-2 px-4 flex items-center justify-center gap-1.5 text-xs font-black uppercase"
                         >
@@ -581,7 +651,7 @@ export default function MasterDataView({ ingredients, setIngredients, providers,
                             />
                         </div>
                         <Button 
-                            onClick={() => window.print()} 
+                            onClick={handlePrintClientes} 
                             variant="secondary" 
                             className="w-full md:w-auto py-2 px-4 flex items-center justify-center gap-1.5 text-xs font-black uppercase"
                         >
@@ -702,7 +772,7 @@ export default function MasterDataView({ ingredients, setIngredients, providers,
                             />
                         </div>
                         <Button 
-                            onClick={() => window.print()} 
+                            onClick={handlePrintEmpaques} 
                             variant="secondary" 
                             className="w-full md:w-auto py-2 px-4 flex items-center justify-center gap-1.5 text-xs font-black uppercase"
                         >
@@ -779,30 +849,13 @@ export default function MasterDataView({ ingredients, setIngredients, providers,
                 onSuccess={{ setProviders, setClientes, setIngredients }}
             />
 
-            {/* ESTILO DE IMPRESIÓN */}
-            <style>{`
-                @media print {
-                    body * {
-                        visibility: hidden;
-                    }
-                    #printable-list-container, #printable-list-container * {
-                        visibility: visible;
-                    }
-                    #printable-list-container {
-                        position: absolute;
-                        left: 0;
-                        top: 0;
-                        width: 100%;
-                        margin: 0;
-                        padding: 0;
-                        border: none !important;
-                        box-shadow: none !important;
-                    }
-                    .print\:hidden {
-                        display: none !important;
-                    }
-                }
-            `}</style>
+            <PrintPreviewModal
+                isOpen={!!printData}
+                onClose={() => setPrintData(null)}
+                type={printData?.type}
+                data={printData?.payload}
+                theme={theme}
+            />
         </div>
     );
 }

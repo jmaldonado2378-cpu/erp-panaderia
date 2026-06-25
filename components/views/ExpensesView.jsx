@@ -3,18 +3,32 @@ import React, { useState, useMemo } from 'react';
 import { 
     DollarSign, ArrowUpRight, ArrowDownRight, ClipboardList, 
     Plus, History, TrendingUp, Calendar, Tag, ShieldAlert,
-    CheckCircle2, CreditCard, Landmark, ReceiptText 
+    CheckCircle2, CreditCard, Landmark, ReceiptText, Edit2, Trash2, X
 } from 'lucide-react';
 import { Card, Button, Input, Select } from '../bakery_erp';
 import { supabase } from '../../lib/supabase';
 
+const parseDecimal = (val) => {
+    if (val === null || val === undefined || val === '') return null;
+    if (typeof val === 'number') return val;
+    const clean = val.toString().replace(/,/g, '.').trim();
+    const parsed = parseFloat(clean);
+    return isNaN(parsed) ? null : parsed;
+};
+
+const parseDecimalOrZero = (val) => {
+    const res = parseDecimal(val);
+    return res === null ? 0 : res;
+};
+
 export default function ExpensesView({ 
-    expenses = [], addExpense, 
+    expenses = [], addExpense, updateExpense, deleteExpense,
     providers = [], pagosProveedores = [], setPagosProveedores,
     ventas = [], showToast 
 }) {
     const [tab, setTab] = useState('general'); // 'general', 'proveedores', 'caja'
     const [saving, setSaving] = useState(false);
+    const [editingExpense, setEditingExpense] = useState(null);
 
     // Formulario de Egreso General
     const [expenseForm, setExpenseForm] = useState({
@@ -32,19 +46,27 @@ export default function ExpensesView({
 
     const handleSaveExpense = async (e) => {
         e.preventDefault();
-        if (!expenseForm.monto || Number(expenseForm.monto) <= 0) {
+        const parsedMonto = parseDecimalOrZero(expenseForm.monto);
+        if (!expenseForm.monto || parsedMonto <= 0) {
             showToast("Monto inválido", "error");
             return;
         }
         setSaving(true);
         const newExp = {
             categoria: expenseForm.categoria,
-            monto: Number(expenseForm.monto),
+            monto: parsedMonto,
             fecha: expenseForm.fecha,
             descripcion: expenseForm.descripcion
         };
-        if (addExpense) {
-            await addExpense(newExp);
+        if (editingExpense) {
+            if (updateExpense) {
+                await updateExpense(editingExpense.id, newExp, editingExpense);
+            }
+            setEditingExpense(null);
+        } else {
+            if (addExpense) {
+                await addExpense(newExp);
+            }
         }
         setExpenseForm({
             categoria: 'Salarios',
@@ -53,6 +75,34 @@ export default function ExpensesView({
             descripcion: ''
         });
         setSaving(false);
+    };
+
+    const handleStartEdit = (exp) => {
+        setEditingExpense(exp);
+        setExpenseForm({
+            categoria: exp.categoria,
+            monto: exp.monto.toString(),
+            fecha: exp.fecha,
+            descripcion: exp.descripcion || ''
+        });
+    };
+
+    const handleCancelEdit = () => {
+        setEditingExpense(null);
+        setExpenseForm({
+            categoria: 'Salarios',
+            monto: '',
+            fecha: new Date().toISOString().split('T')[0],
+            descripcion: ''
+        });
+    };
+
+    const handleDeleteExpense = async (exp) => {
+        if (window.confirm("¿Está seguro de eliminar este egreso? Esta acción se registrará en el historial de auditoría.")) {
+            if (deleteExpense) {
+                await deleteExpense(exp.id, exp);
+            }
+        }
     };
 
     // Pagar una factura de proveedor directamente (Cierra la deuda e inserta un pago)
@@ -191,7 +241,15 @@ export default function ExpensesView({
                     {/* Cargar egreso */}
                     <Card className="p-6 border border-slate-200 bg-white h-max">
                         <h4 className="text-sm font-black uppercase mb-4 italic text-slate-800 border-b pb-2 flex items-center gap-1.5">
-                            <Plus size={16} className="text-orange-600" /> Registrar Gasto Operativo
+                            {editingExpense ? (
+                                <>
+                                    <Edit2 size={16} className="text-amber-500" /> Editar Gasto Operativo
+                                </>
+                            ) : (
+                                <>
+                                    <Plus size={16} className="text-orange-600" /> Registrar Gasto Operativo
+                                </>
+                            )}
                         </h4>
                         <form onSubmit={handleSaveExpense} className="space-y-4">
                             <Select 
@@ -226,9 +284,21 @@ export default function ExpensesView({
                                     onChange={e => setExpenseForm({ ...expenseForm, descripcion: e.target.value })}
                                 />
                             </div>
-                            <Button type="submit" variant="primary" className="w-full py-2.5" disabled={saving}>
-                                {saving ? 'Registrando...' : 'Registrar Egreso'}
-                            </Button>
+                            <div className="flex flex-col gap-2">
+                                <Button type="submit" variant={editingExpense ? "warning" : "primary"} className="w-full py-2.5" disabled={saving}>
+                                    {saving ? 'Guardando...' : (editingExpense ? 'Guardar Cambios' : 'Registrar Egreso')}
+                                </Button>
+                                {editingExpense && (
+                                    <Button 
+                                        type="button" 
+                                        variant="secondary" 
+                                        className="w-full py-2 flex items-center justify-center gap-1"
+                                        onClick={handleCancelEdit}
+                                    >
+                                        <X size={14} /> Cancelar Edición
+                                    </Button>
+                                )}
+                            </div>
                         </form>
                     </Card>
 
@@ -245,6 +315,7 @@ export default function ExpensesView({
                                         <th className="px-4 py-3">Categoría</th>
                                         <th className="px-4 py-3">Detalle</th>
                                         <th className="px-4 py-3 text-right">Monto</th>
+                                        <th className="px-4 py-3 text-center">Acciones</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100 font-bold text-xs bg-white text-slate-700">
@@ -262,10 +333,30 @@ export default function ExpensesView({
                                             <td className="px-4 py-3 text-right font-mono text-rose-600 text-sm">
                                                 ${Number(e.monto).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
                                             </td>
+                                            <td className="px-4 py-3 text-center">
+                                                <div className="flex items-center justify-center gap-1">
+                                                    <button 
+                                                        type="button"
+                                                        onClick={() => handleStartEdit(e)}
+                                                        className="p-1 hover:bg-slate-100 rounded text-amber-500 transition-colors"
+                                                        title="Editar Egreso"
+                                                    >
+                                                        <Edit2 size={13} />
+                                                    </button>
+                                                    <button 
+                                                        type="button"
+                                                        onClick={() => handleDeleteExpense(e)}
+                                                        className="p-1 hover:bg-rose-50 rounded text-rose-600 transition-colors"
+                                                        title="Eliminar Egreso"
+                                                    >
+                                                        <Trash2 size={13} />
+                                                    </button>
+                                                </div>
+                                            </td>
                                         </tr>
                                     ))}
                                     {expenses.length === 0 && (
-                                        <tr><td colSpan="4" className="text-center py-8 text-slate-400 italic">No hay egresos generales registrados.</td></tr>
+                                        <tr><td colSpan="5" className="text-center py-8 text-slate-400 italic">No hay egresos generales registrados.</td></tr>
                                     )}
                                 </tbody>
                             </table>

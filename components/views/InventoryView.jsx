@@ -8,6 +8,7 @@ import {
 import { Card, Button, Input } from '../bakery_erp';
 import { supabase } from '../../lib/supabase';
 import { useGlobalContext } from '../context/GlobalContext';
+import PrintPreviewModal from '../PrintPreviewModal';
 
 // Unifica la misma función de formato que PurchasesView
 const fmtCantidad = (cantidad, unidad_base = 'g') => {
@@ -36,7 +37,7 @@ export default function InventoryView({
     const [showLogs, setShowLogs] = useState(false);
     const [expandedRows, setExpandedRows] = useState({});
     const [expandedPTRows, setExpandedPTRows] = useState({});
-    const [printedLabel, setPrintedLabel] = useState(null);
+    const [printData, setPrintData] = useState(null);
 
     // ── CONFIGURACIÓN DE COSTO HORA HOMBRE ──
     const COSTO_HORA_HOMBRE = 4500;
@@ -422,13 +423,51 @@ export default function InventoryView({
     };
 
     const triggerPrintPT = (lot) => {
-        setPrintedLabel({
-            title: lot.productoNombre,
-            sku: lot.codigo,
-            lote: lot.codigoLote,
-            peso: lot.unidad === 'Kg' ? `${lot.cantidad.toLocaleString('es-AR', { maximumFractionDigits: 3 })} Kg` : `${lot.cantidad.toLocaleString('es-AR')} U`,
-            vencimiento: new Date(lot.vencimiento).toLocaleDateString('es-AR'),
-            sector: lot.tipo
+        setPrintData({
+            type: 'label',
+            payload: {
+                title: lot.productoNombre,
+                sku: lot.codigo,
+                lote: lot.codigoLote,
+                peso: lot.unidad === 'Kg' ? `${lot.cantidad.toLocaleString('es-AR', { maximumFractionDigits: 3 })} Kg` : `${lot.cantidad.toLocaleString('es-AR')} U`,
+                vencimiento: new Date(lot.vencimiento).toLocaleDateString('es-AR'),
+                sector: lot.tipo
+            }
+        });
+    };
+
+    const handlePrintChecklist = () => {
+        const checklistItems = [];
+        if (activeTab === 'insumos') {
+            groupedLots.forEach(g => {
+                g.lots.forEach(l => {
+                    checklistItems.push({
+                        sku: l.codigo_lote?.slice(0, 10) || 'RAW',
+                        name: g.ingredientName,
+                        lote: l.codigo_lote || 'S/L',
+                        stock: l.amount,
+                        unidad: l.unidad || 'g'
+                    });
+                });
+            });
+        } else {
+            groupedPT.forEach(g => {
+                g.lots.forEach(l => {
+                    checklistItems.push({
+                        sku: l.codigo || 'PT',
+                        name: l.productoNombre,
+                        lote: l.codigoLote,
+                        stock: l.cantidad,
+                        unidad: l.unidad
+                    });
+                });
+            });
+        }
+        setPrintData({
+            type: 'inventory_sheet',
+            payload: {
+                items: checklistItems
+            }
         });
     };
 
@@ -482,7 +521,7 @@ export default function InventoryView({
                     {activeTab === 'insumos' && (
                         <Button variant="secondary" onClick={cargarHistorial}><RotateCcw size={14} /> Historial</Button>
                     )}
-                    <Button variant="primary" onClick={() => window.print()}><Printer size={14} /> Planilla Control</Button>
+                    <Button variant="primary" onClick={handlePrintChecklist}><Printer size={14} /> Planilla Control</Button>
                 </div>
             </div>
 
@@ -784,52 +823,13 @@ export default function InventoryView({
                 </div>
             )}
 
-            {/* VISTA DE ETIQUETA IMPRIMIBLE DE PRODUCTOS TERMINADOS (MODAL FLOTANTE) */}
-            {printedLabel && (
-                <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex justify-center items-center p-4 print:p-0 print:static print:bg-white print:z-auto">
-                    <div className="bg-white border-[12px] border-slate-900 rounded-[2.5rem] p-10 max-w-sm w-full text-center shadow-2xl print:border-none print:shadow-none print:rounded-none print:p-0">
-                        <div className="border-b-[6px] border-slate-900 pb-4 mb-6">
-                            <h2 className="text-2xl font-black uppercase tracking-tight text-slate-900 leading-tight">{printedLabel.title}</h2>
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">PRODUCTO LISTO PARA DESPACHO DSD</p>
-                        </div>
-
-                        <div className="space-y-3 text-left border-b border-dashed pb-6 mb-6">
-                            <div className="flex justify-between text-xs">
-                                <span className="text-slate-400 font-bold uppercase">Sector:</span>
-                                <span className="font-black text-slate-800 uppercase text-[10px]">{printedLabel.sector}</span>
-                            </div>
-                            <div className="flex justify-between text-xs">
-                                <span className="text-slate-400 font-bold uppercase">SKU:</span>
-                                <span className="font-mono font-black text-slate-800">{printedLabel.sku}</span>
-                            </div>
-                            <div className="flex justify-between text-xs">
-                                <span className="text-slate-400 font-bold uppercase">Lote PT:</span>
-                                <span className="font-mono font-black text-blue-700">{printedLabel.lote}</span>
-                            </div>
-                            <div className="flex justify-between text-xs">
-                                <span className="text-slate-400 font-bold uppercase">Existencia:</span>
-                                <span className="font-mono font-black text-slate-900">{printedLabel.peso}</span>
-                            </div>
-                            <div className="flex justify-between text-xs">
-                                <span className="text-slate-400 font-bold uppercase">Vencimiento:</span>
-                                <span className="font-mono font-black text-red-600">{printedLabel.vencimiento}</span>
-                            </div>
-                        </div>
-
-                        <div className="flex flex-col items-center justify-center gap-3">
-                            <div className="border border-slate-200 p-3 rounded-2xl bg-slate-50 flex items-center justify-center">
-                                <QrCode size={120} className="text-slate-800" />
-                            </div>
-                            <p className="text-[8px] font-mono text-slate-400 uppercase">Escanear para Picking FEFO</p>
-                        </div>
-
-                        <div className="flex gap-3 justify-end mt-8 pt-4 border-t print:hidden">
-                            <Button onClick={() => window.print()} variant="success">Imprimir</Button>
-                            <Button onClick={() => setPrintedLabel(null)} variant="secondary">Cerrar</Button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <PrintPreviewModal
+                isOpen={!!printData}
+                onClose={() => setPrintData(null)}
+                type={printData?.type}
+                data={printData?.payload}
+                theme={theme}
+            />
         </div>
     );
 }

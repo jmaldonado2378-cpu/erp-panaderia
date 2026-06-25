@@ -986,6 +986,22 @@ export const GlobalProvider = ({ children }) => {
         showToast("Stock ajustado correctamente.");
     };
 
+    const logAuditAction = async (modulo, accion, descripcion, valoresAnteriores = null, valoresNuevos = null) => {
+        try {
+            const { error } = await supabase.from('audit_logs').insert([{
+                usuario: currentRole || 'admin',
+                modulo,
+                accion,
+                descripcion,
+                valores_anteriores: valoresAnteriores,
+                valores_nuevos: valoresNuevos
+            }]);
+            if (error) throw error;
+        } catch (err) {
+            console.warn("Fallo persistencia de auditoría (logs):", err?.message || err);
+        }
+    };
+
     // ── EGRESOS VARIOS ─────────────────────────────────────────────
     const addExpense = async (expense) => {
         try {
@@ -994,11 +1010,110 @@ export const GlobalProvider = ({ children }) => {
             const savedExpense = data && data[0] ? data[0] : { id: 'exp_' + Date.now(), ...expense };
             setExpenses(prev => [savedExpense, ...prev]);
             showToast("Egreso registrado correctamente.");
+            await logAuditAction('Egresos', 'CREAR', `Egreso registrado: ${expense.categoria} por $${expense.monto}`, null, savedExpense);
         } catch (err) {
             console.warn("Fallo persistencia, guardando localmente:", err?.message || err);
             const localExpense = { id: 'exp_' + Date.now(), ...expense };
             setExpenses(prev => [localExpense, ...prev]);
             showToast("✅ Egreso guardado localmente (Offline)");
+        }
+    };
+
+    const updateExpense = async (id, expense, oldExpense) => {
+        try {
+            if (id.toString().startsWith('exp_')) {
+                throw new Error("Local ID - No se puede actualizar en la base de datos.");
+            }
+            const { error } = await supabase.from('egresos_varios').update(expense).eq('id', id);
+            if (error) throw error;
+            setExpenses(prev => prev.map(e => e.id === id ? { ...e, ...expense } : e));
+            showToast("Egreso actualizado correctamente.");
+            await logAuditAction('Egresos', 'EDITAR', `Egreso editado: ${expense.categoria} por $${expense.monto}`, oldExpense, expense);
+        } catch (err) {
+            console.warn("Fallo actualización de egreso:", err?.message || err);
+            setExpenses(prev => prev.map(e => e.id === id ? { ...e, ...expense } : e));
+            showToast("Actualizado localmente (Offline)");
+        }
+    };
+
+    const deleteExpense = async (id, oldExpense) => {
+        try {
+            if (!id.toString().startsWith('exp_')) {
+                const { error } = await supabase.from('egresos_varios').delete().eq('id', id);
+                if (error) throw error;
+            }
+            setExpenses(prev => prev.filter(e => e.id !== id));
+            showToast("Egreso eliminado.", "error");
+            await logAuditAction('Egresos', 'ELIMINAR', `Egreso eliminado: ID ${id}`, oldExpense, null);
+        } catch (err) {
+            console.error("Error eliminando egreso:", err?.message || err);
+            showToast("Error BD: " + (err?.message || err), "error");
+        }
+    };
+
+    // ── DEUDAS CLIENTE (VENTAS Y COBROS) ────────────────────────────
+    const updateVenta = async (id, ventaData, oldVenta) => {
+        try {
+            if (id.toString().startsWith('v_') || id.toString().startsWith('FAC-')) {
+                throw new Error("Local/Auto ID - No se puede actualizar en la base de datos.");
+            }
+            const { error } = await supabase.from('deudas_cliente').update(ventaData).eq('id', id);
+            if (error) throw error;
+            setVentas(prev => prev.map(v => v.id === id ? { ...v, ...ventaData } : v));
+            showToast("Movimiento de cliente actualizado.");
+            await logAuditAction('Cuentas Clientes', 'EDITAR', `Movimiento editado: ID ${id}`, oldVenta, ventaData);
+        } catch (err) {
+            console.warn("Fallo actualización de movimiento cliente:", err?.message || err);
+            setVentas(prev => prev.map(v => v.id === id ? { ...v, ...ventaData } : v));
+            showToast("Actualizado localmente (Offline)");
+        }
+    };
+
+    const deleteVenta = async (id, oldVenta) => {
+        try {
+            if (!id.toString().startsWith('v_') && !id.toString().startsWith('FAC-')) {
+                const { error } = await supabase.from('deudas_cliente').delete().eq('id', id);
+                if (error) throw error;
+            }
+            setVentas(prev => prev.filter(v => v.id !== id));
+            showToast("Movimiento de cliente eliminado.", "error");
+            await logAuditAction('Cuentas Clientes', 'ELIMINAR', `Movimiento eliminado: ID ${id}`, oldVenta, null);
+        } catch (err) {
+            console.error("Error eliminando movimiento cliente:", err?.message || err);
+            showToast("Error BD: " + (err?.message || err), "error");
+        }
+    };
+
+    // ── DEUDAS PROVEEDOR (PAGOS Y COMPRAS) ──────────────────────────
+    const updatePagoProveedor = async (id, pagoData, oldPago) => {
+        try {
+            if (id.toString().startsWith('pay_')) {
+                throw new Error("Local ID - No se puede actualizar en la base de datos.");
+            }
+            const { error } = await supabase.from('deudas_proveedor').update(pagoData).eq('id', id);
+            if (error) throw error;
+            setPagosProveedores(prev => prev.map(p => p.id === id ? { ...p, ...pagoData } : p));
+            showToast("Movimiento de proveedor actualizado.");
+            await logAuditAction('Cuentas Proveedores', 'EDITAR', `Movimiento editado: ID ${id}`, oldPago, pagoData);
+        } catch (err) {
+            console.warn("Fallo actualización de movimiento proveedor:", err?.message || err);
+            setPagosProveedores(prev => prev.map(p => p.id === id ? { ...p, ...pagoData } : p));
+            showToast("Actualizado localmente (Offline)");
+        }
+    };
+
+    const deletePagoProveedor = async (id, oldPago) => {
+        try {
+            if (!id.toString().startsWith('pay_')) {
+                const { error } = await supabase.from('deudas_proveedor').delete().eq('id', id);
+                if (error) throw error;
+            }
+            setPagosProveedores(prev => prev.filter(p => p.id !== id));
+            showToast("Movimiento de proveedor eliminado.", "error");
+            await logAuditAction('Cuentas Proveedores', 'ELIMINAR', `Movimiento eliminado: ID ${id}`, oldPago, null);
+        } catch (err) {
+            console.error("Error eliminando movimiento proveedor:", err?.message || err);
+            showToast("Error BD: " + (err?.message || err), "error");
         }
     };
 
@@ -1095,8 +1210,8 @@ export const GlobalProvider = ({ children }) => {
             deletePedidoConsolidado,
 
             // Finanzas
-            ventas, setVentas,
-            pagosProveedores, setPagosProveedores,
+            ventas, setVentas, updateVenta, deleteVenta,
+            pagosProveedores, setPagosProveedores, updatePagoProveedor, deletePagoProveedor,
 
             // Charcutería
             charcRecetas, setCharcRecetas, addCharcReceta, updateCharcReceta, deleteCharcReceta,
@@ -1112,7 +1227,7 @@ export const GlobalProvider = ({ children }) => {
             reventaLotes, setReventaLotes, addReventaLote, addStockReventaLote,
 
             // Egresos Varios
-            expenses, setExpenses, addExpense,
+            expenses, setExpenses, addExpense, updateExpense, deleteExpense,
 
             // Otros
             qualityLogs, setQualityLogs,

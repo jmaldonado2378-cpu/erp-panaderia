@@ -4,7 +4,7 @@ import ExpensesView from '../../../components/views/ExpensesView';
 
 export default function ExpensesPage() {
     const { 
-        expenses, addExpense, 
+        expenses, addExpense, updateExpense, deleteExpense,
         providers, pagosProveedores, setPagosProveedores,
         ventas, showToast 
     } = useGlobalContext();
@@ -13,6 +13,8 @@ export default function ExpensesPage() {
         <ExpensesView 
             expenses={expenses}
             addExpense={addExpense}
+            updateExpense={updateExpense}
+            deleteExpense={deleteExpense}
             providers={providers}
             pagosProveedores={pagosProveedores}
             setPagosProveedores={setPagosProveedores}

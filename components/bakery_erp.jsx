@@ -160,16 +160,25 @@ export default function ERPLayout({ children }) {
                         : 'bg-slate-950 text-white shadow-2xl z-10 border-r border-slate-900'
                 }`}>
                     {isMaldonado ? (
-                        <div className="h-24 flex flex-col justify-center items-center px-4 border-b border-[#1a1a1a] mb-2 select-none">
-                            <h1 className="font-sans text-[#e2c97d] text-lg font-bold tracking-wide text-center">Sistema Casa Maldonado</h1>
-                            <span className="text-[9px] text-[#8a8a8a] font-sans tracking-[0.2em] uppercase mt-1">Taller Artesanal</span>
+                        <div className="py-4 flex flex-col justify-center items-center px-4 border-b border-[#1a1a1a] mb-2 select-none">
+                            <img 
+                                src="/logo.png" 
+                                alt="Logo" 
+                                className="h-16 w-16 object-contain rounded-full border border-[#e2c97d]/30 mb-2 shadow-lg"
+                            />
+                            <h1 className="font-sans text-[#e2c97d] text-sm font-bold tracking-wide text-center leading-none">Casa Maldonado</h1>
+                            <span className="text-[8px] text-[#8a8a8a] font-sans tracking-[0.2em] uppercase mt-1">A Lareira</span>
                         </div>
                     ) : (
                         <div className="p-6 border-b border-slate-900 flex items-center gap-3 mb-2">
-                            <div className="bg-orange-600 p-2 rounded-xl text-white"><Factory size={20} /></div>
+                            <img 
+                                src="/logo.png" 
+                                alt="Logo" 
+                                className="h-10 w-10 object-contain rounded-full border border-slate-700 shadow"
+                            />
                             <div className="overflow-hidden">
-                                <h1 className="text-xl font-black italic uppercase leading-none truncate max-w-[140px]">{config?.companyName || 'ERP'}</h1>
-                                <p className="text-orange-500 text-[9px] font-black uppercase tracking-widest mt-1 truncate">{config?.appName || 'MES'}</p>
+                                <h1 className="text-base font-black italic uppercase leading-none truncate max-w-[140px]">Casa Maldonado</h1>
+                                <p className="text-orange-500 text-[8px] font-black uppercase tracking-widest mt-1 truncate">A Lareira</p>
                             </div>
                         </div>
                     )}
