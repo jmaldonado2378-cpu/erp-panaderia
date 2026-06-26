@@ -164,7 +164,7 @@ export default function ERPLayout({ children }) {
                             <img 
                                 src="/logo.png" 
                                 alt="Logo" 
-                                className="h-16 w-16 object-contain rounded-full border border-[#e2c97d]/30 mb-2 shadow-lg"
+                                className="h-16 w-16 object-contain rounded-full border border-[#e2c97d]/30 mb-2 shadow-lg invert"
                             />
                             <h1 className="font-sans text-[#e2c97d] text-sm font-bold tracking-wide text-center leading-none">Casa Maldonado</h1>
                             <span className="text-[8px] text-[#8a8a8a] font-sans tracking-[0.2em] uppercase mt-1">A Lareira</span>
@@ -174,7 +174,7 @@ export default function ERPLayout({ children }) {
                             <img 
                                 src="/logo.png" 
                                 alt="Logo" 
-                                className="h-10 w-10 object-contain rounded-full border border-slate-700 shadow"
+                                className="h-10 w-10 object-contain rounded-full border border-slate-700 shadow invert"
                             />
                             <div className="overflow-hidden">
                                 <h1 className="text-base font-black italic uppercase leading-none truncate max-w-[140px]">Casa Maldonado</h1>

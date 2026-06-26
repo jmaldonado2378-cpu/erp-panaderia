@@ -14,12 +14,13 @@ export default function PrintPreviewModal({
     data, // Data payload specific to the type
     theme: appTheme = 'maldonado-contraste'
 }) {
-    const [pageSize, setPageSize] = useState('a4'); // 'a4' | '80mm' | '58mm'
+    const [pageSize, setPageSize] = useState('a4'); // 'a4' | '80mm' | '58mm' | '48mm'
     const [showLogo, setShowLogo] = useState(true);
     const [showSignatures, setShowSignatures] = useState(true);
     const [fontSize, setFontSize] = useState('md'); // 'sm' | 'md' | 'lg'
     const [printStyle, setPrintStyle] = useState('artisan'); // 'artisan' (Casa Maldonado serif/sans) | 'industrial' (B&N high contrast) | 'mono' (monospace)
     const [qrSize, setQrSize] = useState('md'); // 'sm' | 'md' | 'lg'
+    const [qrCodeUrl, setQrCodeUrl] = useState('');
 
     useEffect(() => {
         // Auto-select page size based on print type
@@ -31,6 +32,40 @@ export default function PrintPreviewModal({
             setPrintStyle('artisan');
         }
     }, [type, data]);
+
+    useEffect(() => {
+        if (pageSize === '48mm' || pageSize === '58mm') {
+            setFontSize('sm');
+        } else {
+            setFontSize('md');
+        }
+    }, [pageSize]);
+
+    useEffect(() => {
+        if (!data) return;
+        let qrText = '';
+        if (type === 'label') {
+            qrText = `LOTE: ${data.lote || ''}\nSKU: ${data.sku || ''}\nPRODUCTO: ${data.title || ''}\nVENC: ${data.vencimiento || ''}`;
+        } else if (type === 'production_order') {
+            qrText = `ORDEN: ${data.codigo_orden || ''}\nRECETA: ${data.receta_nombre || ''}\nCANT: ${data.meta_cantidad || ''} ${data.meta_unidad || ''}`;
+        } else {
+            try {
+                qrText = typeof data === 'object' ? JSON.stringify(data).substring(0, 150) : String(data);
+            } catch (e) {
+                qrText = 'Casa Maldonado';
+            }
+        }
+
+        import('qrcode').then(QRCode => {
+            QRCode.toDataURL(qrText, { 
+                margin: 1, 
+                scale: 4,
+                errorCorrectionLevel: 'M'
+            })
+            .then(url => setQrCodeUrl(url))
+            .catch(err => console.error('Error generating QR:', err));
+        }).catch(err => console.error('Failed to load qrcode library:', err));
+    }, [data, type]);
 
     if (!isOpen || !data) return null;
 
@@ -82,61 +117,93 @@ export default function PrintPreviewModal({
 
     // RENDER: Label Content
     const renderLabel = (labelData) => {
-        const qrDimensions = qrSize === 'sm' ? 64 : qrSize === 'md' ? 96 : 128;
+        const getQrDimensions = () => {
+            const base = pageSize === '48mm' ? 44 : pageSize === '58mm' ? 68 : 96;
+            if (qrSize === 'sm') return base - 12;
+            if (qrSize === 'lg') return base + 20;
+            return base;
+        };
+        const qrDimensions = getQrDimensions();
+        const paddingClass = pageSize === '48mm' ? 'p-2 text-center select-none bg-white text-black' : pageSize === '58mm' ? 'p-3 text-center select-none bg-white text-black' : 'p-4 text-center select-none bg-white text-black';
+        const logoSize = pageSize === '48mm' ? 'h-8 w-8' : pageSize === '58mm' ? 'h-10 w-10' : 'h-12 w-12';
+        const spaceClass = pageSize === '48mm' ? 'space-y-0.5 text-left border-b border-dashed border-slate-300 pb-1.5 mb-1.5' : 'space-y-1.5 text-left border-b border-dashed border-slate-300 pb-3 mb-3';
+        const titleFont = pageSize === '48mm' ? 'text-[11px] leading-tight font-black uppercase text-slate-900' : pageSize === '58mm' ? 'text-xs leading-tight font-black uppercase text-slate-900' : `${s.title} font-black uppercase leading-tight text-slate-900`;
+        const labelLabelSize = pageSize === '48mm' ? 'text-[8px] font-bold uppercase tracking-wider text-slate-400' : 'text-[10px] text-slate-400 font-bold uppercase tracking-wider';
+        const labelValSize = pageSize === '48mm' ? 'text-[9px] font-mono font-black text-slate-800' : 'text-[10px] font-mono font-black text-slate-800';
+        const labelValSizeLote = pageSize === '48mm' ? 'text-[9px] font-mono font-black text-slate-900 bg-slate-100 px-0.5 rounded' : 'text-[10px] font-mono font-black text-slate-900 bg-slate-100 px-1 rounded';
+        
         return (
-            <div className={`p-4 text-center select-none ${fontClass} text-black bg-white`}>
+            <div className={`${paddingClass} ${fontClass}`}>
                 {showLogo && (
-                    <div className="flex flex-col items-center justify-center border-b border-dashed border-slate-300 pb-2 mb-3">
+                    <div className={`flex flex-col items-center justify-center border-b border-dashed border-slate-300 pb-1 ${pageSize === '48mm' ? 'mb-1.5' : 'mb-3'}`}>
                         <img 
                             src="/logo.png" 
                             alt="Casa Maldonado Logo" 
-                            className={`h-12 w-12 object-contain rounded-full border border-slate-200 ${
+                            className={`${logoSize} object-contain rounded-full border border-slate-200 ${
                                 printStyle === 'industrial' || printStyle === 'mono' ? 'grayscale contrast-200 brightness-95' : ''
                             }`}
                         />
-                        <span className="text-[8px] text-slate-400 font-mono tracking-widest uppercase mt-1">Casa Maldonado — A Lareira</span>
+                        {pageSize !== '48mm' && (
+                            <span className="text-[8px] text-slate-400 font-mono tracking-widest uppercase mt-1">Casa Maldonado — A Lareira</span>
+                        )}
                     </div>
                 )}
                 
-                <div className={`${headerBorderClass} pb-2 mb-3`}>
-                    <h2 className={`${s.title} font-black uppercase leading-tight text-slate-900`}>{labelData.title}</h2>
-                    {labelData.sector && (
+                <div className={`${headerBorderClass} ${pageSize === '48mm' ? 'pb-1 mb-1.5' : 'pb-2 mb-3'}`}>
+                    <h2 className={titleFont}>{labelData.title}</h2>
+                    {labelData.sector && pageSize !== '48mm' && (
                         <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest mt-0.5">Sector: {labelData.sector}</p>
                     )}
                 </div>
 
-                <div className="space-y-1.5 text-left border-b border-dashed border-slate-300 pb-3 mb-3">
-                    <div className="flex justify-between items-center text-[10px]">
-                        <span className="text-slate-400 font-bold uppercase tracking-wider">SKU:</span>
-                        <span className="font-mono font-black text-slate-800">{labelData.sku}</span>
+                <div className={spaceClass}>
+                    <div className="flex justify-between items-center">
+                        <span className={labelLabelSize}>SKU:</span>
+                        <span className={labelValSize}>{labelData.sku}</span>
                     </div>
-                    <div className="flex justify-between items-center text-[10px]">
-                        <span className="text-slate-400 font-bold uppercase tracking-wider">Lote:</span>
-                        <span className="font-mono font-black text-slate-900 bg-slate-100 px-1 rounded">{labelData.lote}</span>
+                    <div className="flex justify-between items-center">
+                        <span className={labelLabelSize}>Lote:</span>
+                        <span className={labelValSizeLote}>{labelData.lote}</span>
                     </div>
-                    <div className="flex justify-between items-center text-[10px]">
-                        <span className="text-slate-400 font-bold uppercase tracking-wider">Cantidad:</span>
-                        <span className="font-mono font-black text-slate-900">{labelData.peso}</span>
+                    <div className="flex justify-between items-center">
+                        <span className={labelLabelSize}>Cantidad:</span>
+                        <span className={labelValSize}>{labelData.peso}</span>
                     </div>
                     {labelData.ingreso && (
-                        <div className="flex justify-between items-center text-[10px]">
-                            <span className="text-slate-400 font-bold uppercase tracking-wider">Envasado:</span>
-                            <span className="font-mono font-bold text-slate-700">{labelData.ingreso}</span>
+                        <div className="flex justify-between items-center">
+                            <span className={labelLabelSize}>Envasado:</span>
+                            <span className={labelValSize}>{labelData.ingreso}</span>
                         </div>
                     )}
-                    <div className="flex justify-between items-center text-[10px]">
-                        <span className="text-slate-400 font-bold uppercase tracking-wider">Vencimiento:</span>
-                        <span className="font-mono font-black text-red-600">{labelData.vencimiento}</span>
+                    <div className="flex justify-between items-center">
+                        <span className={labelLabelSize}>Vence:</span>
+                        <span className={`${labelValSize} text-red-650 font-black`}>{labelData.vencimiento}</span>
                     </div>
                 </div>
 
-                <div className="flex flex-col items-center justify-center gap-1.5 mt-2">
-                    <div className="border border-slate-300 p-2 rounded-xl bg-slate-50 flex items-center justify-center">
-                        <QrCode size={qrDimensions} className="text-slate-800" />
+                <div className="flex flex-col items-center justify-center gap-1 mt-1">
+                    <div className="border border-slate-200 p-1 rounded-lg bg-white flex items-center justify-center shadow-sm">
+                        {qrCodeUrl ? (
+                            <img 
+                                src={qrCodeUrl} 
+                                alt="QR Lote" 
+                                style={{ width: `${qrDimensions}px`, height: `${qrDimensions}px` }} 
+                                className="object-contain"
+                            />
+                        ) : (
+                            <div 
+                                style={{ width: `${qrDimensions}px`, height: `${qrDimensions}px` }} 
+                                className="animate-pulse bg-slate-100 flex items-center justify-center text-[7px] text-slate-400 font-mono"
+                            >
+                                Gen...
+                            </div>
+                        )}
                     </div>
-                    <p className="text-[7px] font-mono text-slate-400 uppercase tracking-wider">
-                        Escanear para trazabilidad FEFO
-                    </p>
+                    {pageSize !== '48mm' && pageSize !== '58mm' && (
+                        <p className="text-[6px] font-mono text-slate-400 uppercase tracking-wider mt-0.5">
+                            Escanear para trazabilidad
+                        </p>
+                    )}
                 </div>
             </div>
         );
@@ -242,10 +309,14 @@ export default function PrintPreviewModal({
                     ) : <div className="w-2/3"></div>}
 
                     <div className="text-center">
-                        <div className="border border-slate-300 p-1.5 rounded-lg bg-slate-50 flex items-center justify-center">
-                            <QrCode size={40} className="text-slate-800" />
+                        <div className="border border-slate-200 p-1 rounded bg-white flex items-center justify-center shadow-sm">
+                            {qrCodeUrl ? (
+                                <img src={qrCodeUrl} alt="QR Kanban" className="h-10 w-10 object-contain" />
+                            ) : (
+                                <div className="h-10 w-10 animate-pulse bg-slate-100" />
+                            )}
                         </div>
-                        <p className="text-[6px] font-mono text-slate-400 mt-1 uppercase leading-none">QR KANBAN</p>
+                        <p className="text-[5px] font-mono text-slate-400 mt-1 uppercase leading-none">QR KANBAN</p>
                     </div>
                 </div>
             </div>
@@ -453,6 +524,7 @@ export default function PrintPreviewModal({
     const getPreviewWidthClass = () => {
         if (pageSize === '80mm') return 'w-[302px]'; // 80mm equivalents in web px
         if (pageSize === '58mm') return 'w-[219px]'; // 58mm
+        if (pageSize === '48mm') return 'w-[181px]'; // 48mm
         return 'w-[794px] max-w-full'; // A4 width proportion
     };
 
@@ -491,11 +563,12 @@ export default function PrintPreviewModal({
                         {/* Selector de Tamaño de Papel */}
                         <div className="space-y-1.5">
                             <label className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Formato de Salida</label>
-                            <div className="grid grid-cols-3 gap-2">
+                            <div className="grid grid-cols-2 gap-2">
                                 {[
                                     { id: 'a4', label: 'A4 Hojas' },
                                     { id: '80mm', label: '80 mm' },
-                                    { id: '58mm', label: '58 mm' }
+                                    { id: '58mm', label: '58 mm' },
+                                    { id: '48mm', label: '48 mm (Niimbot)' }
                                 ].map(opt => (
                                     <button
                                         key={opt.id}
@@ -671,8 +744,8 @@ export default function PrintPreviewModal({
                         <div 
                             className={`print-target bg-white shadow-2xl border border-slate-200/60 transition-all rounded ${getPreviewWidthClass()}`}
                             style={{
-                                '--print-width': pageSize === 'a4' ? '210mm' : pageSize === '80mm' ? '80mm' : '58mm',
-                                width: pageSize === 'a4' ? '100%' : pageSize === '80mm' ? '80mm' : '58mm'
+                                '--print-width': pageSize === 'a4' ? '210mm' : pageSize === '80mm' ? '80mm' : pageSize === '58mm' ? '58mm' : '48mm',
+                                width: pageSize === 'a4' ? '100%' : pageSize === '80mm' ? '80mm' : pageSize === '58mm' ? '58mm' : '48mm'
                             }}
                         >
                             {/* Render Dynamic Template based on print type */}
@@ -713,7 +786,7 @@ export default function PrintPreviewModal({
                     
                     /* Page setup for roll/label vs sheet page breaks */
                     @page {
-                        margin: 4mm !important;
+                        margin: ${pageSize === 'a4' ? '10mm' : '0mm'} !important;
                     }
                     
                     /* For thermal roll printers, set auto-height */
